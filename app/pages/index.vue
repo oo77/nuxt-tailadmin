@@ -1,0 +1,43 @@
+<template>
+  <div class="grid grid-cols-12 gap-4 md:gap-6">
+    <div class="col-span-12">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+          eCommerce Dashboard
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+          Welcome to TailAdmin Nuxt 4 Dashboard! This is the main dashboard page.
+        </p>
+      </div>
+    </div>
+    
+    <div class="col-span-12 lg:col-span-6">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+          Monthly Revenue
+        </h2>
+        <p class="text-3xl font-bold text-brand-500">$24,780</p>
+      </div>
+    </div>
+    
+    <div class="col-span-12 lg:col-span-6">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+          Total Orders
+        </h2>
+        <p class="text-3xl font-bold text-success-500">1,234</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+definePageMeta({
+  layout: 'default',
+  title: 'eCommerce Dashboard'
+})
+
+useHead({
+  title: 'eCommerce Dashboard'
+})
+</script>
