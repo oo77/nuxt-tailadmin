@@ -1,7 +1,6 @@
 <template>
-  <component
-    :is="tag"
-    :type="tag === 'button' ? type : undefined"
+  <button
+    :type="type"
     :disabled="disabled || loading"
     :class="[
       'inline-flex items-center justify-center font-medium gap-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2',
@@ -31,7 +30,7 @@
       <component v-if="endIcon" :is="endIcon" />
       <slot v-else name="iconRight" />
     </span>
-  </component>
+  </button>
 </template>
 
 <script setup lang="ts">
@@ -49,7 +48,6 @@ interface ButtonProps {
   className?: string
   disabled?: boolean
   loading?: boolean
-  tag?: 'button' | 'a' | 'NuxtLink'
   type?: 'button' | 'submit' | 'reset'
 }
 
@@ -59,7 +57,6 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   className: '',
   disabled: false,
   loading: false,
-  tag: 'button',
   type: 'button',
 })
 

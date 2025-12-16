@@ -158,10 +158,12 @@ export async function analyzeImportData(rows: ExcelStudentRow[]): Promise<Import
   // Подсчитываем новых и существующих
   let newStudents = 0;
   let existingStudentsCount = 0;
+  const existingPinflsInImport: string[] = []; // ПИНФЛ из импорта которые уже есть в БД
 
   validData.forEach(data => {
     if (existingPinfls.has(data.pinfl)) {
       existingStudentsCount++;
+      existingPinflsInImport.push(data.pinfl);
     } else {
       newStudents++;
     }
@@ -173,6 +175,7 @@ export async function analyzeImportData(rows: ExcelStudentRow[]): Promise<Import
     invalidRows: errors.length,
     newStudents,
     existingStudents: existingStudentsCount,
+    existingPinfls: existingPinflsInImport, // Передаём список существующих ПИНФЛ
     errors,
     preview: validData.slice(0, 20), // Первые 20 строк для предпросмотра
   };

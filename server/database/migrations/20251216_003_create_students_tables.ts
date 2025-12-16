@@ -25,7 +25,7 @@ export const up = async (connection: PoolConnection): Promise<void> => {
       INDEX idx_full_name (full_name),
       INDEX idx_organization (organization),
       INDEX idx_position (position),
-      FULLTEXT INDEX ft_search (full_name, pinfl, organization, position)
+      FULLTEXT INDEX ft_search (full_name, organization, position)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 

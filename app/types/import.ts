@@ -36,6 +36,7 @@ export interface ImportAnalysis {
   invalidRows: number;
   newStudents: number; // Будут созданы
   existingStudents: number; // Будут обновлены
+  existingPinfls: string[]; // Список ПИНФЛ существующих студентов (для отображения статуса)
   errors: Array<{
     rowNumber: number;
     errors: string[];

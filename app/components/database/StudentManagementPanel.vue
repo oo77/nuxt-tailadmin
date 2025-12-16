@@ -509,6 +509,11 @@ const handleSubmit = async (data: CreateStudentData | UpdateStudentData) => {
         if (index !== -1) {
           students.value[index] = response.student;
         }
+        
+        // Показываем уведомление об успехе
+        const notification = useNotification();
+        notification.success('Студент успешно обновлен', 'Успех');
+        
         closeFormModal();
       }
     } else {
@@ -521,11 +526,17 @@ const handleSubmit = async (data: CreateStudentData | UpdateStudentData) => {
       if (response.success) {
         // Перезагружаем данные для корректной пагинации
         await fetchStudents();
+        
+        // Показываем уведомление об успехе
+        const notification = useNotification();
+        notification.success('Студент успешно создан', 'Успех');
+        
         closeFormModal();
       }
     }
   } catch (error) {
     console.error('Ошибка сохранения студента:', error);
+    // Ошибки будут обработаны в StudentFormModal
   }
 };
 

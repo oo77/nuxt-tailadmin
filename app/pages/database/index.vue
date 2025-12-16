@@ -45,10 +45,10 @@
           <DatabaseStudentManagementPanel />
         </div>
 
-        <!-- Другие вкладки (в будущем) -->
-        <div v-show="activeTab === 'courses'" class="p-6">
+        <!-- База инструкторов Tab -->
+        <div v-show="activeTab === 'instructors'" class="p-6">
           <div class="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p class="text-lg font-medium">База курсов</p>
+            <p class="text-lg font-medium">База инструкторов</p>
             <p class="mt-2">Функционал в разработке</p>
           </div>
         </div>
@@ -81,6 +81,11 @@ const tabs = [
   {
     id: 'students',
     label: 'База студентов',
+    disabled: false,
+  },
+  {
+    id: 'instructors',
+    label: 'База инструкторов',
     disabled: false,
   },
   {

@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Validation Error',
         data: {
-          success: false,
+          success: false, 
           message: 'Ошибка валидации данных',
           errors: validation.errors,
         },

@@ -229,6 +229,7 @@ import ListIcon from "~/components/icons/ListIcon.vue";
 import PlugInIcon from "~/components/icons/PlugInIcon.vue";
 import BoxCubeIcon from "~/components/icons/BoxCubeIcon.vue";
 import DatabaseIcon from "~/components/icons/DatabaseIcon.vue";
+import AcademicCapIcon from "~/components/icons/AcademicCapIcon.vue";
 import SidebarWidget from "./SidebarWidget.vue";
 import { useSidebar } from "~/composables/useSidebar";
 
@@ -252,10 +253,11 @@ const menuGroups = [
     title: "Menu",
     items: [
 
+  
       {
-        icon: UserGroupIcon,
-        name: "Управление пользователями",
-        path: "/users",
+        icon: AcademicCapIcon,
+        name: "Учебные программы",
+        path: "/programs",
       },
       {
         icon: DatabaseIcon,
@@ -267,7 +269,11 @@ const menuGroups = [
   {
     title: "Others",
     items: [
-     
+         {
+        icon: UserGroupIcon,
+        name: "Управление пользователями",
+        path: "/users",
+      },
     ],
   },
 ];

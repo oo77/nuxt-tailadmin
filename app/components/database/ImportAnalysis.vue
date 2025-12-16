@@ -193,6 +193,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { ImportAnalysis } from '~/types/import';
 
 const props = defineProps<{
@@ -205,10 +206,11 @@ defineEmits<{
   cancel: [];
 }>();
 
+// Создаём Set для быстрой проверки существующих ПИНФЛ
+const existingPinflsSet = computed(() => new Set(props.analysis.existingPinfls || []));
+
 // Проверка, существует ли студент (для определения статуса)
-// В реальном приложении это должно приходить с сервера
 const isExistingStudent = (pinfl: string): boolean => {
-  // Временная заглушка - в реальности это должно быть в analysis
-  return Math.random() > 0.5;
+  return existingPinflsSet.value.has(pinfl);
 };
 </script>

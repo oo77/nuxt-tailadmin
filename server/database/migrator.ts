@@ -1,38 +1,36 @@
 import { getDbPool, testConnection } from '../utils/db';
-import { createDynamicImporter } from '../utils/crossPlatform';
 import type { PoolConnection } from 'mysql2/promise';
 
-// Создаём безопасный импортер для миграций
-const safeImport = createDynamicImporter(import.meta.url);
+// ============================================================================
+// СТАТИЧЕСКИЕ ИМПОРТЫ МИГРАЦИЙ
+// ============================================================================
+// При добавлении новой миграции:
+// 1. Создайте файл миграции в ./migrations/
+// 2. Добавьте import ниже
+// 3. Добавьте в MIGRATIONS_REGISTRY
+
+import * as migration001 from './migrations/20251215_001_create_users_table';
+import * as migration002 from './migrations/20251215_002_seed_admin_user';
+import * as migration003 from './migrations/20251216_003_create_students_tables';
+import * as migration004 from './migrations/20251216_004_create_courses_tables';
 
 /**
  * ============================================================================
- * СИСТЕМА МИГРАЦИЙ С ДИНАМИЧЕСКИМИ ИМПОРТАМИ (Универсальная)
+ * СИСТЕМА МИГРАЦИЙ СО СТАТИЧЕСКИМ РЕЕСТРОМ (Вариант C)
  * ============================================================================
  * 
  * Преимущества:
- * ✅ Работает на всех платформах (Windows, Linux, Mac) без проблем с путями
- * ✅ Нет проблем с ESM URL схемами на Windows
- * ✅ Миграции загружаются только при необходимости
- * ✅ TypeScript полностью поддерживает динамические импорты
+ * ✅ Никаких проблем с путями — работает на 100% ОС
+ * ✅ Нет динамических import() — TypeScript видит всё
+ * ✅ Максимальная производительность — импорты на этапе компиляции
+ * ✅ Tree-shaking работает корректно
  * 
  * При добавлении новой миграции:
  * 1. Создайте файл миграции в ./migrations/
- * 2. Добавьте запись в MIGRATIONS_LIST (строка ~35)
+ * 2. Добавьте статический import выше
+ * 3. Добавьте запись в MIGRATIONS_REGISTRY ниже
  * ============================================================================
  */
-
-// ============================================================================
-// СПИСОК МИГРАЦИЙ
-// ============================================================================
-// При добавлении новой миграции, добавьте её имя в этот массив:
-
-const MIGRATIONS_LIST = [
-  '20251215_001_create_users_table',
-  '20251215_002_seed_admin_user',
-  '20251216_003_create_students_tables',
-  // Добавляйте новые миграции здесь:
-];
 
 // ============================================================================
 // ИНТЕРФЕЙС МИГРАЦИИ
@@ -44,6 +42,44 @@ interface Migration {
   down: (connection: PoolConnection) => Promise<void>;
   description?: string;
 }
+
+// ============================================================================
+// РЕЕСТР МИГРАЦИЙ (статический)
+// ============================================================================
+
+const MIGRATIONS_REGISTRY: Migration[] = [
+  {
+    name: '20251215_001_create_users_table',
+    up: migration001.up,
+    down: migration001.down,
+    description: migration001.description,
+  },
+  {
+    name: '20251215_002_seed_admin_user',
+    up: migration002.up,
+    down: migration002.down,
+    description: migration002.description,
+  },
+  {
+    name: '20251216_003_create_students_tables',
+    up: migration003.up,
+    down: migration003.down,
+    description: migration003.description,
+  },
+  {
+    name: '20251216_004_create_courses_tables',
+    up: migration004.up,
+    down: migration004.down,
+    description: migration004.description,
+  },
+  // Добавляйте новые миграции здесь:
+  // {
+  //   name: '20251217_005_your_migration',
+  //   up: migration005.up,
+  //   down: migration005.down,
+  //   description: migration005.description,
+  // },
+];
 
 // ============================================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -101,32 +137,11 @@ async function removeMigrationRecord(
 }
 
 /**
- * Загрузка всех миграций с использованием динамических импортов
- * Это решает проблемы с путями на Windows в ESM
+ * Загрузка всех миграций из статического реестра
  */
-async function loadMigrations(): Promise<Migration[]> {
-  const migrations: Migration[] = [];
-  
-  for (const migrationName of MIGRATIONS_LIST) {
-    try {
-      // Используем кроссплатформенный динамический импорт
-      // Работает на Windows, Linux и Mac без проблем с file:// URLs
-      const module = await safeImport(`./migrations/${migrationName}.js`);
-      
-      migrations.push({
-        name: migrationName,
-        up: module.up,
-        down: module.down,
-        description: module.description,
-      });
-    } catch (error) {
-      console.error(`❌ Failed to load migration ${migrationName}:`, error);
-      throw new Error(`Migration file not found or invalid: ${migrationName}`);
-    }
-  }
-  
-  console.log(`📋 Loaded ${migrations.length} migrations dynamically`);
-  return migrations;
+function loadMigrations(): Migration[] {
+  console.log(`📋 Loaded ${MIGRATIONS_REGISTRY.length} migrations from static registry`);
+  return MIGRATIONS_REGISTRY;
 }
 
 // ============================================================================
@@ -158,7 +173,7 @@ export async function runMigrations(): Promise<void> {
       console.log(`ℹ️  Found ${executedMigrations.length} executed migrations`);
 
       // Загрузка всех миграций
-      const allMigrations = await loadMigrations();
+      const allMigrations = loadMigrations();
       console.log(`ℹ️  Found ${allMigrations.length} migration files`);
 
       // Фильтрация непримененных миграций
@@ -229,7 +244,7 @@ export async function rollbackMigration(): Promise<void> {
       console.log(`📦 Rolling back: ${lastMigrationName}`);
 
       // Загрузка миграции
-      const allMigrations = await loadMigrations();
+      const allMigrations = loadMigrations();
       const migration = allMigrations.find((m) => m.name === lastMigrationName);
 
       if (!migration) {
@@ -275,7 +290,7 @@ export async function rollbackAllMigrations(): Promise<void> {
         return;
       }
 
-      const allMigrations = await loadMigrations();
+      const allMigrations = loadMigrations();
 
       // Откат в обратном порядке
       for (let i = executedMigrations.length - 1; i >= 0; i--) {
@@ -327,7 +342,7 @@ export async function getMigrationStatus(): Promise<void> {
       await createMigrationsTable(connection);
 
       const executedMigrations = await getExecutedMigrations(connection);
-      const allMigrations = await loadMigrations();
+      const allMigrations = loadMigrations();
 
       console.log(`Total migrations: ${allMigrations.length}`);
       console.log(`Executed: ${executedMigrations.length}`);
