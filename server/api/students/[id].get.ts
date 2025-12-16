@@ -3,7 +3,7 @@
  * GET /api/students/:id
  */
 
-import { getStudentById } from '../../utils/studentStorage';
+import { getStudentById } from '../../repositories/studentRepository';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    const student = getStudentById(id);
+    const student = await getStudentById(id);
 
     if (!student) {
       return {

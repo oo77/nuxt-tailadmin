@@ -3,7 +3,7 @@
  * PUT /api/students/:id
  */
 
-import { updateStudent, studentExistsByPinfl } from '../../utils/studentStorage';
+import { updateStudent, studentExistsByPinfl } from '../../repositories/studentRepository';
 import type { UpdateStudentInput } from '../../types/student';
 
 export default defineEventHandler(async (event) => {
@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
       }
 
       // Проверка уникальности ПИНФЛ (исключая текущего студента)
-      if (studentExistsByPinfl(body.pinfl, id)) {
+      const exists = await studentExistsByPinfl(body.pinfl, id);
+      if (exists) {
         return {
           success: false,
           message: 'Студент с таким ПИНФЛ уже существует',
@@ -74,7 +75,7 @@ export default defineEventHandler(async (event) => {
     if (body.department !== undefined) updateData.department = body.department?.trim() || undefined;
     if (body.position !== undefined) updateData.position = body.position.trim();
 
-    const student = updateStudent(id, updateData);
+    const student = await updateStudent(id, updateData);
 
     if (!student) {
       return {

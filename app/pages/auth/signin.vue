@@ -1,6 +1,6 @@
 <template>
   <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
-    <div class="relative flex  justify-center w-full min-h-screen lg:flex-row dark:bg-gray-900">
+    <div class="relative flex justify-center w-full min-h-screen lg:flex-row dark:bg-gray-900">
       <!-- Левая часть - форма входа -->
       <div class="flex flex-col flex-1 w-full lg:w-1/2">
         <div class="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto py-12">
@@ -13,23 +13,6 @@
               <p class="text-sm text-gray-500 dark:text-gray-400">
                 Учебно-тренировочный центр АТЦ
               </p>
-            </div>
-
-            <!-- Сообщение об ошибке -->
-            <div
-              v-if="errorMessage"
-              class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
-            >
-              <div class="flex items-start">
-                <svg class="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                </svg>
-                <div class="ml-3">
-                  <p class="text-sm font-medium text-red-800 dark:text-red-200">
-                    {{ errorMessage }}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <!-- Форма -->
@@ -47,8 +30,12 @@
                   placeholder="admin@atc.uz"
                   required
                   :disabled="isLoading"
-                  class="h-11 w-full rounded-lg border border-gray-300 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-800 dark:text-white shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600"
+                  class="h-11 w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-800 dark:text-white shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600"
+                  :class="{ 'border-red-500': fieldErrors.email, 'border-gray-300': !fieldErrors.email }"
                 />
+                <p v-if="fieldErrors.email" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {{ fieldErrors.email }}
+                </p>
               </div>
 
               <!-- Пароль -->
@@ -65,7 +52,8 @@
                     placeholder="Введите пароль"
                     required
                     :disabled="isLoading"
-                    class="h-11 w-full rounded-lg border border-gray-300 bg-white dark:bg-gray-800 py-2.5 pl-4 pr-11 text-sm text-gray-800 dark:text-white shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600"
+                    class="h-11 w-full rounded-lg border bg-white dark:bg-gray-800 py-2.5 pl-4 pr-11 text-sm text-gray-800 dark:text-white shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600"
+                    :class="{ 'border-red-500': fieldErrors.password, 'border-gray-300': !fieldErrors.password }"
                   />
                   <button
                     type="button"
@@ -77,6 +65,9 @@
                     <IconsEyeOffIcon v-else class="w-5 h-5" />
                   </button>
                 </div>
+                <p v-if="fieldErrors.password" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {{ fieldErrors.password }}
+                </p>
               </div>
 
               <!-- Запомнить меня -->
@@ -148,8 +139,6 @@
           </div>
         </div>
       </div>
-
-
     </div>
   </div>
 </template>
@@ -166,6 +155,7 @@ useHead({
 
 const { login } = useAuth();
 const router = useRouter();
+const notification = useNotification();
 
 // Состояние формы
 const formData = reactive({
@@ -176,21 +166,57 @@ const formData = reactive({
 
 const showPassword = ref(false);
 const isLoading = ref(false);
-const errorMessage = ref('');
+const fieldErrors = reactive<Record<string, string>>({});
 
 // Переключение видимости пароля
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value;
 };
 
+// Валидация отдельных полей
+const validateField = (field: string, value: string): string | null => {
+  switch (field) {
+    case 'email':
+      if (!value) {
+        return 'Email обязателен для заполнения';
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(value)) {
+        return 'Введите корректный email адрес';
+      }
+      break;
+    
+    case 'password':
+      if (!value) {
+        return 'Пароль обязателен для заполнения';
+      }
+      if (value.length < 6) {
+        return 'Пароль должен содержать минимум 6 символов';
+      }
+      break;
+  }
+  
+  return null;
+};
+
 // Обработка отправки формы
 const handleSubmit = async () => {
   // Очистка предыдущих ошибок
-  errorMessage.value = '';
+  Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
 
-  // Валидация
-  if (!formData.email || !formData.password) {
-    errorMessage.value = 'Пожалуйста, заполните все поля';
+  // Валидация полей
+  const emailError = validateField('email', formData.email);
+  const passwordError = validateField('password', formData.password);
+
+  if (emailError) {
+    fieldErrors.email = emailError;
+    notification.error(emailError, 'Ошибка валидации');
+    return;
+  }
+
+  if (passwordError) {
+    fieldErrors.password = passwordError;
+    notification.error(passwordError, 'Ошибка валидации');
     return;
   }
 
@@ -203,17 +229,33 @@ const handleSubmit = async () => {
     });
 
     if (result.success) {
-      // Успешный вход - редирект на главную или на страницу из query параметра
+      // Успешный вход
+      notification.success('Вы успешно вошли в систему', 'Добро пожаловать!');
+      
+      // Редирект на главную или на страницу из query параметра
       const route = useRoute();
       const redirectTo = (route.query.redirect as string) || '/';
-      await router.push(redirectTo);
+      
+      setTimeout(() => {
+        router.push(redirectTo);
+      }, 500);
     } else {
       // Ошибка входа
-      errorMessage.value = result.error || 'Неверный email или пароль';
+      const errorMessage = result.error || 'Неверный email или пароль';
+      
+      // Определяем, какое поле неверное
+      if (errorMessage.toLowerCase().includes('email')) {
+        fieldErrors.email = errorMessage;
+      } else if (errorMessage.toLowerCase().includes('пароль') || errorMessage.toLowerCase().includes('password')) {
+        fieldErrors.password = errorMessage;
+      }
+      
+      notification.error(errorMessage, 'Ошибка входа');
     }
   } catch (error: any) {
     console.error('Login error:', error);
-    errorMessage.value = 'Ошибка подключения к серверу. Попробуйте позже.';
+    const errorMessage = 'Ошибка подключения к серверу. Попробуйте позже.';
+    notification.error(errorMessage, 'Ошибка');
   } finally {
     isLoading.value = false;
   }

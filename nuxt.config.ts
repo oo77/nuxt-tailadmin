@@ -25,5 +25,22 @@ export default defineNuxtConfig({
   
   typescript: {
     strict: true
+  },
+  
+  nitro: {
+    esbuild: {
+      options: {
+        target: 'esnext'
+      }
+    },
+    rollupConfig: {
+      output: {
+        format: 'esm'
+      }
+    },
+    // Исключаем xlsx из бандлинга через rollup external для избежания проблем с ESM на Windows
+    externals: {
+      external: ['xlsx']
+    }
   }
 })

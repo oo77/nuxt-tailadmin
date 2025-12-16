@@ -3,7 +3,7 @@
  * POST /api/students
  */
 
-import { createStudent, studentExistsByPinfl } from '../../utils/studentStorage';
+import { createStudent, studentExistsByPinfl } from '../../repositories/studentRepository';
 import type { CreateStudentInput } from '../../types/student';
 
 export default defineEventHandler(async (event) => {
@@ -34,7 +34,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // Проверка уникальности ПИНФЛ
-    if (studentExistsByPinfl(body.pinfl)) {
+    const exists = await studentExistsByPinfl(body.pinfl);
+    if (exists) {
       return {
         success: false,
         message: 'Студент с таким ПИНФЛ уже существует',
@@ -56,11 +57,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // Создание студента
-    const student = createStudent({
+    const student = await createStudent({
       fullName: body.fullName.trim(),
       pinfl: body.pinfl.trim(),
       organization: body.organization.trim(),
-      department: body.department?.trim() || null,
+      department: body.department?.trim() || undefined,
       position: body.position.trim(),
     });
 

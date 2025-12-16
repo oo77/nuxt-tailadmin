@@ -3,7 +3,7 @@
  * DELETE /api/students/:id
  */
 
-import { deleteStudent } from '../../utils/studentStorage';
+import { deleteStudent } from '../../repositories/studentRepository';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    const deleted = deleteStudent(id);
+    const deleted = await deleteStudent(id);
 
     if (!deleted) {
       return {

@@ -1,0 +1,601 @@
+/**
+ * Репозиторий для работы со студентами в MySQL
+ * Заменяет временное in-memory хранилище
+ */
+
+import { executeQuery, executeTransaction } from '../utils/db';
+import type { Student, StudentCertificate, CreateStudentInput, UpdateStudentInput } from '../types/student';
+import { v4 as uuidv4 } from 'uuid';
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+
+// ============================================================================
+// ИНТЕРФЕЙСЫ
+// ============================================================================
+
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  fullName?: string;
+  pinfl?: string;
+  organization?: string;
+  position?: string;
+  hasCertificates?: boolean;
+  noCertificates?: boolean;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// Row types для MySQL
+interface StudentRow extends RowDataPacket {
+  id: string;
+  full_name: string;
+  pinfl: string;
+  organization: string;
+  department: string | null;
+  position: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface CertificateRow extends RowDataPacket {
+  id: string;
+  student_id: string;
+  course_name: string;
+  issue_date: Date;
+  certificate_number: string;
+  file_url: string | null;
+  expiry_date: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface CountRow extends RowDataPacket {
+  total: number;
+}
+
+// ============================================================================
+// МАППИНГ БД -> МОДЕЛЬ
+// ============================================================================
+
+function mapRowToStudent(row: StudentRow, certificates: StudentCertificate[] = []): Student {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    pinfl: row.pinfl,
+    organization: row.organization,
+    department: row.department,
+    position: row.position,
+    certificates,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function mapRowToCertificate(row: CertificateRow): StudentCertificate {
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    courseName: row.course_name,
+    issueDate: row.issue_date,
+    certificateNumber: row.certificate_number,
+    fileUrl: row.file_url,
+    expiryDate: row.expiry_date,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+// ============================================================================
+// СЕРТИФИКАТЫ
+// ============================================================================
+
+/**
+ * Получить сертификаты студента
+ */
+async function getCertificatesByStudentId(studentId: string): Promise<StudentCertificate[]> {
+  const rows = await executeQuery<CertificateRow[]>(
+    'SELECT * FROM certificates WHERE student_id = ? ORDER BY issue_date DESC',
+    [studentId]
+  );
+  return rows.map(mapRowToCertificate);
+}
+
+/**
+ * Получить сертификаты для нескольких студентов
+ */
+async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<string, StudentCertificate[]>> {
+  if (studentIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = studentIds.map(() => '?').join(', ');
+  const rows = await executeQuery<CertificateRow[]>(
+    `SELECT * FROM certificates WHERE student_id IN (${placeholders}) ORDER BY issue_date DESC`,
+    studentIds
+  );
+
+  const certificatesMap = new Map<string, StudentCertificate[]>();
+  
+  for (const row of rows) {
+    const cert = mapRowToCertificate(row);
+    const existing = certificatesMap.get(cert.studentId) || [];
+    existing.push(cert);
+    certificatesMap.set(cert.studentId, existing);
+  }
+
+  return certificatesMap;
+}
+
+// ============================================================================
+// СТУДЕНТЫ - ОСНОВНЫЕ ОПЕРАЦИИ
+// ============================================================================
+
+/**
+ * Получить всех студентов (без пагинации)
+ */
+export async function getAllStudents(): Promise<Student[]> {
+  const rows = await executeQuery<StudentRow[]>('SELECT * FROM students ORDER BY full_name');
+  
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const studentIds = rows.map(r => r.id);
+  const certificatesMap = await getCertificatesByStudentIds(studentIds);
+
+  return rows.map(row => mapRowToStudent(row, certificatesMap.get(row.id) || []));
+}
+
+/**
+ * Получить студентов с пагинацией и фильтрацией
+ */
+export async function getStudentsPaginated(params: PaginationParams = {}): Promise<PaginatedResult<Student>> {
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    fullName,
+    pinfl,
+    organization,
+    position,
+    hasCertificates,
+    noCertificates,
+  } = params;
+
+  // Строим WHERE условия
+  const conditions: string[] = [];
+  const queryParams: any[] = [];
+
+  // Универсальный поиск (используем LIKE для простоты, FULLTEXT для больших объёмов)
+  if (search) {
+    conditions.push('(full_name LIKE ? OR pinfl LIKE ? OR organization LIKE ? OR position LIKE ?)');
+    const searchPattern = `%${search}%`;
+    queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+
+  // Фильтр по ФИО
+  if (fullName) {
+    conditions.push('full_name LIKE ?');
+    queryParams.push(`%${fullName}%`);
+  }
+
+  // Фильтр по ПИНФЛ
+  if (pinfl) {
+    conditions.push('pinfl LIKE ?');
+    queryParams.push(`%${pinfl}%`);
+  }
+
+  // Фильтр по организации
+  if (organization) {
+    conditions.push('organization LIKE ?');
+    queryParams.push(`%${organization}%`);
+  }
+
+  // Фильтр по должности
+  if (position) {
+    conditions.push('position LIKE ?');
+    queryParams.push(`%${position}%`);
+  }
+
+  // Фильтр по наличию сертификатов (подзапрос)
+  if (hasCertificates) {
+    conditions.push('EXISTS (SELECT 1 FROM certificates c WHERE c.student_id = students.id)');
+  }
+
+  // Фильтр по отсутствию сертификатов (подзапрос)
+  if (noCertificates) {
+    conditions.push('NOT EXISTS (SELECT 1 FROM certificates c WHERE c.student_id = students.id)');
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Получаем общее количество
+  const countQuery = `SELECT COUNT(*) as total FROM students ${whereClause}`;
+  const countResult = await executeQuery<CountRow[]>(countQuery, queryParams);
+  const total = countResult[0]?.total || 0;
+
+  // Получаем данные с пагинацией
+  const offset = (page - 1) * limit;
+  const dataQuery = `
+    SELECT * FROM students 
+    ${whereClause} 
+    ORDER BY full_name 
+    LIMIT ? OFFSET ?
+  `;
+  const dataParams = [...queryParams, limit, offset];
+  const rows = await executeQuery<StudentRow[]>(dataQuery, dataParams);
+
+  // Загружаем сертификаты
+  let students: Student[] = [];
+  if (rows.length > 0) {
+    const studentIds = rows.map(r => r.id);
+    const certificatesMap = await getCertificatesByStudentIds(studentIds);
+    students = rows.map(row => mapRowToStudent(row, certificatesMap.get(row.id) || []));
+  }
+
+  return {
+    data: students,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Получить студента по ID
+ */
+export async function getStudentById(id: string): Promise<Student | null> {
+  const rows = await executeQuery<StudentRow[]>(
+    'SELECT * FROM students WHERE id = ? LIMIT 1',
+    [id]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const certificates = await getCertificatesByStudentId(id);
+  return mapRowToStudent(rows[0], certificates);
+}
+
+/**
+ * Получить студента по ПИНФЛ
+ */
+export async function getStudentByPinfl(pinfl: string): Promise<Student | null> {
+  const rows = await executeQuery<StudentRow[]>(
+    'SELECT * FROM students WHERE pinfl = ? LIMIT 1',
+    [pinfl]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const certificates = await getCertificatesByStudentId(rows[0].id);
+  return mapRowToStudent(rows[0], certificates);
+}
+
+/**
+ * Проверить существование студента по ПИНФЛ
+ */
+export async function studentExistsByPinfl(pinfl: string, excludeId?: string): Promise<boolean> {
+  let query = 'SELECT 1 FROM students WHERE pinfl = ?';
+  const params: any[] = [pinfl];
+
+  if (excludeId) {
+    query += ' AND id != ?';
+    params.push(excludeId);
+  }
+
+  query += ' LIMIT 1';
+  
+  const rows = await executeQuery<RowDataPacket[]>(query, params);
+  return rows.length > 0;
+}
+
+/**
+ * Создать нового студента
+ */
+export async function createStudent(data: CreateStudentInput): Promise<Student> {
+  const id = uuidv4();
+  const now = new Date();
+
+  await executeQuery(
+    `INSERT INTO students (id, full_name, pinfl, organization, department, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, data.fullName, data.pinfl, data.organization, data.department || null, data.position, now, now]
+  );
+
+  // Возвращаем созданного студента
+  const student = await getStudentById(id);
+  if (!student) {
+    throw new Error('Failed to create student');
+  }
+
+  return student;
+}
+
+/**
+ * Обновить студента
+ */
+export async function updateStudent(id: string, data: UpdateStudentInput): Promise<Student | null> {
+  // Проверяем существование
+  const existing = await getStudentById(id);
+  if (!existing) {
+    return null;
+  }
+
+  // Строим UPDATE запрос динамически
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (data.fullName !== undefined) {
+    updates.push('full_name = ?');
+    params.push(data.fullName);
+  }
+  if (data.pinfl !== undefined) {
+    updates.push('pinfl = ?');
+    params.push(data.pinfl);
+  }
+  if (data.organization !== undefined) {
+    updates.push('organization = ?');
+    params.push(data.organization);
+  }
+  if (data.department !== undefined) {
+    updates.push('department = ?');
+    params.push(data.department || null);
+  }
+  if (data.position !== undefined) {
+    updates.push('position = ?');
+    params.push(data.position);
+  }
+
+  if (updates.length === 0) {
+    return existing; // Нечего обновлять
+  }
+
+  params.push(id); // для WHERE id = ?
+
+  await executeQuery(
+    `UPDATE students SET ${updates.join(', ')} WHERE id = ?`,
+    params
+  );
+
+  return getStudentById(id);
+}
+
+/**
+ * Удалить студента
+ */
+export async function deleteStudent(id: string): Promise<boolean> {
+  const result = await executeQuery<ResultSetHeader>(
+    'DELETE FROM students WHERE id = ?',
+    [id]
+  );
+
+  return result.affectedRows > 0;
+}
+
+// ============================================================================
+// СЕРТИФИКАТЫ - ПУБЛИЧНЫЕ ОПЕРАЦИИ
+// ============================================================================
+
+/**
+ * Добавить сертификат студенту
+ */
+export async function addCertificateToStudent(
+  studentId: string,
+  data: {
+    courseName: string;
+    issueDate: Date | string;
+    certificateNumber: string;
+    fileUrl?: string | null;
+    expiryDate?: Date | string | null;
+  }
+): Promise<StudentCertificate | null> {
+  // Проверяем существование студента
+  const student = await getStudentById(studentId);
+  if (!student) {
+    return null;
+  }
+
+  const id = `cert-${uuidv4()}`;
+  const now = new Date();
+  const issueDate = data.issueDate instanceof Date ? data.issueDate : new Date(data.issueDate);
+  const expiryDate = data.expiryDate 
+    ? (data.expiryDate instanceof Date ? data.expiryDate : new Date(data.expiryDate))
+    : null;
+
+  await executeQuery(
+    `INSERT INTO certificates (id, student_id, course_name, issue_date, certificate_number, file_url, expiry_date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, studentId, data.courseName, issueDate, data.certificateNumber, data.fileUrl || null, expiryDate, now, now]
+  );
+
+  const rows = await executeQuery<CertificateRow[]>(
+    'SELECT * FROM certificates WHERE id = ?',
+    [id]
+  );
+
+  return rows.length > 0 ? mapRowToCertificate(rows[0]) : null;
+}
+
+/**
+ * Удалить сертификат
+ */
+export async function deleteCertificate(certificateId: string): Promise<boolean> {
+  const result = await executeQuery<ResultSetHeader>(
+    'DELETE FROM certificates WHERE id = ?',
+    [certificateId]
+  );
+
+  return result.affectedRows > 0;
+}
+
+// ============================================================================
+// BATCH ОПЕРАЦИИ (для импорта)
+// ============================================================================
+
+export interface BatchUpsertResult {
+  created: number;
+  updated: number;
+  errors: Array<{ pinfl: string; error: string }>;
+}
+
+/**
+ * Массовое создание/обновление студентов (upsert)
+ * Использует транзакцию для атомарности
+ */
+export async function batchUpsertStudents(
+  students: Array<{
+    pinfl: string;
+    fullName: string;
+    organization: string;
+    department?: string | null;
+    position: string;
+  }>
+): Promise<BatchUpsertResult> {
+  const result: BatchUpsertResult = {
+    created: 0,
+    updated: 0,
+    errors: [],
+  };
+
+  if (students.length === 0) {
+    return result;
+  }
+
+  await executeTransaction(async (connection: PoolConnection) => {
+    for (const student of students) {
+      try {
+        // Проверяем существование по ПИНФЛ
+        const [existingRows] = await connection.execute<StudentRow[]>(
+          'SELECT id FROM students WHERE pinfl = ? LIMIT 1',
+          [student.pinfl]
+        );
+
+        if (existingRows.length > 0) {
+          // Обновляем
+          await connection.execute(
+            `UPDATE students 
+             SET full_name = ?, organization = ?, department = ?, position = ?
+             WHERE pinfl = ?`,
+            [student.fullName, student.organization, student.department || null, student.position, student.pinfl]
+          );
+          result.updated++;
+        } else {
+          // Создаём
+          const id = uuidv4();
+          const now = new Date();
+          await connection.execute(
+            `INSERT INTO students (id, full_name, pinfl, organization, department, position, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, student.fullName, student.pinfl, student.organization, student.department || null, student.position, now, now]
+          );
+          result.created++;
+        }
+      } catch (error) {
+        result.errors.push({
+          pinfl: student.pinfl,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Массовое создание/обновление с прогрессом (для импорта с отслеживанием)
+ */
+export async function batchUpsertStudentsWithProgress(
+  students: Array<{
+    pinfl: string;
+    fullName: string;
+    organization: string;
+    department?: string | null;
+    position: string;
+    rowNumber?: number;
+  }>,
+  onProgress?: (processed: number, created: number, updated: number, errors: number) => void,
+  batchSize: number = 100
+): Promise<BatchUpsertResult> {
+  const result: BatchUpsertResult = {
+    created: 0,
+    updated: 0,
+    errors: [],
+  };
+
+  if (students.length === 0) {
+    return result;
+  }
+
+  // Обрабатываем батчами
+  for (let i = 0; i < students.length; i += batchSize) {
+    const batch = students.slice(i, i + batchSize);
+
+    await executeTransaction(async (connection: PoolConnection) => {
+      for (const student of batch) {
+        try {
+          // Проверяем существование по ПИНФЛ
+          const [existingRows] = await connection.execute<StudentRow[]>(
+            'SELECT id FROM students WHERE pinfl = ? LIMIT 1',
+            [student.pinfl]
+          );
+
+          if (existingRows.length > 0) {
+            // Обновляем
+            await connection.execute(
+              `UPDATE students 
+               SET full_name = ?, organization = ?, department = ?, position = ?
+               WHERE pinfl = ?`,
+              [student.fullName, student.organization, student.department || null, student.position, student.pinfl]
+            );
+            result.updated++;
+          } else {
+            // Создаём
+            const id = uuidv4();
+            const now = new Date();
+            await connection.execute(
+              `INSERT INTO students (id, full_name, pinfl, organization, department, position, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [id, student.fullName, student.pinfl, student.organization, student.department || null, student.position, now, now]
+            );
+            result.created++;
+          }
+        } catch (error) {
+          result.errors.push({
+            pinfl: student.pinfl,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }
+    });
+
+    // Уведомляем о прогрессе
+    if (onProgress) {
+      onProgress(
+        Math.min(i + batchSize, students.length),
+        result.created,
+        result.updated,
+        result.errors.length
+      );
+    }
+
+    // Небольшая пауза между батчами для снижения нагрузки
+    if (i + batchSize < students.length) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+
+  return result;
+}

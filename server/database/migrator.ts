@@ -1,17 +1,53 @@
 import { getDbPool, testConnection } from '../utils/db';
+import { createDynamicImporter } from '../utils/crossPlatform';
 import type { PoolConnection } from 'mysql2/promise';
-import { readdir } from 'fs/promises';
-import { join } from 'path';
+
+// Создаём безопасный импортер для миграций
+const safeImport = createDynamicImporter(import.meta.url);
 
 /**
- * Интерфейс миграции
+ * ============================================================================
+ * СИСТЕМА МИГРАЦИЙ С ДИНАМИЧЕСКИМИ ИМПОРТАМИ (Универсальная)
+ * ============================================================================
+ * 
+ * Преимущества:
+ * ✅ Работает на всех платформах (Windows, Linux, Mac) без проблем с путями
+ * ✅ Нет проблем с ESM URL схемами на Windows
+ * ✅ Миграции загружаются только при необходимости
+ * ✅ TypeScript полностью поддерживает динамические импорты
+ * 
+ * При добавлении новой миграции:
+ * 1. Создайте файл миграции в ./migrations/
+ * 2. Добавьте запись в MIGRATIONS_LIST (строка ~35)
+ * ============================================================================
  */
+
+// ============================================================================
+// СПИСОК МИГРАЦИЙ
+// ============================================================================
+// При добавлении новой миграции, добавьте её имя в этот массив:
+
+const MIGRATIONS_LIST = [
+  '20251215_001_create_users_table',
+  '20251215_002_seed_admin_user',
+  '20251216_003_create_students_tables',
+  // Добавляйте новые миграции здесь:
+];
+
+// ============================================================================
+// ИНТЕРФЕЙС МИГРАЦИИ
+// ============================================================================
+
 interface Migration {
   name: string;
   up: (connection: PoolConnection) => Promise<void>;
   down: (connection: PoolConnection) => Promise<void>;
   description?: string;
 }
+
+// ============================================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================================
 
 /**
  * Создание таблицы для отслеживания миграций
@@ -65,54 +101,37 @@ async function removeMigrationRecord(
 }
 
 /**
- * Загрузка всех файлов миграций
+ * Загрузка всех миграций с использованием динамических импортов
+ * Это решает проблемы с путями на Windows в ESM
  */
 async function loadMigrations(): Promise<Migration[]> {
-  const migrationsDir = join(process.cwd(), 'server', 'database', 'migrations');
+  const migrations: Migration[] = [];
   
-  try {
-    const files = await readdir(migrationsDir);
-    const migrationFiles = files
-      .filter((file) => 
-        (file.endsWith('.ts') || file.endsWith('.js')) && 
-        !file.startsWith('_') && 
-        !file.startsWith('example_') &&
-        !file.includes('README')
-      )
-      .sort(); // Сортировка по имени (timestamp в начале имени)
-
-    const migrations: Migration[] = [];
-
-    for (const file of migrationFiles) {
-      const migrationPath = join(migrationsDir, file);
-      // Преобразование пути в file:// URL для ESM
-      const fileUrl = `file:///${migrationPath.replace(/\\/g, '/')}`;
+  for (const migrationName of MIGRATIONS_LIST) {
+    try {
+      // Используем кроссплатформенный динамический импорт
+      // Работает на Windows, Linux и Mac без проблем с file:// URLs
+      const module = await safeImport(`./migrations/${migrationName}.js`);
       
-      try {
-        const migration = await import(fileUrl);
-        
-        if (!migration.up || !migration.down) {
-          console.warn(`⚠️  Migration ${file} is missing up() or down() function, skipping...`);
-          continue;
-        }
-        
-        migrations.push({
-          name: file.replace(/\.(ts|js)$/, ''),
-          up: migration.up,
-          down: migration.down,
-          description: migration.description,
-        });
-      } catch (error) {
-        console.error(`❌ Failed to load migration ${file}:`, error);
-      }
+      migrations.push({
+        name: migrationName,
+        up: module.up,
+        down: module.down,
+        description: module.description,
+      });
+    } catch (error) {
+      console.error(`❌ Failed to load migration ${migrationName}:`, error);
+      throw new Error(`Migration file not found or invalid: ${migrationName}`);
     }
-
-    return migrations;
-  } catch (error) {
-    console.error('❌ Failed to load migrations:', error);
-    return [];
   }
+  
+  console.log(`📋 Loaded ${migrations.length} migrations dynamically`);
+  return migrations;
 }
+
+// ============================================================================
+// ОСНОВНЫЕ ФУНКЦИИ МИГРАЦИЙ
+// ============================================================================
 
 /**
  * Применение всех непримененных миграций

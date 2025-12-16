@@ -308,6 +308,18 @@
       @close="closeCertificatesModal"
       @refresh="fetchStudent"
     />
+
+    <!-- Модальное окно подтверждения удаления -->
+    <UiConfirmModal
+      :is-open="isDeleteModalOpen"
+      title="Удаление студента"
+      message="Вы уверены, что хотите удалить этого студента?"
+      :item-name="student?.fullName"
+      warning="Это действие нельзя отменить. Все данные студента будут удалены."
+      :loading="isDeleting"
+      @confirm="confirmDelete"
+      @cancel="closeDeleteModal"
+    />
   </div>
 </template>
 
@@ -328,6 +340,8 @@ const student = ref<Student | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const isEditModalOpen = ref(false);
+const isDeleteModalOpen = ref(false);
+const isDeleting = ref(false);
 const isCertificatesModalOpen = ref(false);
 
 // Загрузка данных студента
@@ -395,11 +409,21 @@ const handleUpdate = async (data: UpdateStudentData) => {
   }
 };
 
-// Обработка удаления
-const handleDelete = async () => {
-  if (!confirm('Вы уверены, что хотите удалить этого студента?')) {
-    return;
+// Открытие модального окна удаления
+const handleDelete = () => {
+  isDeleteModalOpen.value = true;
+};
+
+// Закрытие модального окна удаления
+const closeDeleteModal = () => {
+  if (!isDeleting.value) {
+    isDeleteModalOpen.value = false;
   }
+};
+
+// Подтверждение удаления
+const confirmDelete = async () => {
+  isDeleting.value = true;
 
   try {
     const response = await authFetch<{ success: boolean }>(
@@ -412,11 +436,12 @@ const handleDelete = async () => {
     if (response.success) {
       // Перенаправляем на страницу списка
       router.push('/database');
-      // TODO: Показать уведомление об успехе
     }
   } catch (err) {
     console.error('Ошибка удаления студента:', err);
-    // TODO: Показать уведомление об ошибке
+  } finally {
+    isDeleting.value = false;
+    isDeleteModalOpen.value = false;
   }
 };
 
