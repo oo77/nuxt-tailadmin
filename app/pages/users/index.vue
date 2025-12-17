@@ -53,12 +53,9 @@
           </div>
         </div>
 
-        <!-- Учитель Tab -->
+        <!-- Инструктор Tab -->
         <div v-show="activeTab === 'TEACHER'" class="p-6">
-          <div class="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p class="text-lg font-medium">Управление учителями</p>
-            <p class="mt-2">Функционал в разработке</p>
-          </div>
+          <UsersInstructorManagementPanel />
         </div>
 
         <!-- Студент Tab -->
@@ -79,7 +76,6 @@ import { UserRole } from '~/types/auth';
 
 // Определяем мета-данные страницы
 definePageMeta({
-  middleware: 'auth',
   layout: 'default',
 });
 
@@ -100,8 +96,8 @@ const tabs = [
   },
   {
     role: UserRole.TEACHER,
-    label: 'Учителя',
-    disabled: true, // Пока отключено
+    label: 'Инструкторы',
+    disabled: false, // Активируем вкладку
   },
   {
     role: UserRole.STUDENT,

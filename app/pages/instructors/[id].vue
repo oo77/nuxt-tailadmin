@@ -1,0 +1,407 @@
+<template>
+  <div class="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+    <!-- Заголовок страницы -->
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <h2 class="text-title-md2 font-bold text-black dark:text-white">
+        Профиль инструктора
+      </h2>
+      <nav>
+        <ol class="flex items-center gap-2">
+          <li>
+            <NuxtLink to="/users" class="hover:text-primary">Управление пользователями</NuxtLink>
+          </li>
+          <li class="text-primary">/</li>
+          <li class="text-primary">Профиль инструктора</li>
+        </ol>
+      </nav>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center items-center py-20">
+      <div class="h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-8">
+      <div class="text-center">
+        <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-danger/10 flex items-center justify-center">
+          <AlertCircle class="w-8 h-8 text-danger" />
+        </div>
+        <h3 class="mb-2 text-xl font-semibold text-black dark:text-white">Ошибка загрузки</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">{{ error }}</p>
+        <UiButton variant="primary" @click="loadInstructor">
+          Попробовать снова
+        </UiButton>
+      </div>
+    </div>
+
+    <!-- Instructor Profile -->
+    <div v-else-if="instructor">
+      <!-- Profile Header -->
+      <div class="mb-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+        <!-- Cover Image -->
+        <div class="relative h-48 overflow-hidden rounded-t-sm bg-linear-to-r from-primary to-primary-600">
+          <div class="absolute inset-0 bg-black/10"></div>
+        </div>
+
+        <!-- Profile Info -->
+        <div class="px-6 pb-6">
+          <div class="relative -mt-16 mb-6 flex flex-col items-center gap-4 sm:flex-row sm:items-end">
+            <!-- Avatar -->
+            <div class="relative">
+              <div class="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg dark:border-gray-900">
+                <div class="h-full w-full flex items-center justify-center bg-primary/10">
+                  <span class="text-primary font-bold text-4xl">
+                    {{ getInitials(instructor.fullName) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Info -->
+            <div class="flex-1 text-center sm:text-left">
+              <h3 class="mb-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {{ instructor.fullName }}
+              </h3>
+              <p class="mb-2 text-gray-600 dark:text-gray-400">
+                {{ instructor.email || 'Email не указан' }}
+              </p>
+              <div class="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+                <span
+                  :class="[
+                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium',
+                    instructor.isActive
+                      ? 'bg-success/10 text-success'
+                      : 'bg-danger/10 text-danger'
+                  ]"
+                >
+                  <span :class="['h-2 w-2 rounded-full', instructor.isActive ? 'bg-success' : 'bg-danger']"></span>
+                  {{ instructor.isActive ? 'Активен' : 'Неактивен' }}
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                  <GraduationCap class="h-4 w-4" />
+                  Инструктор
+                </span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+              <UiButton variant="outline" size="md" @click="editInstructor">
+                <Edit class="h-4 w-4" />
+                Редактировать
+              </UiButton>
+              <UiButton variant="danger" size="md" @click="handleDelete">
+                <Trash2 class="h-4 w-4" />
+                Удалить
+              </UiButton>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <BookOpen class="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Активных курсов</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-success/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
+                  <Users class="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Всего студентов</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-warning/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
+                  <Clock class="h-6 w-6 text-warning" />
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Макс. часов</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ instructor.maxHours }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Details Grid -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Личная информация -->
+        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
+          <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            Личная информация
+          </h3>
+          <div class="space-y-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Полное имя</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ instructor.fullName }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Email</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ instructor.email || '—' }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Телефон</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ instructor.phone || '—' }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">ID</p>
+              <p class="font-medium text-gray-900 dark:text-white font-mono text-sm">{{ instructor.id }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Рабочая информация -->
+        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
+          <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            Рабочая информация
+          </h3>
+          <div class="space-y-3">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата приема на работу</p>
+              <p class="font-medium text-gray-900 dark:text-white">
+                {{ instructor.hireDate ? formatDate(instructor.hireDate) : '—' }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Максимальное количество часов</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ instructor.maxHours }} часов</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Информация о контракте</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ instructor.contractInfo || '—' }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Статус</p>
+              <span
+                :class="[
+                  'inline-flex rounded-full px-3 py-1 text-sm font-medium',
+                  instructor.isActive
+                    ? 'bg-success/10 text-success'
+                    : 'bg-danger/10 text-danger'
+                ]"
+              >
+                {{ instructor.isActive ? 'Активен' : 'Неактивен' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Дополнительная информация -->
+      <div class="mt-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
+        <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+          Дополнительная информация
+        </h3>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+            <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата создания записи</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ formatDateTime(instructor.createdAt) }}</p>
+          </div>
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+            <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Последнее обновление</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ formatDateTime(instructor.updatedAt) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Course History -->
+      <div class="mt-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
+        <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+          История курсов
+        </h3>
+        <div class="text-center py-8">
+          <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-100 dark:bg-meta-4 flex items-center justify-center">
+            <BookOpen class="w-8 h-8 text-gray-400" />
+          </div>
+          <p class="text-gray-600 dark:text-gray-400">
+            История курсов пока отсутствует
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <UsersInstructorFormModal
+      v-if="showEditModal && instructor"
+      :instructor="instructor"
+      @close="closeEditModal"
+      @saved="handleInstructorSaved"
+    />
+
+    <!-- Delete Confirmation Modal -->
+    <UiConfirmModal
+      :is-open="isDeleteModalOpen"
+      title="Удаление инструктора"
+      message="Вы уверены, что хотите удалить этого инструктора?"
+      :item-name="instructor?.fullName"
+      warning="Это действие нельзя отменить. Все данные инструктора будут удалены."
+      :loading="isDeleting"
+      @confirm="confirmDelete"
+      @cancel="closeDeleteModal"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { Instructor } from '~/types/instructor';
+import { 
+  AlertCircle, 
+  Edit, 
+  GraduationCap, 
+  BookOpen, 
+  Users, 
+  Clock,
+  Trash2
+} from 'lucide-vue-next';
+
+const route = useRoute();
+const router = useRouter();
+const id = route.params.id as string;
+
+// Используем authFetch для авторизованных запросов
+const { authFetch } = useAuthFetch();
+
+// State
+const instructor = ref<Instructor | null>(null);
+const loading = ref(true);
+const error = ref<string | null>(null);
+const showEditModal = ref(false);
+const isDeleteModalOpen = ref(false);
+const isDeleting = ref(false);
+
+// Meta
+definePageMeta({
+  title: 'Профиль инструктора',
+});
+
+useHead({
+  title: 'Профиль инструктора - АТЦ Платформа',
+});
+
+// Load instructor data
+const loadInstructor = async () => {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const response = await authFetch<{ instructor: Instructor }>(
+      `/api/instructors/${id}`,
+      {
+        method: 'GET',
+      }
+    );
+
+    instructor.value = response.instructor;
+  } catch (err: any) {
+    console.error('Error loading instructor:', err);
+    error.value = err.data?.message || 'Не удалось загрузить данные инструктора';
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Edit instructor
+const editInstructor = () => {
+  showEditModal.value = true;
+};
+
+// Close edit modal
+const closeEditModal = () => {
+  showEditModal.value = false;
+};
+
+// Handle instructor saved
+const handleInstructorSaved = () => {
+  showEditModal.value = false;
+  // Reload instructor data to show updated information
+  loadInstructor();
+};
+
+// Delete instructor
+const handleDelete = () => {
+  isDeleteModalOpen.value = true;
+};
+
+// Close delete modal
+const closeDeleteModal = () => {
+  if (!isDeleting.value) {
+    isDeleteModalOpen.value = false;
+  }
+};
+
+// Confirm delete
+const confirmDelete = async () => {
+  isDeleting.value = true;
+
+  try {
+    await authFetch(
+      `/api/instructors/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+
+    // Redirect to users page
+    router.push('/users?tab=instructors');
+  } catch (err: any) {
+    console.error('Error deleting instructor:', err);
+    // TODO: Show error notification
+  } finally {
+    isDeleting.value = false;
+    isDeleteModalOpen.value = false;
+  }
+};
+
+// Utilities
+const getInitials = (name: string): string => {
+  const parts = name.split(' ').filter(p => p.length > 0);
+  if (parts.length >= 2 && parts[0] && parts[1] && parts[0].length > 0 && parts[1].length > 0) {
+    return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+  }
+  if (name.length >= 2) {
+    return name.substring(0, 2).toUpperCase();
+  }
+  return name.toUpperCase();
+};
+
+const formatDate = (date: Date | string): string => {
+  const d = new Date(date);
+  return d.toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+const formatDateTime = (date: Date | string): string => {
+  const d = new Date(date);
+  return d.toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Load data on mount
+onMounted(() => {
+  loadInstructor();
+});
+</script>

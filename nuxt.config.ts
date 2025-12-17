@@ -27,6 +27,16 @@ export default defineNuxtConfig({
     strict: true
   },
   
+  components: [
+    {
+      path: '~/components',
+    },
+    {
+      path: '~/components/icons',
+      pathPrefix: false, // Иконки доступны без префикса (EyeIcon вместо IconsEyeIcon)
+    },
+  ],
+  
   nitro: {
     esbuild: {
       options: {

@@ -10,9 +10,9 @@ const instructorSchema = z.object({
   fullName: z.string().min(1, 'ФИО обязательно'),
   email: z.string().email('Некорректный email').optional().or(z.literal('')),
   phone: z.string().optional(),
-  specialization: z.string().optional(),
-  bio: z.string().optional(),
-  photoUrl: z.string().url('Некорректный URL фото').optional().or(z.literal('')),
+  hireDate: z.string().optional().or(z.literal('')),
+  contractInfo: z.string().optional(),
+  maxHours: z.number().min(0, 'Часы не могут быть отрицательными').optional(),
   isActive: z.boolean().optional(),
 });
 

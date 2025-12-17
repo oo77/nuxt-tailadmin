@@ -15,6 +15,10 @@
   </svg>
 </template>
 
+<script setup lang="ts">
+// Компонент иконки "Глаз перечёркнутый" для скрытия пароля
+</script>
+
 <style scoped>
 .icon-eye-off {
   display: inline-block;

@@ -20,10 +20,6 @@ export default defineEventHandler(async (event) => {
       filters.isActive = query.isActive === 'true';
     }
     
-    if (query.specialization) {
-      filters.specialization = query.specialization as string;
-    }
-
     // Парсим параметры пагинации
     const page = query.page ? parseInt(query.page as string, 10) : 1;
     const limit = query.limit ? Math.min(parseInt(query.limit as string, 10), 100) : 10;

@@ -3,7 +3,7 @@
  * DELETE /api/certificates/:id
  */
 
-import { deleteCertificate } from '../../utils/studentStorage';
+import { deleteCertificate } from '../../repositories/studentRepository';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    const deleted = deleteCertificate(id);
+    const deleted = await deleteCertificate(id);
 
     if (!deleted) {
       return {

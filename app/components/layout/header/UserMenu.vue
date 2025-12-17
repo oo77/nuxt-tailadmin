@@ -4,11 +4,11 @@
       class="flex items-center text-gray-700 dark:text-gray-400"
       @click.stop="toggleDropdown"
     >
-      <span class="mr-3 overflow-hidden rounded-full h-11 w-11">
-        <img src="/images/user/owner.jpg" alt="User" />
+      <span class="mr-3 overflow-hidden rounded-full h-11 w-11 bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-semibold">
+        {{ userInitials }}
       </span>
 
-      <span class="block mr-1 font-medium text-theme-sm">Musharof </span>
+      <span class="hidden sm:block mr-1 font-medium text-theme-sm">{{ userName }}</span>
 
       <ChevronDownIcon :class="{ 'rotate-180': dropdownOpen }" />
     </button>
@@ -28,10 +28,16 @@
       >
         <div>
           <span class="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            Musharof Chowdhury
+            {{ user?.name || 'Пользователь' }}
           </span>
           <span class="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            randomuser@pimjo.com
+            {{ user?.email || 'Нет email' }}
+          </span>
+          <span 
+            class="mt-1 inline-block px-2 py-0.5 text-xs font-medium rounded-full"
+            :class="getRoleBadgeClass(user?.role)"
+          >
+            {{ getRoleLabel(user?.role) }}
           </span>
         </div>
 
@@ -52,13 +58,13 @@
         </ul>
         
         <button
-          @click="signOut"
+          @click="handleSignOut"
           class="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >
           <LogoutIcon
             class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"
           />
-          Sign out
+          Выйти
         </button>
       </div>
     </Transition>
@@ -72,16 +78,67 @@ import ChevronDownIcon from '~/components/icons/ChevronDownIcon.vue'
 import LogoutIcon from '~/components/icons/LogoutIcon.vue'
 import SettingsIcon from '~/components/icons/SettingsIcon.vue'
 import InfoCircleIcon from '~/components/icons/InfoCircleIcon.vue'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+const { user, logout } = useAuth()
 
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 
 const menuItems = [
-  { href: '/profile', icon: UserCircleIcon, text: 'Edit profile' },
-  { href: '/settings', icon: SettingsIcon, text: 'Account settings' },
-  { href: '/support', icon: InfoCircleIcon, text: 'Support' },
+  { href: '/profile', icon: UserCircleIcon, text: 'Профиль' },
+  { href: '/settings', icon: SettingsIcon, text: 'Настройки' },
+  { href: '/support', icon: InfoCircleIcon, text: 'Поддержка' },
 ]
+
+// Вычисляемые свойства для отображения данных пользователя
+const userName = computed(() => {
+  if (!user.value) return 'Гость'
+  return user.value.name || 'Пользователь'
+})
+
+const userInitials = computed(() => {
+  if (!user.value || !user.value.name) return 'U'
+  
+  const parts = user.value.name.split(' ').filter(p => p.length > 0)
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    const first = parts[0][0]
+    const second = parts[1][0]
+    if (first && second) {
+      return (first + second).toUpperCase()
+    }
+  }
+  if (parts.length >= 1 && parts[0]) {
+    const first = parts[0][0]
+    if (first) {
+      return first.toUpperCase()
+    }
+  }
+  return 'U'
+})
+
+// Получение метки роли на русском
+const getRoleLabel = (role?: string) => {
+  const labels: Record<string, string> = {
+    'ADMIN': 'Администратор',
+    'MANAGER': 'Менеджер',
+    'TEACHER': 'Преподаватель',
+    'STUDENT': 'Студент',
+  }
+  return labels[role || ''] || role || 'Неизвестно'
+}
+
+// Получение CSS классов для бейджа роли
+const getRoleBadgeClass = (role?: string) => {
+  const classes: Record<string, string> = {
+    'ADMIN': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    'MANAGER': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    'TEACHER': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    'STUDENT': 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+  }
+  return classes[role || ''] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+}
 
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
@@ -91,13 +148,9 @@ const closeDropdown = () => {
   dropdownOpen.value = false
 }
 
-const signOut = () => {
-  // Implement sign out logic here
-  console.log('Signing out...')
+const handleSignOut = async () => {
   closeDropdown()
-  
-  // Redirect to signin page
-  navigateTo('/auth/signin')
+  await logout()
 }
 
 const handleClickOutside = (event: MouseEvent) => {

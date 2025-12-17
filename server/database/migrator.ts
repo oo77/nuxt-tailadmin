@@ -13,6 +13,7 @@ import * as migration001 from './migrations/20251215_001_create_users_table';
 import * as migration002 from './migrations/20251215_002_seed_admin_user';
 import * as migration003 from './migrations/20251216_003_create_students_tables';
 import * as migration004 from './migrations/20251216_004_create_courses_tables';
+import * as migration005 from './migrations/20251217_005_update_instructors_table';
 
 /**
  * ============================================================================
@@ -72,12 +73,18 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     down: migration004.down,
     description: migration004.description,
   },
+  {
+    name: '20251217_005_update_instructors_table',
+    up: migration005.up,
+    down: migration005.down,
+    description: migration005.description,
+  },
   // Добавляйте новые миграции здесь:
   // {
-  //   name: '20251217_005_your_migration',
-  //   up: migration005.up,
-  //   down: migration005.down,
-  //   description: migration005.description,
+  //   name: '20251217_006_your_migration',
+  //   up: migration006.up,
+  //   down: migration006.down,
+  //   description: migration006.description,
   // },
 ];
 

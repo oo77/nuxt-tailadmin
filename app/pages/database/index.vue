@@ -45,14 +45,6 @@
           <DatabaseStudentManagementPanel />
         </div>
 
-        <!-- База инструкторов Tab -->
-        <div v-show="activeTab === 'instructors'" class="p-6">
-          <div class="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p class="text-lg font-medium">База инструкторов</p>
-            <p class="mt-2">Функционал в разработке</p>
-          </div>
-        </div>
-
         <div v-show="activeTab === 'certificates'" class="p-6">
           <div class="text-center py-12 text-gray-500 dark:text-gray-400">
             <p class="text-lg font-medium">База сертификатов</p>
@@ -69,7 +61,6 @@ import { ref } from 'vue';
 
 // Определяем мета-данные страницы
 definePageMeta({
-  middleware: 'auth',
   layout: 'default',
 });
 
@@ -81,11 +72,6 @@ const tabs = [
   {
     id: 'students',
     label: 'База студентов',
-    disabled: false,
-  },
-  {
-    id: 'instructors',
-    label: 'База инструкторов',
     disabled: false,
   },
   {

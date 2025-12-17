@@ -9,9 +9,9 @@ export interface Instructor {
   fullName: string;
   email?: string;
   phone?: string;
-  specialization?: string;
-  bio?: string;
-  photoUrl?: string;
+  hireDate?: string;
+  contractInfo?: string;
+  maxHours?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -21,9 +21,9 @@ export interface CreateInstructorData {
   fullName: string;
   email?: string;
   phone?: string;
-  specialization?: string;
-  bio?: string;
-  photoUrl?: string;
+  hireDate?: string;
+  contractInfo?: string;
+  maxHours?: number;
   isActive?: boolean;
 }
 
@@ -117,7 +117,6 @@ export interface CourseFilters {
 export interface InstructorFilters {
   search?: string;
   isActive?: boolean;
-  specialization?: string;
 }
 
 export interface PaginatedResponse<T> {

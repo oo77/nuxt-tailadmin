@@ -20,6 +20,10 @@
   </svg>
 </template>
 
+<script setup lang="ts">
+// Компонент иконки "Глаз" для показа пароля
+</script>
+
 <style scoped>
 .icon-eye {
   display: inline-block;

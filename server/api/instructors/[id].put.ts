@@ -10,9 +10,9 @@ const updateInstructorSchema = z.object({
   fullName: z.string().min(1).optional(),
   email: z.string().email('Некорректный email').nullable().optional(),
   phone: z.string().nullable().optional(),
-  specialization: z.string().nullable().optional(),
-  bio: z.string().nullable().optional(),
-  photoUrl: z.string().url('Некорректный URL фото').nullable().optional(),
+  hireDate: z.string().nullable().optional(),
+  contractInfo: z.string().nullable().optional(),
+  maxHours: z.number().min(0, 'Часы не могут быть отрицательными').optional(),
   isActive: z.boolean().optional(),
 });
 

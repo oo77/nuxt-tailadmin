@@ -15,9 +15,9 @@ export interface Instructor {
   fullName: string;
   email?: string | null;
   phone?: string | null;
-  specialization?: string | null;
-  bio?: string | null;
-  photoUrl?: string | null;
+  hireDate?: Date | null;
+  contractInfo?: string | null;
+  maxHours: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,7 +26,6 @@ export interface Instructor {
 export interface InstructorFilters {
   search?: string;
   isActive?: boolean;
-  specialization?: string;
 }
 
 export interface PaginationParams {
@@ -47,9 +46,9 @@ export interface CreateInstructorInput {
   fullName: string;
   email?: string;
   phone?: string;
-  specialization?: string;
-  bio?: string;
-  photoUrl?: string;
+  hireDate?: Date | string;
+  contractInfo?: string;
+  maxHours?: number;
   isActive?: boolean;
 }
 
@@ -57,9 +56,9 @@ export interface UpdateInstructorInput {
   fullName?: string;
   email?: string | null;
   phone?: string | null;
-  specialization?: string | null;
-  bio?: string | null;
-  photoUrl?: string | null;
+  hireDate?: Date | string | null;
+  contractInfo?: string | null;
+  maxHours?: number;
   isActive?: boolean;
 }
 
@@ -72,9 +71,9 @@ interface InstructorRow extends RowDataPacket {
   full_name: string;
   email: string | null;
   phone: string | null;
-  specialization: string | null;
-  bio: string | null;
-  photo_url: string | null;
+  hire_date: Date | null;
+  contract_info: string | null;
+  max_hours: number;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -95,9 +94,9 @@ function mapRowToInstructor(row: InstructorRow): Instructor & { disciplineCount?
     fullName: row.full_name,
     email: row.email,
     phone: row.phone,
-    specialization: row.specialization,
-    bio: row.bio,
-    photoUrl: row.photo_url,
+    hireDate: row.hire_date,
+    contractInfo: row.contract_info,
+    maxHours: row.max_hours || 0,
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -120,13 +119,13 @@ export async function getAllInstructors(activeOnly = true): Promise<Instructor[]
 
 export async function getInstructorsPaginated(params: PaginationParams = {}): Promise<PaginatedResult<Instructor & { disciplineCount?: number }>> {
   const { page = 1, limit = 10, filters = {} } = params;
-  const { search, isActive, specialization } = filters;
+  const { search, isActive } = filters;
   
   const conditions: string[] = [];
   const queryParams: any[] = [];
   
   if (search) {
-    conditions.push('(full_name LIKE ? OR email LIKE ? OR specialization LIKE ?)');
+    conditions.push('(full_name LIKE ? OR email LIKE ? OR phone LIKE ?)');
     const searchPattern = `%${search}%`;
     queryParams.push(searchPattern, searchPattern, searchPattern);
   }
@@ -134,11 +133,6 @@ export async function getInstructorsPaginated(params: PaginationParams = {}): Pr
   if (isActive !== undefined) {
     conditions.push('is_active = ?');
     queryParams.push(isActive);
-  }
-  
-  if (specialization) {
-    conditions.push('specialization LIKE ?');
-    queryParams.push(`%${specialization}%`);
   }
   
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -200,17 +194,23 @@ export async function createInstructor(data: CreateInstructorInput): Promise<Ins
   const id = uuidv4();
   const now = new Date();
   
+  // Преобразуем hireDate в Date если это строка
+  let hireDate: Date | null = null;
+  if (data.hireDate) {
+    hireDate = typeof data.hireDate === 'string' ? new Date(data.hireDate) : data.hireDate;
+  }
+  
   await executeQuery(
-    `INSERT INTO instructors (id, full_name, email, phone, specialization, bio, photo_url, is_active, created_at, updated_at)
+    `INSERT INTO instructors (id, full_name, email, phone, hire_date, contract_info, max_hours, is_active, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.fullName,
       data.email || null,
       data.phone || null,
-      data.specialization || null,
-      data.bio || null,
-      data.photoUrl || null,
+      hireDate,
+      data.contractInfo || null,
+      data.maxHours || 0,
       data.isActive !== false,
       now,
       now
@@ -242,17 +242,20 @@ export async function updateInstructor(id: string, data: UpdateInstructorInput):
     updates.push('phone = ?');
     params.push(data.phone);
   }
-  if (data.specialization !== undefined) {
-    updates.push('specialization = ?');
-    params.push(data.specialization);
+  if (data.hireDate !== undefined) {
+    updates.push('hire_date = ?');
+    const hireDate = data.hireDate 
+      ? (typeof data.hireDate === 'string' ? new Date(data.hireDate) : data.hireDate)
+      : null;
+    params.push(hireDate);
   }
-  if (data.bio !== undefined) {
-    updates.push('bio = ?');
-    params.push(data.bio);
+  if (data.contractInfo !== undefined) {
+    updates.push('contract_info = ?');
+    params.push(data.contractInfo);
   }
-  if (data.photoUrl !== undefined) {
-    updates.push('photo_url = ?');
-    params.push(data.photoUrl);
+  if (data.maxHours !== undefined) {
+    updates.push('max_hours = ?');
+    params.push(data.maxHours);
   }
   if (data.isActive !== undefined) {
     updates.push('is_active = ?');
@@ -281,16 +284,6 @@ export async function deleteInstructor(id: string): Promise<boolean> {
 // ============================================================================
 // ДОПОЛНИТЕЛЬНЫЕ ОПЕРАЦИИ
 // ============================================================================
-
-/**
- * Получить список уникальных специализаций
- */
-export async function getUniqueSpecializations(): Promise<string[]> {
-  const rows = await executeQuery<(RowDataPacket & { specialization: string })[]>(
-    'SELECT DISTINCT specialization FROM instructors WHERE specialization IS NOT NULL AND specialization != "" ORDER BY specialization'
-  );
-  return rows.map(r => r.specialization);
-}
 
 /**
  * Получить инструкторов по списку ID

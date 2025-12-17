@@ -105,7 +105,6 @@ import { ref } from 'vue';
 import type { ImportAnalysis, ImportProgress } from '~/types/import';
 
 definePageMeta({
-  middleware: 'auth',
   layout: 'default',
 });
 

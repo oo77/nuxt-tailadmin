@@ -3,7 +3,7 @@
  * POST /api/students/:id/certificates
  */
 
-import { addCertificateToStudent, getStudentById } from '../../../utils/studentStorage';
+import { getStudentById, addCertificateToStudent } from '../../../repositories/studentRepository';
 import type { CreateCertificateInput } from '../../../types/student';
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Проверка существования студента
-    const student = getStudentById(studentId);
+    const student = await getStudentById(studentId);
     if (!student) {
       return {
         success: false,
@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Создание сертификата
-    const certificate = addCertificateToStudent(studentId, {
+    const certificate = await addCertificateToStudent(studentId, {
       courseName: body.courseName.trim(),
       certificateNumber: body.certificateNumber.trim(),
       issueDate,

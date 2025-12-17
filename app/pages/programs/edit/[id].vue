@@ -4,25 +4,46 @@
     <div class="mb-6">
       <div class="flex items-center gap-3 mb-4">
         <NuxtLink
-          to="/programs"
+          :to="`/programs/${id}`"
           class="flex items-center gap-2 text-gray-600 hover:text-primary dark:text-gray-400 dark:hover:text-primary transition-colors"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-          Назад к списку учебных программ
+          Назад к программе
         </NuxtLink>
       </div>
       <h2 class="text-title-md2 font-bold text-black dark:text-white">
-        Создание учебной программы
+        Редактирование учебной программы
       </h2>
       <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        Заполните информацию о курсе и добавьте дисциплины
+        Внесите изменения в информацию о курсе и дисциплинах
       </p>
     </div>
 
-    <!-- Форма создания курса -->
-    <form @submit.prevent="handleSubmit" class="space-y-6">
+    <!-- Loading State -->
+    <div v-if="pageLoading" class="flex justify-center items-center py-20">
+      <div class="h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="pageError" class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-8">
+      <div class="text-center">
+        <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-danger/10 flex items-center justify-center">
+          <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 class="mb-2 text-xl font-semibold text-black dark:text-white">Ошибка загрузки</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">{{ pageError }}</p>
+        <UiButton variant="primary" @click="loadCourse">
+          Попробовать снова
+        </UiButton>
+      </div>
+    </div>
+
+    <!-- Форма редактирования курса -->
+    <form v-else @submit.prevent="handleSubmit" class="space-y-6">
       <!-- Основная информация -->
       <div class="rounded-lg bg-white dark:bg-boxdark p-6 shadow-md">
         <h3 class="text-lg font-semibold text-black dark:text-white mb-4">
@@ -166,7 +187,7 @@
         <div v-else class="space-y-4">
           <div
             v-for="(discipline, index) in formData.disciplines"
-            :key="index"
+            :key="discipline.id || `new-${index}`"
             class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary/50 transition-colors"
           >
             <div class="flex items-start justify-between mb-3">
@@ -177,6 +198,8 @@
                 <h4 class="font-medium text-gray-900 dark:text-white">
                   {{ discipline.name || `Дисциплина ${index + 1}` }}
                 </h4>
+                <span v-if="discipline.id" class="text-xs text-gray-400">(существующая)</span>
+                <span v-else class="text-xs text-success">(новая)</span>
               </div>
               <button
                 type="button"
@@ -250,7 +273,7 @@
 
       <!-- Кнопки действий -->
       <div class="flex items-center justify-end gap-4">
-        <NuxtLink to="/programs">
+        <NuxtLink :to="`/programs/${id}`">
           <UiButton variant="danger">
             Отмена
           </UiButton>
@@ -260,7 +283,7 @@
           variant="success"
           :loading="loading"
         >
-          Создать учебную программу
+          Сохранить изменения
         </UiButton>
       </div>
     </form>
@@ -268,24 +291,51 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import type { CreateCourseData, CreateDisciplineData } from '~/types/course';
+import type { Course, Discipline, CreateDisciplineData } from '~/types/course';
 
 // Определяем мета-данные страницы
 definePageMeta({
   layout: 'default',
 });
 
+useHead({
+  title: 'Редактирование программы - АТЦ Платформа',
+});
+
+const route = useRoute();
+const router = useRouter();
+const id = route.params.id as string;
+
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
-const router = useRouter();
+const { success: showSuccess, error: showError } = useNotification();
+
+// Интерфейс для дисциплины в форме редактирования
+interface EditableDiscipline {
+  id?: string;
+  name: string;
+  description?: string;
+  hours: number;
+  orderIndex: number;
+  instructorIds: string[];
+}
 
 // Состояние
+const pageLoading = ref(true);
+const pageError = ref<string | null>(null);
 const loading = ref(false);
 const certificateTemplates = ref<any[]>([]);
 const instructors = ref<any[]>([]);
 
-const formData = ref<CreateCourseData & { disciplines: CreateDisciplineData[] }>({
+const formData = ref<{
+  name: string;
+  shortName: string;
+  code: string;
+  description?: string;
+  certificateTemplateId?: string;
+  isActive: boolean;
+  disciplines: EditableDiscipline[];
+}>({
   name: '',
   shortName: '',
   code: '',
@@ -310,10 +360,49 @@ const instructorOptions = computed(() => {
   }));
 });
 
-// Уведомления
-const { success: showSuccess, error: showError } = useNotification();
+// Загрузка курса
+const loadCourse = async () => {
+  pageLoading.value = true;
+  pageError.value = null;
 
-// Загрузка данных
+  try {
+    const response = await authFetch<{ success: boolean; course?: Course; message?: string }>(
+      `/api/courses/${id}`,
+      { method: 'GET' }
+    );
+
+    if (response.success && response.course) {
+      const course = response.course;
+      
+      // Заполняем форму данными курса
+      formData.value = {
+        name: course.name,
+        shortName: course.shortName,
+        code: course.code,
+        description: course.description || '',
+        certificateTemplateId: course.certificateTemplateId,
+        isActive: course.isActive,
+        disciplines: (course.disciplines || []).map((d: Discipline, index: number) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description || '',
+          hours: d.hours,
+          orderIndex: d.orderIndex ?? index,
+          instructorIds: d.instructors?.map(di => di.instructorId) || [],
+        })),
+      };
+    } else {
+      pageError.value = response.message || 'Не удалось загрузить данные учебной программы';
+    }
+  } catch (err: any) {
+    console.error('Error loading course:', err);
+    pageError.value = err.data?.message || err.message || 'Не удалось загрузить данные учебной программы';
+  } finally {
+    pageLoading.value = false;
+  }
+};
+
+// Загрузка шаблонов сертификатов
 const loadCertificateTemplates = async () => {
   try {
     const response = await authFetch('/api/courses/templates');
@@ -325,6 +414,7 @@ const loadCertificateTemplates = async () => {
   }
 };
 
+// Загрузка инструкторов
 const loadInstructors = async () => {
   try {
     const response = await authFetch('/api/instructors/all');
@@ -343,7 +433,7 @@ const addDiscipline = () => {
     description: '',
     hours: 0,
     orderIndex: formData.value.disciplines.length,
-    instructorIds: [] as string[],
+    instructorIds: [],
   });
 };
 
@@ -383,44 +473,54 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    const response = await authFetch('/api/courses', {
-      method: 'POST',
-      body: JSON.stringify(formData.value),
+    // Подготавливаем данные для отправки
+    const updateData = {
+      name: formData.value.name,
+      shortName: formData.value.shortName,
+      code: formData.value.code,
+      description: formData.value.description || null,
+      certificateTemplateId: formData.value.certificateTemplateId || null,
+      isActive: formData.value.isActive,
+      disciplines: formData.value.disciplines.map((d, index) => ({
+        id: d.id,
+        name: d.name,
+        description: d.description || null,
+        hours: d.hours,
+        orderIndex: index,
+        instructorIds: d.instructorIds,
+      })),
+    };
+
+    const response = await authFetch(`/api/courses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
     });
 
     if (response.success) {
-      // Успешно создано
-      showSuccess(
-        'Учебная программа успешно создана',
-        'Успех'
-      );
+      showSuccess('Учебная программа успешно обновлена', 'Успех');
       setTimeout(() => {
-        router.push('/programs');
+        router.push(`/programs/${id}`);
       }, 1000);
     } else {
-      // Ошибка от сервера
       if (response.field) {
         errors.value[response.field] = response.message;
       }
-      showError(
-        response.message || 'Ошибка при создании учебной программы',
-        'Ошибка'
-      );
+      showError(response.message || 'Ошибка при обновлении учебной программы', 'Ошибка');
     }
-  } catch (error) {
-    console.error('Ошибка создания учебной программы:', error);
-    showError(
-      'Произошла ошибка при создании учебной программы',
-      'Ошибка'
-    );
+  } catch (error: any) {
+    console.error('Ошибка обновления учебной программы:', error);
+    showError(error.data?.message || 'Произошла ошибка при обновлении учебной программы', 'Ошибка');
   } finally {
     loading.value = false;
   }
 };
 
 // Инициализация
-onMounted(() => {
-  loadCertificateTemplates();
-  loadInstructors();
+onMounted(async () => {
+  await Promise.all([
+    loadCourse(),
+    loadCertificateTemplates(),
+    loadInstructors(),
+  ]);
 });
 </script>

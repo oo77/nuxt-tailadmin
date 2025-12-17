@@ -3,8 +3,26 @@
  * PUT /api/courses/:id
  */
 
-import { updateCourse, courseCodeExists, type UpdateCourseInput } from '../../repositories/courseRepository';
+import {
+  updateCourse,
+  courseCodeExists,
+  getCourseById,
+  addDisciplineToCourse,
+  updateDiscipline,
+  deleteDiscipline,
+  type UpdateCourseInput,
+  type CreateDisciplineInput,
+} from '../../repositories/courseRepository';
 import { z } from 'zod';
+
+const disciplineSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  description: z.string().nullable().optional(),
+  hours: z.number().min(0),
+  orderIndex: z.number().optional(),
+  instructorIds: z.array(z.string()).optional(),
+});
 
 const updateCourseSchema = z.object({
   name: z.string().min(1).optional(),
@@ -13,6 +31,7 @@ const updateCourseSchema = z.object({
   description: z.string().nullable().optional(),
   certificateTemplateId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  disciplines: z.array(disciplineSchema).optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -55,8 +74,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Обновляем курс
-    const course = await updateCourse(id, data as UpdateCourseInput);
+    // Извлекаем дисциплины из данных для отдельной обработки
+    const { disciplines, ...courseData } = data;
+
+    // Обновляем основную информацию курса
+    const course = await updateCourse(id, courseData as UpdateCourseInput);
 
     if (!course) {
       return {
@@ -65,10 +87,53 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    // Обрабатываем дисциплины если они переданы
+    if (disciplines !== undefined) {
+      // Получаем текущие дисциплины курса
+      const currentCourse = await getCourseById(id, true);
+      const currentDisciplineIds = new Set(currentCourse?.disciplines?.map(d => d.id) || []);
+      const newDisciplineIds = new Set(disciplines.filter(d => d.id).map(d => d.id!));
+
+      // Удаляем дисциплины, которых нет в новом списке
+      for (const disciplineId of currentDisciplineIds) {
+        if (!newDisciplineIds.has(disciplineId)) {
+          await deleteDiscipline(disciplineId);
+        }
+      }
+
+      // Обновляем существующие и создаём новые дисциплины
+      for (let i = 0; i < disciplines.length; i++) {
+        const discipline = disciplines[i];
+        
+        if (discipline.id && currentDisciplineIds.has(discipline.id)) {
+          // Обновляем существующую дисциплину
+          await updateDiscipline(discipline.id, {
+            name: discipline.name,
+            description: discipline.description,
+            hours: discipline.hours,
+            orderIndex: i,
+            instructorIds: discipline.instructorIds,
+          });
+        } else {
+          // Создаём новую дисциплину
+          await addDisciplineToCourse(id, {
+            name: discipline.name,
+            description: discipline.description || undefined,
+            hours: discipline.hours,
+            orderIndex: i,
+            instructorIds: discipline.instructorIds,
+          } as CreateDisciplineInput);
+        }
+      }
+    }
+
+    // Возвращаем обновлённый курс
+    const updatedCourse = await getCourseById(id, true);
+
     return {
       success: true,
       message: 'Курс успешно обновлён',
-      course,
+      course: updatedCourse,
     };
   } catch (error) {
     console.error('Ошибка обновления курса:', error);

@@ -62,9 +62,9 @@ export interface Instructor {
   fullName: string;
   email?: string | null;
   phone?: string | null;
-  specialization?: string | null;
-  bio?: string | null;
-  photoUrl?: string | null;
+  hireDate?: Date | null;
+  contractInfo?: string | null;
+  maxHours?: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -173,7 +173,6 @@ interface DisciplineInstructorRow extends RowDataPacket {
   // Instructor joined fields
   instructor_full_name?: string;
   instructor_email?: string;
-  instructor_specialization?: string;
 }
 
 interface InstructorRow extends RowDataPacket {
@@ -181,9 +180,9 @@ interface InstructorRow extends RowDataPacket {
   full_name: string;
   email: string | null;
   phone: string | null;
-  specialization: string | null;
-  bio: string | null;
-  photo_url: string | null;
+  hire_date: Date | null;
+  contract_info: string | null;
+  max_hours: number;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -244,9 +243,9 @@ function mapRowToInstructor(row: InstructorRow): Instructor {
     fullName: row.full_name,
     email: row.email,
     phone: row.phone,
-    specialization: row.specialization,
-    bio: row.bio,
-    photoUrl: row.photo_url,
+    hireDate: row.hire_date,
+    contractInfo: row.contract_info,
+    maxHours: row.max_hours,
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -299,7 +298,7 @@ async function getDisciplineInstructors(disciplineIds: string[]): Promise<Map<st
   
   const placeholders = disciplineIds.map(() => '?').join(', ');
   const rows = await executeQuery<DisciplineInstructorRow[]>(
-    `SELECT di.*, i.full_name as instructor_full_name, i.email as instructor_email, i.specialization as instructor_specialization
+    `SELECT di.*, i.full_name as instructor_full_name, i.email as instructor_email
      FROM discipline_instructors di
      LEFT JOIN instructors i ON di.instructor_id = i.id
      WHERE di.discipline_id IN (${placeholders})`,
@@ -319,10 +318,7 @@ async function getDisciplineInstructors(disciplineIds: string[]): Promise<Map<st
         id: row.instructor_id,
         fullName: row.instructor_full_name,
         email: row.instructor_email || null,
-        specialization: row.instructor_specialization || null,
         phone: null,
-        bio: null,
-        photoUrl: null,
         isActive: true,
         createdAt: row.created_at,
         updatedAt: row.created_at,
