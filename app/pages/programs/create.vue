@@ -163,86 +163,49 @@
           <p class="text-sm mt-1">Нажмите "Добавить дисциплину" чтобы начать</p>
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-3">
           <div
             v-for="(discipline, index) in formData.disciplines"
             :key="index"
-            class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary/50 transition-colors"
+            class="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary/50 transition-colors"
           >
-            <div class="flex items-start justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                  {{ index + 1 }}
-                </div>
-                <h4 class="font-medium text-gray-900 dark:text-white">
-                  {{ discipline.name || `Дисциплина ${index + 1}` }}
-                </h4>
+            <div class="flex items-center gap-3 flex-1">
+              <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                {{ index + 1 }}
               </div>
+              <div class="flex-1">
+                <h4 class="font-medium text-gray-900 dark:text-white">{{ discipline.name }}</h4>
+                <div class="flex items-center gap-3 mt-1">
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    Теория: {{ discipline.theoryHours }}ч | Практика: {{ discipline.practiceHours }}ч | Проверка: {{ discipline.assessmentHours }}ч
+                  </span>
+                  <span class="text-xs font-semibold text-primary">
+                    Всего: {{ getDisciplineTotal(discipline) }}ч
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="editDiscipline(index)"
+                class="p-2 text-gray-600 hover:text-primary dark:text-gray-400 dark:hover:text-primary transition-colors"
+                title="Редактировать"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
               <button
                 type="button"
                 @click="removeDiscipline(index)"
-                class="text-danger hover:text-danger/80 transition-colors"
-                title="Удалить дисциплину"
+                class="p-2 text-danger hover:text-danger/80 transition-colors"
+                title="Удалить"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- Название дисциплины -->
-              <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Название дисциплины <span class="text-danger">*</span>
-                </label>
-                <input
-                  v-model="discipline.name"
-                  type="text"
-                  placeholder="Например: Введение в Python"
-                  class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                  required
-                />
-              </div>
-
-              <!-- Количество часов -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Академических часов <span class="text-danger">*</span>
-                </label>
-                <input
-                  v-model.number="discipline.hours"
-                  type="number"
-                  min="1"
-                  placeholder="40"
-                  class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                  required
-                />
-              </div>
-
-              <!-- Инструкторы -->
-              <div>
-                <UiMultiSelect
-                  v-model="discipline.instructorIds"
-                  :options="instructorOptions"
-                  label="Инструкторы"
-                  placeholder="Выберите инструкторов..."
-                  hint="Можно выбрать несколько инструкторов"
-                />
-              </div>
-
-              <!-- Описание дисциплины -->
-              <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Описание
-                </label>
-                <textarea
-                  v-model="discipline.description"
-                  rows="2"
-                  placeholder="Краткое описание дисциплины..."
-                  class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                ></textarea>
-              </div>
             </div>
           </div>
         </div>
@@ -264,6 +227,15 @@
         </UiButton>
       </div>
     </form>
+
+  <!-- Discipline Form Modal -->
+  <ProgramsCreateDisciplineModal
+    :is-open="isDisciplineModalOpen"
+    :discipline="editingDiscipline"
+    :instructor-options="instructorOptions"
+    @close="closeDisciplineModal"
+    @save="handleDisciplineSave"
+  />
   </div>
 </template>
 
@@ -284,6 +256,9 @@ const router = useRouter();
 const loading = ref(false);
 const certificateTemplates = ref<any[]>([]);
 const instructors = ref<any[]>([]);
+const isDisciplineModalOpen = ref(false);
+const editingDisciplineIndex = ref<number | null>(null);
+const editingDiscipline = ref<CreateDisciplineData | undefined>(undefined);
 
 const formData = ref<CreateCourseData & { disciplines: CreateDisciplineData[] }>({
   name: '',
@@ -299,8 +274,15 @@ const errors = ref<Record<string, string>>({});
 
 // Вычисляемые свойства
 const totalHours = computed(() => {
-  return formData.value.disciplines.reduce((sum, d) => sum + (d.hours || 0), 0);
+  return formData.value.disciplines.reduce((sum, d) => {
+    return sum + (d.theoryHours || 0) + (d.practiceHours || 0) + (d.assessmentHours || 0);
+  }, 0);
 });
+
+// Функция для подсчета часов отдельной дисциплины
+const getDisciplineTotal = (discipline: CreateDisciplineData) => {
+  return (discipline.theoryHours || 0) + (discipline.practiceHours || 0) + (discipline.assessmentHours || 0);
+};
 
 const instructorOptions = computed(() => {
   return instructors.value.map(instructor => ({
@@ -338,13 +320,38 @@ const loadInstructors = async () => {
 
 // Управление дисциплинами
 const addDiscipline = () => {
-  formData.value.disciplines.push({
-    name: '',
-    description: '',
-    hours: 0,
-    orderIndex: formData.value.disciplines.length,
-    instructorIds: [] as string[],
-  });
+  editingDisciplineIndex.value = null;
+  editingDiscipline.value = undefined;
+  isDisciplineModalOpen.value = true;
+};
+
+const editDiscipline = (index: number) => {
+  editingDisciplineIndex.value = index;
+  editingDiscipline.value = { ...formData.value.disciplines[index] } as any;
+  isDisciplineModalOpen.value = true;
+};
+
+const closeDisciplineModal = () => {
+  isDisciplineModalOpen.value = false;
+  editingDisciplineIndex.value = null;
+  editingDiscipline.value = undefined;
+};
+
+const handleDisciplineSave = (discipline: CreateDisciplineData) => {
+  if (editingDisciplineIndex.value !== null) {
+    // Редактирование существующей дисциплины
+    formData.value.disciplines[editingDisciplineIndex.value] = {
+      ...discipline,
+      orderIndex: editingDisciplineIndex.value,
+    };
+  } else {
+    // Добавление новой дисциплины
+    formData.value.disciplines.push({
+      ...discipline,
+      orderIndex: formData.value.disciplines.length,
+    });
+  }
+  closeDisciplineModal();
 };
 
 const removeDiscipline = (index: number) => {
@@ -407,12 +414,25 @@ const handleSubmit = async () => {
         'Ошибка'
       );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка создания учебной программы:', error);
-    showError(
-      'Произошла ошибка при создании учебной программы',
-      'Ошибка'
-    );
+    
+    // Пытаемся извлечь детальное сообщение об ошибке
+    let errorMessage = 'Произошла ошибка при создании учебной программы';
+    
+    if (error.data?.message) {
+      errorMessage = error.data.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    // Если есть информация о поле с ошибкой
+    if (error.data?.field) {
+      errors.value[error.data.field] = error.data.message;
+      errorMessage = `${error.data.field}: ${error.data.message}`;
+    }
+    
+    showError(errorMessage, 'Ошибка валидации');
   } finally {
     loading.value = false;
   }

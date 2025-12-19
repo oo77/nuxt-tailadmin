@@ -230,6 +230,7 @@ import PlugInIcon from "~/components/icons/PlugInIcon.vue";
 import BoxCubeIcon from "~/components/icons/BoxCubeIcon.vue";
 import DatabaseIcon from "~/components/icons/DatabaseIcon.vue";
 import AcademicCapIcon from "~/components/icons/AcademicCapIcon.vue";
+import FolderIcon from "~/components/icons/FolderIcon.vue";
 import SidebarWidget from "./SidebarWidget.vue";
 import { useSidebar } from "~/composables/useSidebar";
 
@@ -263,6 +264,11 @@ const menuGroups = [
         icon: DatabaseIcon,
         name: "База данных",
         path: "/database",
+      },
+      {
+        icon: FolderIcon,
+        name: "Файловый менеджер",
+        path: "/files",
       }
     ],
   },

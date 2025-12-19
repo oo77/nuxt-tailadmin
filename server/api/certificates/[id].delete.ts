@@ -1,9 +1,14 @@
 /**
  * API endpoint для удаления сертификата
  * DELETE /api/certificates/:id
+ * 
+ * Удаляет сертификат и связанный файл (если есть)
  */
 
-import { deleteCertificate } from '../../repositories/studentRepository';
+import { deleteCertificate, getCertificateById } from '../../repositories/studentRepository';
+import { deleteFile, getFileByUuid } from '../../repositories/fileRepository';
+import { storage } from '../../utils/storage';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,14 +21,76 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    const deleted = await deleteCertificate(id);
-
-    if (!deleted) {
+    // Получаем сертификат для получения file_url и названия
+    const certificate = await getCertificateById(id);
+    
+    if (!certificate) {
       return {
         success: false,
         message: 'Сертификат не найден',
       };
     }
+
+    // Если есть file_url, пытаемся удалить файл
+    if (certificate.fileUrl) {
+      try {
+        // Извлекаем UUID файла из URL
+        // URL может быть в формате: /api/files/{uuid} или просто {uuid}
+        const fileUrl = certificate.fileUrl;
+        let fileUuid: string | null = null;
+
+        // Паттерн для извлечения UUID
+        const uuidPattern = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i;
+        const match = fileUrl.match(uuidPattern);
+        
+        if (match) {
+          fileUuid = match[1];
+          
+          // Получаем информацию о файле
+          const fileRecord = await getFileByUuid(fileUuid);
+          
+          if (fileRecord) {
+            // Удаляем запись из БД (soft delete)
+            await deleteFile(fileUuid);
+            
+            // Удаляем физический файл
+            try {
+              await storage.delete(fileRecord.fullPath);
+              console.log(`✅ Файл сертификата удален: ${fileUuid}`);
+            } catch (fileError) {
+              console.warn('⚠️ Не удалось удалить физический файл сертификата:', fileError);
+            }
+          }
+        }
+      } catch (fileError) {
+        console.warn('⚠️ Ошибка при удалении файла сертификата:', fileError);
+        // Продолжаем удаление сертификата даже при ошибке файла
+      }
+    }
+
+    // Удаляем сертификат из БД
+    const deleted = await deleteCertificate(id);
+
+    if (!deleted) {
+      return {
+        success: false,
+        message: 'Не удалось удалить сертификат',
+      };
+    }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'CERTIFICATE',
+      id,
+      certificate.courseName,
+      {
+        certificateNumber: certificate.certificateNumber,
+        studentId: certificate.studentId,
+        issueDate: certificate.issueDate,
+      }
+    );
 
     return {
       success: true,

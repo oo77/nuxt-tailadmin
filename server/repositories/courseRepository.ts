@@ -42,6 +42,9 @@ export interface Discipline {
   name: string;
   description?: string | null;
   hours: number;
+  theoryHours: number;
+  practiceHours: number;
+  assessmentHours: number;
   orderIndex: number;
   instructors?: DisciplineInstructor[];
   createdAt: Date;
@@ -112,7 +115,9 @@ export interface UpdateCourseInput {
 export interface CreateDisciplineInput {
   name: string;
   description?: string;
-  hours: number;
+  theoryHours: number;
+  practiceHours: number;
+  assessmentHours: number;
   orderIndex?: number;
   instructorIds?: string[];
 }
@@ -121,7 +126,9 @@ export interface UpdateDisciplineInput {
   id?: string;
   name?: string;
   description?: string | null;
-  hours?: number;
+  theoryHours?: number;
+  practiceHours?: number;
+  assessmentHours?: number;
   orderIndex?: number;
   instructorIds?: string[];
 }
@@ -159,6 +166,9 @@ interface DisciplineRow extends RowDataPacket {
   name: string;
   description: string | null;
   hours: number;
+  theory_hours: number;
+  practice_hours: number;
+  assessment_hours: number;
   order_index: number;
   created_at: Date;
   updated_at: Date;
@@ -231,6 +241,9 @@ function mapRowToDiscipline(row: DisciplineRow): Discipline {
     name: row.name,
     description: row.description,
     hours: row.hours,
+    theoryHours: row.theory_hours,
+    practiceHours: row.practice_hours,
+    assessmentHours: row.assessment_hours,
     orderIndex: row.order_index,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -464,7 +477,7 @@ export async function createCourse(data: CreateCourseInput): Promise<Course> {
   const now = new Date();
   
   // Подсчитываем общее количество часов из дисциплин
-  const totalHours = data.disciplines?.reduce((sum, d) => sum + d.hours, 0) || 0;
+  const totalHours = data.disciplines?.reduce((sum, d) => sum + d.theoryHours + d.practiceHours + d.assessmentHours, 0) || 0;
   
   await executeTransaction(async (connection: PoolConnection) => {
     // Создаём курс
@@ -492,14 +505,16 @@ export async function createCourse(data: CreateCourseInput): Promise<Course> {
         const disciplineId = uuidv4();
         
         await connection.execute(
-          `INSERT INTO disciplines (id, course_id, name, description, hours, order_index, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO disciplines (id, course_id, name, description, theory_hours, practice_hours, assessment_hours, order_index, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             disciplineId,
             id,
             discipline.name,
             discipline.description || null,
-            discipline.hours,
+            discipline.theoryHours,
+            discipline.practiceHours,
+            discipline.assessmentHours,
             discipline.orderIndex ?? i,
             now,
             now
@@ -598,9 +613,9 @@ export async function addDisciplineToCourse(courseId: string, data: CreateDiscip
     const nextOrder = (maxOrderRows[0]?.max_order ?? -1) + 1;
     
     await connection.execute(
-      `INSERT INTO disciplines (id, course_id, name, description, hours, order_index, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, courseId, data.name, data.description || null, data.hours, data.orderIndex ?? nextOrder, now, now]
+      `INSERT INTO disciplines (id, course_id, name, description, theory_hours, practice_hours, assessment_hours, order_index, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, courseId, data.name, data.description || null, data.theoryHours, data.practiceHours, data.assessmentHours, data.orderIndex ?? nextOrder, now, now]
     );
     
     // Привязываем инструкторов
@@ -649,9 +664,17 @@ export async function updateDiscipline(disciplineId: string, data: UpdateDiscipl
       updates.push('description = ?');
       params.push(data.description);
     }
-    if (data.hours !== undefined) {
-      updates.push('hours = ?');
-      params.push(data.hours);
+    if (data.theoryHours !== undefined) {
+      updates.push('theory_hours = ?');
+      params.push(data.theoryHours);
+    }
+    if (data.practiceHours !== undefined) {
+      updates.push('practice_hours = ?');
+      params.push(data.practiceHours);
+    }
+    if (data.assessmentHours !== undefined) {
+      updates.push('assessment_hours = ?');
+      params.push(data.assessmentHours);
     }
     if (data.orderIndex !== undefined) {
       updates.push('order_index = ?');

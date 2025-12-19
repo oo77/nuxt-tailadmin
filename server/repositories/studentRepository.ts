@@ -108,6 +108,22 @@ async function getCertificatesByStudentId(studentId: string): Promise<StudentCer
 }
 
 /**
+ * Получить сертификат по ID
+ */
+export async function getCertificateById(certificateId: string): Promise<StudentCertificate | null> {
+  const rows = await executeQuery<CertificateRow[]>(
+    'SELECT * FROM certificates WHERE id = ? LIMIT 1',
+    [certificateId]
+  );
+  
+  if (rows.length === 0) {
+    return null;
+  }
+  
+  return mapRowToCertificate(rows[0]);
+}
+
+/**
  * Получить сертификаты для нескольких студентов
  */
 async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<string, StudentCertificate[]>> {

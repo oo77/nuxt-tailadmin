@@ -1,0 +1,107 @@
+# Walkthrough: Удаление файлов сертификатов и журнал действий
+
+## Выполненные изменения
+
+### 1. Удаление файла при удалении сертификата
+
+**Модифицирован:** [[id].delete.ts](file:///d:/Projects/nuxt-tailadmin/server/api/certificates/[id].delete.ts)
+
+- Перед удалением сертификата извлекается `file_url`
+- Из URL извлекается UUID файла (паттерн: `/api/files/{uuid}`)
+- Файл удаляется из БД (soft delete) и физически из хранилища
+- Добавлено логирование действия
+
+---
+
+### 2. Система журнала действий
+
+#### Миграция
+**Создан:** [[20251219_009_create_activity_logs_table.ts](file:///d:/Projects/nuxt-tailadmin/server/database/migrations/20251219_009_create_activity_logs_table.ts)]
+
+Таблица `activity_logs` с полями:
+- `user_id` — ID пользователя
+- `action_type` — ENUM: CREATE, UPDATE, DELETE, LOGIN, LOGOUT, IMPORT, EXPORT
+- `entity_type` — ENUM: USER, STUDENT, CERTIFICATE, COURSE, DISCIPLINE, INSTRUCTOR, FILE, FOLDER, SYSTEM
+- `entity_id`, `entity_name` — идентификатор и название сущности
+- `details` — JSON с дополнительными данными
+- `ip_address`, `user_agent` — данные о клиенте
+
+#### Типы
+- [[server/types/activityLog.ts](file:///d:/Projects/nuxt-tailadmin/server/types/activityLog.ts)] — серверные типы
+- [[app/types/activityLog.ts](file:///d:/Projects/nuxt-tailadmin/app/types/activityLog.ts)] — клиентские типы с метками для UI
+
+#### Репозиторий
+**Создан:** [[activityLogRepository.ts](file:///d:/Projects/nuxt-tailadmin/server/repositories/activityLogRepository.ts)]
+
+Функции:
+- [createActivityLog()](file:///d:/Projects/nuxt-tailadmin/server/repositories/activityLogRepository.ts#70-98) — создание записи
+- [getActivityLogsPaginated()](file:///d:/Projects/nuxt-tailadmin/server/repositories/activityLogRepository.ts#99-172) — получение с пагинацией
+- [getActivityLogsByUserId()](file:///d:/Projects/nuxt-tailadmin/server/repositories/activityLogRepository.ts#173-183) — логи пользователя
+- [getUserActivityStats()](file:///d:/Projects/nuxt-tailadmin/server/repositories/activityLogRepository.ts#218-272) — статистика
+
+#### Утилита логирования
+**Создан:** [[activityLogger.ts](file:///d:/Projects/nuxt-tailadmin/server/utils/activityLogger.ts)]
+
+```typescript
+// Использование в API:
+await logActivity(event, 'DELETE', 'CERTIFICATE', id, courseName, { details });
+```
+
+---
+
+### 3. API журнала действий
+
+| Эндпоинт | Описание |
+|----------|----------|
+| `GET /api/activity-logs` | Все логи с фильтрацией (только ADMIN) |
+| `GET /api/activity-logs/user/:userId` | Логи пользователя (только ADMIN) |
+
+**Файлы:**
+- [[index.get.ts](file:///d:/Projects/nuxt-tailadmin/server/api/activity-logs/index.get.ts)]
+- [[[userId].get.ts](file:///d:/Projects/nuxt-tailadmin/server/api/activity-logs/user/[userId].get.ts)]
+
+---
+
+### 4. Страница профиля пользователя
+
+**Создан:** [[users/[id].vue](file:///d:/Projects/nuxt-tailadmin/app/pages/users/[id].vue)]
+
+Функционал:
+- Шапка с аватаром и статистикой
+- Вкладка "Информация" — личные и рабочие данные
+- Вкладка "Журнал действий" — **только для ADMIN**
+- Пагинация журнала
+
+**Также создан:** [[users/[id].get.ts](file:///d:/Projects/nuxt-tailadmin/server/api/users/[id].get.ts)] — API получения пользователя
+
+---
+
+## Как использовать
+
+### Страница пользователя
+Перейти по URL: `/users/{id}` — где `{id}` — UUID пользователя
+
+### Добавление логирования в другие API
+
+```typescript
+import { logActivity } from '../../utils/activityLogger';
+
+// В конце успешного обработчика:
+await logActivity(
+  event,
+  'CREATE',           // ActionType
+  'STUDENT',          // EntityType
+  student.id,         // entityId
+  student.fullName,   // entityName (для отображения)
+  { pinfl: '...' }    // details (опционально)
+);
+```
+
+---
+
+## Проверка
+
+1. ✅ Удаление сертификата с файлом → файл удаляется
+2. ✅ Запись в журнале при создании/удалении сертификата
+3. ✅ Страница `/users/{id}` показывает профиль
+4. ✅ Вкладка "Журнал действий" видна только админу

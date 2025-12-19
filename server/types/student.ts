@@ -53,6 +53,7 @@ export interface CreateCertificateInput {
   issueDate: Date | string;
   certificateNumber: string;
   fileUrl?: string;
+  fileUuid?: string; // UUID загруженного файла из файлового менеджера
   expiryDate?: Date | string;
 }
 
@@ -62,5 +63,6 @@ export interface UpdateCertificateInput {
   issueDate?: Date | string;
   certificateNumber?: string;
   fileUrl?: string;
+  fileUuid?: string; // UUID загруженного файла из файлового менеджера
   expiryDate?: Date | string;
 }

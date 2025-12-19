@@ -71,8 +71,10 @@
                   <p class="text-sm text-gray-600 dark:text-gray-400">Файл:</p>
                   <a
                     :href="certificate.fileUrl"
+                    :download="getCertificateFileName(certificate)"
                     target="_blank"
-                    class="inline-flex items-center gap-1 text-primary hover:underline"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-primary hover:underline cursor-pointer"
                   >
                     <svg
                       class="w-4 h-4"
@@ -149,6 +151,21 @@
       @close="closeAddCertificateForm"
       @submit="handleAddCertificate"
     />
+
+    <!-- Модальное окно подтверждения удаления -->
+    <UiConfirmModal
+      :is-open="isDeleteConfirmOpen"
+      title="Подтверждение удаления"
+      message="Вы уверены, что хотите удалить этот сертификат?"
+      :item-name="certificateToDelete?.courseName"
+      warning="Это действие нельзя отменить"
+      confirm-text="Удалить"
+      cancel-text="Отмена"
+      variant="danger"
+      :loading="isDeleting"
+      @confirm="confirmDeleteCertificate"
+      @cancel="cancelDeleteCertificate"
+    />
   </UiModal>
 </template>
 
@@ -158,6 +175,7 @@ import type { Student, CreateCertificateData } from '~/types/student';
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
+const notification = useNotification();
 
 interface Props {
   student: Student | null;
@@ -172,6 +190,9 @@ const emit = defineEmits<{
 }>();
 
 const isAddCertificateOpen = ref(false);
+const isDeleteConfirmOpen = ref(false);
+const isDeleting = ref(false);
+const certificateToDelete = ref<any>(null);
 
 // Открытие формы добавления сертификата
 const openAddCertificateForm = () => {
@@ -188,7 +209,7 @@ const handleAddCertificate = async (data: CreateCertificateData) => {
   if (!props.student) return;
 
   try {
-    const response = await authFetch<{ success: boolean; certificate: any }>(
+    const response = await authFetch<{ success: boolean; certificate: any; message?: string }>(
       `/api/students/${props.student.id}/certificates`,
       {
         method: 'POST',
@@ -197,6 +218,7 @@ const handleAddCertificate = async (data: CreateCertificateData) => {
           certificateNumber: data.certificateNumber,
           issueDate: data.issueDate,
           fileUrl: data.fileUrl,
+          fileUuid: data.fileUuid,
           expiryDate: data.expiryDate,
         },
       }
@@ -206,23 +228,38 @@ const handleAddCertificate = async (data: CreateCertificateData) => {
       closeAddCertificateForm();
       // Обновляем данные студента
       emit('refresh');
-      // TODO: Показать уведомление об успехе
+      notification.success('Сертификат успешно добавлен', 'Успех');
+    } else {
+      notification.error(response.message || 'Не удалось добавить сертификат', 'Ошибка');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка добавления сертификата:', error);
-    // TODO: Показать уведомление об ошибке
+    
+    // Извлекаем сообщение об ошибке
+    const errorMessage = error?.data?.message || error?.message || 'Произошла ошибка при добавлении сертификата';
+    notification.error(errorMessage, 'Ошибка');
   }
 };
 
-// Обработка удаления сертификата
-const handleDeleteCertificate = async (certificateId: string) => {
-  if (!confirm('Вы уверены, что хотите удалить этот сертификат?')) {
-    return;
+// Открытие модалки подтверждения удаления
+const handleDeleteCertificate = (certificateId: string) => {
+  // Находим сертификат для отображения его названия в модалке
+  const certificate = props.student?.certificates.find(c => c.id === certificateId);
+  if (certificate) {
+    certificateToDelete.value = certificate;
+    isDeleteConfirmOpen.value = true;
   }
+};
+
+// Подтверждение удаления сертификата
+const confirmDeleteCertificate = async () => {
+  if (!certificateToDelete.value) return;
+
+  isDeleting.value = true;
 
   try {
-    const response = await authFetch<{ success: boolean }>(
-      `/api/certificates/${certificateId}`,
+    const response = await authFetch<{ success: boolean; message?: string }>(
+      `/api/certificates/${certificateToDelete.value.id}`,
       {
         method: 'DELETE',
       }
@@ -231,12 +268,27 @@ const handleDeleteCertificate = async (certificateId: string) => {
     if (response.success) {
       // Обновляем данные студента
       emit('refresh');
-      // TODO: Показать уведомление об успехе
+      notification.success('Сертификат успешно удален', 'Успех');
+      cancelDeleteCertificate();
+    } else {
+      notification.error(response.message || 'Не удалось удалить сертификат', 'Ошибка');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка удаления сертификата:', error);
-    // TODO: Показать уведомление об ошибке
+    
+    // Извлекаем сообщение об ошибке
+    const errorMessage = error?.data?.message || error?.message || 'Произошла ошибка при удалении сертификата';
+    notification.error(errorMessage, 'Ошибка');
+  } finally {
+    isDeleting.value = false;
   }
+};
+
+// Отмена удаления сертификата
+const cancelDeleteCertificate = () => {
+  isDeleteConfirmOpen.value = false;
+  certificateToDelete.value = null;
+  isDeleting.value = false;
 };
 
 // Утилиты
@@ -251,5 +303,12 @@ const formatDate = (date: Date | string): string => {
 
 const isExpired = (expiryDate: Date | string): boolean => {
   return new Date(expiryDate) < new Date();
+};
+
+// Формирование имени файла для скачивания
+const getCertificateFileName = (certificate: any): string => {
+  // Формируем имя файла: Сертификат_НомерСертификата.расширение
+  const certNumber = certificate.certificateNumber.replace(/[^a-zA-Z0-9]/g, '_');
+  return `Сертификат_${certNumber}.pdf`;
 };
 </script>

@@ -219,9 +219,17 @@
 
       <!-- Disciplines -->
       <div class="mt-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
-        <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-          Дисциплины курса
-        </h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+            Дисциплины курса
+          </h3>
+          <UiButton variant="primary" size="sm" @click="openDisciplineModal()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Добавить дисциплину
+          </UiButton>
+        </div>
         
         <div v-if="!course.disciplines || course.disciplines.length === 0" class="text-center py-8">
           <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-100 dark:bg-meta-4 flex items-center justify-center">
@@ -229,9 +237,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
           </div>
-          <p class="text-gray-600 dark:text-gray-400">
+          <p class="text-gray-600 dark:text-gray-400 mb-4">
             Дисциплины пока не добавлены
           </p>
+          <UiButton variant="primary" @click="openDisciplineModal()">
+            Добавить первую дисциплину
+          </UiButton>
         </div>
 
         <div v-else class="space-y-4">
@@ -251,13 +262,30 @@
                 <p v-if="discipline.description" class="text-sm text-gray-600 dark:text-gray-400 mb-3">
                   {{ discipline.description }}
                 </p>
+                
+                <!-- Разбивка часов -->
+                <div class="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Теория</p>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ discipline.theoryHours }} ч</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Практика</p>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ discipline.practiceHours }} ч</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Проверка знаний</p>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ discipline.assessmentHours }} ч</p>
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Всего</p>
+                      <p class="text-sm font-bold text-primary">{{ discipline.hours }} ч</p>
+                    </div>
+                  </div>
+                </div>
+                
                 <div class="flex flex-wrap gap-3">
-                  <span class="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-sm font-medium text-warning">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {{ discipline.hours }} часов
-                  </span>
                   <span
                     v-if="discipline.instructors && discipline.instructors.length > 0"
                     class="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-sm font-medium text-success"
@@ -284,6 +312,28 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- Кнопки действий -->
+              <div class="flex gap-2 shrink-0">
+                <button
+                  @click="openDisciplineModal(discipline)"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-primary dark:hover:text-primary"
+                  title="Редактировать"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  @click="handleDeleteDiscipline(discipline)"
+                  class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-danger hover:text-danger dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-danger dark:hover:text-danger"
+                  title="Удалить"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -301,11 +351,32 @@
       @confirm="confirmDelete"
       @cancel="closeDeleteModal"
     />
+
+    <!-- Discipline Form Modal -->
+    <ProgramsDisciplineFormModal
+      :is-open="isDisciplineModalOpen"
+      :course-id="id"
+      :discipline="selectedDiscipline"
+      @close="closeDisciplineModal"
+      @success="handleDisciplineSuccess"
+    />
+
+    <!-- Delete Discipline Confirmation Modal -->
+    <UiConfirmModal
+      :is-open="isDeleteDisciplineModalOpen"
+      title="Удаление дисциплины"
+      message="Вы уверены, что хотите удалить эту дисциплину?"
+      :item-name="selectedDiscipline?.name"
+      warning="Это действие нельзя отменить. Дисциплина будет удалена из курса."
+      :loading="isDeletingDiscipline"
+      @confirm="confirmDeleteDiscipline"
+      @cancel="closeDeleteDisciplineModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { Course } from '~/types/course';
+import type { Course, Discipline } from '~/types/course';
 
 const route = useRoute();
 const router = useRouter();
@@ -321,6 +392,10 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
+const isDisciplineModalOpen = ref(false);
+const selectedDiscipline = ref<Discipline | undefined>(undefined);
+const isDeleteDisciplineModalOpen = ref(false);
+const isDeletingDiscipline = ref(false);
 
 // Meta
 definePageMeta({
@@ -423,6 +498,61 @@ const confirmDelete = async () => {
   } finally {
     isDeleting.value = false;
     isDeleteModalOpen.value = false;
+  }
+};
+
+// Discipline management
+const openDisciplineModal = (discipline?: Discipline) => {
+  selectedDiscipline.value = discipline;
+  isDisciplineModalOpen.value = true;
+};
+
+const closeDisciplineModal = () => {
+  isDisciplineModalOpen.value = false;
+  selectedDiscipline.value = undefined;
+};
+
+const handleDisciplineSuccess = () => {
+  loadCourse();
+};
+
+const handleDeleteDiscipline = (discipline: Discipline) => {
+  selectedDiscipline.value = discipline;
+  isDeleteDisciplineModalOpen.value = true;
+};
+
+const closeDeleteDisciplineModal = () => {
+  if (!isDeletingDiscipline.value) {
+    isDeleteDisciplineModalOpen.value = false;
+    selectedDiscipline.value = undefined;
+  }
+};
+
+const confirmDeleteDiscipline = async () => {
+  if (!selectedDiscipline.value) return;
+
+  isDeletingDiscipline.value = true;
+
+  try {
+    await authFetch(
+      `/api/courses/${id}/disciplines/${selectedDiscipline.value.id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+
+    showSuccess('Дисциплина успешно удалена', 'Успех');
+    await loadCourse();
+  } catch (err: any) {
+    console.error('Error deleting discipline:', err);
+    showError(
+      err.data?.message || 'Не удалось удалить дисциплину',
+      'Ошибка'
+    );
+  } finally {
+    isDeletingDiscipline.value = false;
+    isDeleteDisciplineModalOpen.value = false;
+    selectedDiscipline.value = undefined;
   }
 };
 

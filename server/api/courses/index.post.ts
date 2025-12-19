@@ -10,10 +10,15 @@ import { z } from 'zod';
 const disciplineSchema = z.object({
   name: z.string().min(1, 'Название дисциплины обязательно'),
   description: z.string().optional(),
-  hours: z.number().min(1, 'Количество часов должно быть больше 0'),
+  theoryHours: z.number().min(0, 'Часы теории не могут быть отрицательными'),
+  practiceHours: z.number().min(0, 'Часы практики не могут быть отрицательными'),
+  assessmentHours: z.number().min(0, 'Часы проверки знаний не могут быть отрицательными'),
   orderIndex: z.number().optional(),
-  instructorIds: z.array(z.string()).optional(),
-});
+  instructorIds: z.array(z.string()).min(1, 'Необходимо выбрать хотя бы одного инструктора').optional(),
+}).refine(
+  (data) => (data.theoryHours + data.practiceHours + data.assessmentHours) > 0,
+  { message: 'Общее количество часов должно быть больше нуля', path: ['hours'] }
+);
 
 // Схема валидации для курса
 const courseSchema = z.object({
@@ -33,9 +38,11 @@ export default defineEventHandler(async (event) => {
     // Валидация
     const validationResult = courseSchema.safeParse(body);
     if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
       return {
         success: false,
-        message: 'Ошибка валидации данных',
+        message: firstError?.message || 'Ошибка валидации данных',
+        field: firstError?.path.join('.'),
         errors: validationResult.error.issues.map((e: any) => ({
           field: e.path.join('.'),
           message: e.message,

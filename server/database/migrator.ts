@@ -14,6 +14,10 @@ import * as migration002 from './migrations/20251215_002_seed_admin_user';
 import * as migration003 from './migrations/20251216_003_create_students_tables';
 import * as migration004 from './migrations/20251216_004_create_courses_tables';
 import * as migration005 from './migrations/20251217_005_update_instructors_table';
+import * as migration006 from './migrations/20251218_add_discipline_hours_breakdown';
+import * as migration007 from './migrations/20251218_007_create_files_table';
+import * as migration008 from './migrations/20251218_008_add_folders_support';
+import * as migration009 from './migrations/20251219_009_create_activity_logs_table';
 
 /**
  * ============================================================================
@@ -37,7 +41,7 @@ import * as migration005 from './migrations/20251217_005_update_instructors_tabl
 // ИНТЕРФЕЙС МИГРАЦИИ
 // ============================================================================
 
-interface Migration {
+interface Migration { 
   name: string;
   up: (connection: PoolConnection) => Promise<void>;
   down: (connection: PoolConnection) => Promise<void>;
@@ -79,12 +83,36 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     down: migration005.down,
     description: migration005.description,
   },
+  {
+    name: '20251218_add_discipline_hours_breakdown',
+    up: migration006.up,
+    down: migration006.down,
+    description: migration006.description,
+  },
+  {
+    name: '20251218_007_create_files_table',
+    up: migration007.up,
+    down: migration007.down,
+    description: migration007.description,
+  },
+  {
+    name: '20251218_008_add_folders_support',
+    up: migration008.up,
+    down: migration008.down,
+    description: migration008.description,
+  },
+  {
+    name: '20251219_009_create_activity_logs_table',
+    up: migration009.up,
+    down: migration009.down,
+    description: migration009.description,
+  },
   // Добавляйте новые миграции здесь:
   // {
-  //   name: '20251217_006_your_migration',
-  //   up: migration006.up,
-  //   down: migration006.down,
-  //   description: migration006.description,
+  //   name: '20251220_010_your_migration',
+  //   up: migration010.up,
+  //   down: migration010.down,
+  //   description: migration010.description,
   // },
 ];
 

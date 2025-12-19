@@ -1,70 +1,89 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal">
+    <!-- Backdrop с анимацией -->
+    <Transition
+      enter-active-class="transition-opacity duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
       <div
         v-if="isOpen"
-        class="fixed inset-0 flex items-center justify-center overflow-y-auto z-99999 p-4"
+        class="fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto p-4"
         @click.self="handleBackdropClick"
       >
         <!-- Backdrop -->
         <div
-          class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+          class="fixed inset-0 bg-black/50 backdrop-blur-sm"
           aria-hidden="true"
         ></div>
 
-        <!-- Modal Content -->
-        <div
-          :class="[
-            'relative bg-white dark:bg-boxdark rounded-lg shadow-xl w-full transition-all',
-            sizeClasses[size],
-          ]"
-          role="dialog"
-          aria-modal="true"
+        <!-- Модальное окно с анимацией -->
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          enter-from-class="opacity-0 scale-95 -translate-y-4"
+          enter-to-class="opacity-100 scale-100 translate-y-0"
+          leave-active-class="transition-all duration-200 ease-in"
+          leave-from-class="opacity-100 scale-100 translate-y-0"
+          leave-to-class="opacity-0 scale-95 -translate-y-4"
         >
-          <!-- Header -->
           <div
-            v-if="title || $slots.header"
-            class="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark"
+            v-if="isOpen"
+            :class="[
+              'relative bg-white dark:bg-boxdark rounded-lg shadow-xl w-full',
+              sizeClasses[size],
+            ]"
+            role="dialog"
+            aria-modal="true"
+            @click.stop
           >
-            <slot name="header">
-              <h3 class="text-xl font-semibold text-black dark:text-white">
-                {{ title }}
-              </h3>
-            </slot>
-            <button
-              type="button"
-              @click="$emit('close')"
-              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            <!-- Header -->
+            <div
+              v-if="title || $slots.header"
+              class="flex items-center justify-between px-6 py-4 border-b border-stroke dark:border-strokedark"
             >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              <slot name="header">
+                <h3 class="text-xl font-semibold text-black dark:text-white">
+                  {{ title }}
+                </h3>
+              </slot>
+              <button
+                type="button"
+                @click="$emit('close')"
+                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
 
-          <!-- Body -->
-          <div class="px-6 py-6">
-            <slot></slot>
-          </div>
+            <!-- Body -->
+            <div class="px-6 py-6">
+              <slot></slot>
+            </div>
 
-          <!-- Footer -->
-          <div
-            v-if="$slots.footer"
-            class="px-6 py-4 border-t border-stroke dark:border-strokedark"
-          >
-            <slot name="footer"></slot>
+            <!-- Footer -->
+            <div
+              v-if="$slots.footer"
+              class="px-6 py-4 border-t border-stroke dark:border-strokedark"
+            >
+              <slot name="footer"></slot>
+            </div>
           </div>
-        </div>
+        </Transition>
       </div>
     </Transition>
   </Teleport>
@@ -117,25 +136,3 @@ watch(
   }
 );
 </script>
-
-<style scoped>
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .relative,
-.modal-leave-active .relative {
-  transition: transform 0.3s ease;
-}
-
-.modal-enter-from .relative,
-.modal-leave-to .relative {
-  transform: scale(0.95);
-}
-</style>

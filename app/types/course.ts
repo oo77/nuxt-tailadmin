@@ -48,7 +48,10 @@ export interface Discipline {
   courseId: string;
   name: string;
   description?: string;
-  hours: number;
+  hours: number; // Автоматически вычисляется как сумма theoryHours + practiceHours + assessmentHours
+  theoryHours: number;
+  practiceHours: number;
+  assessmentHours: number;
   orderIndex: number;
   instructors?: DisciplineInstructor[];
   createdAt: string;
@@ -67,7 +70,9 @@ export interface DisciplineInstructor {
 export interface CreateDisciplineData {
   name: string;
   description?: string;
-  hours: number;
+  theoryHours: number;
+  practiceHours: number;
+  assessmentHours: number;
   orderIndex?: number;
   instructorIds?: string[];
 }
