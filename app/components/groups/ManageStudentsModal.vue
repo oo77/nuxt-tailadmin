@@ -1,11 +1,11 @@
 <template>
-  <UiModal :is-open="isOpen" title="Управление слушателями" size="lg" @close="$emit('close')">
-    <div class="space-y-6">
+  <UiModal :is-open="isOpen" title="Управление слушателями" size="xl" @close="$emit('close')">
+    <div class="space-y-4">
       <!-- Информация о группе -->
-      <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
+      <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
         <div class="flex items-center gap-3">
-          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
@@ -16,114 +16,163 @@
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="border-b border-gray-200 dark:border-gray-700">
-        <nav class="flex gap-4">
-          <button
-            type="button"
-            @click="activeTab = 'list'"
-            :class="[
-              'pb-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'list'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            ]"
-          >
-            Текущие слушатели ({{ currentStudents.length }})
-          </button>
-          <button
-            type="button"
-            @click="activeTab = 'add'"
-            :class="[
-              'pb-3 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'add'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            ]"
-          >
-            Добавить слушателей
-          </button>
-        </nav>
-      </div>
-
-      <!-- Список текущих слушателей -->
-      <div v-if="activeTab === 'list'" class="space-y-4">
-        <div v-if="currentStudents.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <p class="mt-4">В группе пока нет слушателей</p>
-          <button
-            type="button"
-            @click="activeTab = 'add'"
-            class="mt-4 text-primary hover:underline"
-          >
-            Добавить слушателей
-          </button>
-        </div>
-
-        <div v-else class="space-y-2 max-h-96 overflow-y-auto">
-          <div
-            v-for="gs in currentStudents"
-            :key="gs.id"
-            class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
-          >
-            <div class="flex items-center gap-4 min-w-0">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-success/10 text-success font-semibold text-lg">
-                {{ getInitials(gs.student?.fullName) }}
+      <!-- Двухколоночный layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Левая колонка: База слушателей -->
+        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h5 class="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              База слушателей
+            </h5>
+          </div>
+          
+          <div class="p-3 space-y-3">
+            <!-- Фильтры -->
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Поиск по ФИО, ПИНФЛ..."
+                  class="w-full rounded border border-stroke bg-transparent py-2 pl-9 pr-3 text-sm outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary"
+                  @input="debouncedSearch"
+                />
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
-              <div class="min-w-0">
-                <p class="font-semibold text-gray-900 dark:text-white truncate">
-                  {{ gs.student?.fullName }}
-                </p>
-                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
-                  {{ gs.student?.pinfl }} • {{ gs.student?.organization }}
-                </p>
-                <p class="text-xs text-gray-400 dark:text-gray-500">
-                  Добавлен: {{ formatDate(gs.enrolledAt) }}
-                </p>
-              </div>
+              <button
+                v-if="selectedStudentIds.length > 0"
+                type="button"
+                @click="addSelectedStudents"
+                :disabled="addingStudents"
+                class="px-3 py-2 bg-primary text-white text-sm rounded hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
+              >
+                <svg v-if="addingStudents" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Добавить ({{ selectedStudentIds.length }})</span>
+              </button>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                @click="openTransferModal(gs)"
-                class="p-2 text-gray-500 hover:text-primary transition-colors"
-                title="Переместить в другую группу"
+
+            <!-- Статус загрузки -->
+            <div v-if="loading" class="text-center py-6">
+              <div class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-r-transparent"></div>
+              <p class="mt-2 text-sm text-gray-500">Поиск...</p>
+            </div>
+
+            <!-- Результаты поиска -->
+            <div v-else-if="searchResults.length > 0" class="max-h-72 overflow-y-auto space-y-1">
+              <label
+                v-for="student in searchResults"
+                :key="student.id"
+                :class="[
+                  'flex items-center gap-3 p-2 rounded cursor-pointer transition-colors',
+                  existingStudentIds.includes(student.id)
+                    ? 'bg-gray-100 dark:bg-gray-700 opacity-50 cursor-not-allowed'
+                    : selectedStudentIds.includes(student.id)
+                      ? 'bg-primary/10 border border-primary/30'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                ]"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                @click="removeStudentConfirm(gs)"
-                class="p-2 text-gray-500 hover:text-danger transition-colors"
-                title="Удалить из группы"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+                <input
+                  type="checkbox"
+                  :checked="selectedStudentIds.includes(student.id)"
+                  :disabled="existingStudentIds.includes(student.id)"
+                  @change="toggleStudent(student)"
+                  class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+                />
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                  {{ getInitials(student.fullName) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ student.fullName }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ student.pinfl }} • {{ student.organization }}</p>
+                </div>
+                <span v-if="existingStudentIds.includes(student.id)" class="text-xs text-gray-400">В группе</span>
+              </label>
+            </div>
+
+            <!-- Пустой результат -->
+            <div v-else-if="searchQuery && !loading" class="text-center py-6 text-gray-500 dark:text-gray-400">
+              <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p class="mt-2 text-sm">Слушатели не найдены</p>
+            </div>
+
+            <!-- Подсказка -->
+            <div v-else class="text-center py-6 text-gray-500 dark:text-gray-400">
+              <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p class="mt-2 text-sm">Введите минимум 2 символа для поиска</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Добавление слушателей -->
-      <div v-if="activeTab === 'add'" class="space-y-4">
-        <GroupsStudentMultiSelect
-          v-model="newStudentIds"
-          :exclude-ids="existingStudentIds"
-        />
-        
-        <div v-if="newStudentIds.length > 0" class="flex justify-end">
-          <UiButton
-            :loading="addingStudents"
-            @click="addStudents"
-          >
-            Добавить выбранных ({{ newStudentIds.length }})
-          </UiButton>
+        <!-- Правая колонка: Слушатели группы -->
+        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h5 class="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              В группе ({{ currentStudents.length }})
+            </h5>
+          </div>
+          
+          <div class="p-3">
+            <div v-if="currentStudents.length === 0" class="text-center py-6 text-gray-500 dark:text-gray-400">
+              <svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <p class="mt-2 text-sm">Группа пуста</p>
+              <p class="text-xs text-gray-400 mt-1">Выберите слушателей слева для добавления</p>
+            </div>
+
+            <div v-else class="max-h-72 overflow-y-auto space-y-1">
+              <div
+                v-for="gs in currentStudents"
+                :key="gs.id"
+                class="flex items-center gap-2 p-2 rounded bg-gray-50 dark:bg-gray-800 group"
+              >
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success/10 text-success text-xs font-semibold">
+                  {{ getInitials(gs.student?.fullName) }}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ gs.student?.fullName }}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ gs.student?.organization }}</p>
+                </div>
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    @click="openTransferModal(gs)"
+                    class="p-1.5 text-gray-400 hover:text-primary rounded transition-colors"
+                    title="Переместить"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    @click="removeStudentConfirm(gs)"
+                    class="p-1.5 text-gray-400 hover:text-danger rounded transition-colors"
+                    title="Удалить"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -136,12 +185,16 @@
       >
         <div class="space-y-4">
           <p class="text-gray-600 dark:text-gray-400">
-            Выберите группу для перемещения слушателя 
-            <strong>{{ studentToTransfer?.student?.fullName }}</strong>:
+            Выберите группу для перемещения:
+            <strong class="block mt-1 text-gray-900 dark:text-white">{{ studentToTransfer?.student?.fullName }}</strong>
           </p>
           
           <div v-if="loadingGroups" class="text-center py-4">
             <div class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-r-transparent"></div>
+          </div>
+          
+          <div v-else-if="availableGroups.length === 0" class="text-center py-4 text-gray-500">
+            Нет доступных групп для перемещения
           </div>
           
           <div v-else class="space-y-2 max-h-60 overflow-y-auto">
@@ -159,7 +212,7 @@
         </div>
         
         <template #footer>
-          <div class="flex justify-end gap-3">
+          <div class="flex justify-end">
             <UiButton variant="outline" @click="showTransferModal = false">
               Отмена
             </UiButton>
@@ -180,6 +233,7 @@
 
 <script setup lang="ts">
 import type { GroupStudent } from '~/types/group';
+import type { Student } from '~/types/student';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -200,37 +254,71 @@ const { authFetch } = useAuthFetch();
 const toast = useNotification();
 
 // State
-const activeTab = ref<'list' | 'add'>('list');
-const newStudentIds = ref<string[]>([]);
+const searchQuery = ref('');
+const searchResults = ref<Student[]>([]);
+const selectedStudentIds = ref<string[]>([]);
+const loading = ref(false);
 const addingStudents = ref(false);
 const showTransferModal = ref(false);
 const studentToTransfer = ref<GroupStudent | null>(null);
 const availableGroups = ref<Array<{ id: string; code: string; courseName: string }>>([]);
 const loadingGroups = ref(false);
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Computed
 const currentStudents = computed(() => props.group?.students || []);
 const existingStudentIds = computed(() => currentStudents.value.map(s => s.studentId));
 
 // Methods
-const getInitials = (name?: string): string => {
-  if (!name) return '??';
-  const parts = name.split(' ');
-  const first = parts[0] || '';
-  const second = parts[1] || '';
-  if (first.length > 0 && second.length > 0) {
-    return (first.charAt(0) + second.charAt(0)).toUpperCase();
+const searchStudents = async () => {
+  if (!searchQuery.value || searchQuery.value.length < 2) {
+    searchResults.value = [];
+    return;
   }
-  return name.substring(0, 2).toUpperCase();
+
+  loading.value = true;
+  try {
+    const response = await authFetch<{ success: boolean; students: Student[] }>('/api/students', {
+      method: 'GET',
+      params: { 
+        search: searchQuery.value,
+        limit: 30 
+      },
+    });
+    
+    if (response.success && response.students) {
+      searchResults.value = response.students;
+    }
+  } catch (error) {
+    console.error('Error searching students:', error);
+    searchResults.value = [];
+  } finally {
+    loading.value = false;
+  }
 };
 
-const formatDate = (date: string | Date): string => {
-  const d = new Date(date);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const debouncedSearch = () => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    searchStudents();
+  }, 300);
 };
 
-const addStudents = async () => {
-  if (newStudentIds.value.length === 0 || !props.group) return;
+const toggleStudent = (student: Student) => {
+  if (existingStudentIds.value.includes(student.id)) return;
+  
+  const index = selectedStudentIds.value.indexOf(student.id);
+  if (index === -1) {
+    selectedStudentIds.value.push(student.id);
+  } else {
+    selectedStudentIds.value.splice(index, 1);
+  }
+};
+
+const addSelectedStudents = async () => {
+  if (selectedStudentIds.value.length === 0 || !props.group) return;
 
   addingStudents.value = true;
   try {
@@ -238,20 +326,21 @@ const addStudents = async () => {
       `/api/groups/${props.group.id}/students`,
       {
         method: 'POST',
-        body: { studentIds: newStudentIds.value },
+        body: { studentIds: selectedStudentIds.value },
       }
     );
 
     if (response.success) {
-      toast.success(response.message || 'Слушатели успешно добавлены');
-      newStudentIds.value = [];
-      activeTab.value = 'list';
+      toast.success(response.message || 'Слушатели добавлены');
+      selectedStudentIds.value = [];
+      searchQuery.value = '';
+      searchResults.value = [];
       emit('updated');
     } else if (response.conflicts && response.conflicts.length > 0) {
       const conflictNames = response.conflicts.map((c: any) => c.studentName).join(', ');
-      toast.error(`Конфликт дат для: ${conflictNames}`);
+      toast.error(`Конфликт дат: ${conflictNames}`);
     } else {
-      toast.error(response.message || 'Ошибка добавления слушателей');
+      toast.error(response.message || 'Ошибка добавления');
     }
   } catch (error) {
     toast.error('Ошибка при добавлении слушателей');
@@ -261,7 +350,7 @@ const addStudents = async () => {
 };
 
 const removeStudentConfirm = (gs: GroupStudent) => {
-  if (confirm(`Удалить слушателя "${gs.student?.fullName}" из группы?`)) {
+  if (confirm(`Удалить "${gs.student?.fullName}" из группы?`)) {
     removeStudent(gs.studentId);
   }
 };
@@ -276,13 +365,13 @@ const removeStudent = async (studentId: string) => {
     );
 
     if (response.success) {
-      toast.success('Слушатель удалён из группы');
+      toast.success('Слушатель удалён');
       emit('updated');
     } else {
-      toast.error(response.message || 'Ошибка удаления слушателя');
+      toast.error(response.message || 'Ошибка удаления');
     }
   } catch (error) {
-    toast.error('Ошибка при удалении слушателя');
+    toast.error('Ошибка удаления слушателя');
   }
 };
 
@@ -290,7 +379,6 @@ const openTransferModal = async (gs: GroupStudent) => {
   studentToTransfer.value = gs;
   showTransferModal.value = true;
   
-  // Загружаем список доступных групп
   loadingGroups.value = true;
   try {
     const response = await authFetch<{ success: boolean; groups: any[] }>(
@@ -325,23 +413,35 @@ const transferStudentToGroup = async (toGroupId: string) => {
     );
 
     if (response.success) {
-      toast.success(response.message || 'Слушатель успешно перемещён');
+      toast.success(response.message || 'Слушатель перемещён');
       showTransferModal.value = false;
       studentToTransfer.value = null;
       emit('updated');
     } else {
-      toast.error(response.message || 'Ошибка перемещения слушателя');
+      toast.error(response.message || 'Ошибка перемещения');
     }
   } catch (error) {
-    toast.error('Ошибка при перемещении слушателя');
+    toast.error('Ошибка перемещения слушателя');
   }
 };
 
-// Reset state when modal opens
+const getInitials = (name?: string): string => {
+  if (!name) return '??';
+  const parts = name.split(' ');
+  const first = parts[0] || '';
+  const second = parts[1] || '';
+  if (first.length > 0 && second.length > 0) {
+    return (first.charAt(0) + second.charAt(0)).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+// Reset on open
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
-    activeTab.value = 'list';
-    newStudentIds.value = [];
+    searchQuery.value = '';
+    searchResults.value = [];
+    selectedStudentIds.value = [];
   }
 });
 </script>

@@ -8,7 +8,7 @@ import {
   getGroupById,
   addStudentsToGroup,
   checkStudentConflicts 
-} from '../../../repositories/groupRepository';
+} from '../../../../repositories/groupRepository';
 
 const addStudentsSchema = z.object({
   studentIds: z.array(z.string()).min(1, 'Выберите хотя бы одного слушателя'),
