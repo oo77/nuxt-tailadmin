@@ -19,6 +19,7 @@ import * as migration007 from './migrations/20251218_007_create_files_table';
 import * as migration008 from './migrations/20251218_008_add_folders_support';
 import * as migration009 from './migrations/20251219_009_create_activity_logs_table';
 import * as migration010 from './migrations/20251222_010_create_study_groups_tables';
+import * as migration011 from './migrations/20251222_011_create_schedule_events_table';
 
 /**
  * ============================================================================
@@ -113,6 +114,12 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: migration010.up,
     down: migration010.down,
     description: migration010.description,
+  },
+  {
+    name: '20251222_011_create_schedule_events_table',
+    up: migration011.up,
+    down: migration011.down,
+    description: migration011.description,
   },
   // Добавляйте новые миграции здесь:
   // {

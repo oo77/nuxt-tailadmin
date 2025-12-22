@@ -266,6 +266,11 @@ const menuGroups = [
         path: "/groups",
       },
       {
+        icon: CalenderIcon,
+        name: "Расписание",
+        path: "/schedule",
+      },
+      {
         icon: DatabaseIcon,
         name: "База данных",
         path: "/database",
