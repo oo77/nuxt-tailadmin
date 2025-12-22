@@ -10,6 +10,7 @@ import {
   createImportJob,
   executeImport,
 } from '../../../utils/importUtils';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -54,6 +55,16 @@ export default defineEventHandler(async (event) => {
     executeImport(validData, jobId).catch((error: Error) => {
       console.error('Ошибка выполнения импорта:', error);
     });
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'IMPORT',
+      'STUDENT',
+      jobId,
+      'Импорт студентов',
+      { totalRows: validData.length }
+    );
 
     return {
       success: true,

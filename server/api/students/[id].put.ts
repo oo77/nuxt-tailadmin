@@ -4,6 +4,7 @@
  */
 
 import { updateStudent, studentExistsByPinfl } from '../../repositories/studentRepository';
+import { logActivity } from '../../utils/activityLogger';
 import type { UpdateStudentInput } from '../../types/student';
 
 export default defineEventHandler(async (event) => {
@@ -83,6 +84,16 @@ export default defineEventHandler(async (event) => {
         message: 'Студент не найден',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'STUDENT',
+      student.id,
+      student.fullName,
+      { updatedFields: Object.keys(updateData) }
+    );
 
     return {
       success: true,

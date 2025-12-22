@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { executeQuery } from '../../utils/db';
 import { hashPassword, toPublicUser } from '../../utils/auth';
 import { validate, registerSchema } from '../../utils/validation';
+import { logActivity } from '../../utils/activityLogger';
 import type { User, RegisterData, UserPublic } from '../../types/auth';
 
 /**
@@ -124,6 +125,16 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log(`✅ User created by ${currentUser.email}: ${newUser.email} (${newUser.role})`);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'USER',
+      newUser.id,
+      newUser.name,
+      { email: newUser.email, role: newUser.role }
+    );
 
     return {
       success: true,

@@ -4,6 +4,7 @@
  */
 
 import { updateInstructor, instructorEmailExists, type UpdateInstructorInput } from '../../repositories/instructorRepository';
+import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
 
 const updateInstructorSchema = z.object({
@@ -65,6 +66,16 @@ export default defineEventHandler(async (event) => {
         message: 'Инструктор не найден',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'INSTRUCTOR',
+      id,
+      instructor.fullName,
+      { updatedFields: Object.keys(data) }
+    );
 
     return {
       success: true,

@@ -4,6 +4,7 @@
  */
 
 import { moveFolder, getFolderById } from '../../../repositories/folderRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -55,6 +56,16 @@ export default defineEventHandler(async (event) => {
         message: 'Не удалось переместить папку',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'FOLDER',
+      String(folderId),
+      folder.name,
+      { action: 'move', newParentId }
+    );
 
     return {
       success: true,

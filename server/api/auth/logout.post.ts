@@ -3,17 +3,24 @@
  * POST /api/auth/logout
  * 
  * В текущей реализации с JWT токенами, выход происходит на клиенте
- * путем удаления токена. Этот endpoint может быть использован для:
- * - Логирования выхода
- * - Инвалидации refresh токенов (если используется blacklist)
- * - Очистки сессий на сервере
+ * путем удаления токена. Этот endpoint используется для логирования.
  */
+import { logActivity } from '../../utils/activityLogger';
+
 export default defineEventHandler(async (event) => {
   try {
-    // В будущем здесь можно добавить:
-    // 1. Добавление токена в blacklist
-    // 2. Удаление refresh токена из БД
-    // 3. Логирование события выхода
+    const user = event.context.user;
+
+    // Логируем выход если пользователь авторизован
+    if (user) {
+      await logActivity(
+        event,
+        'LOGOUT',
+        'SYSTEM',
+        user.id,
+        user.name
+      );
+    }
 
     console.log('✅ User logged out');
 

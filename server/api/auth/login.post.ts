@@ -1,6 +1,7 @@
 import { executeQuery } from '../../utils/db';
 import { verifyPassword, generateToken, generateRefreshToken, toPublicUser, createTokenPayload } from '../../utils/auth';
 import { validate, loginSchema } from '../../utils/validation';
+import { logActivityDirect } from '../../utils/activityLogger';
 import type { User, LoginData, AuthResponse } from '../../types/auth';
 
 /**
@@ -78,6 +79,15 @@ export default defineEventHandler(async (event) => {
     };
 
     console.log(`✅ User logged in: ${user.email} (${user.role})`);
+
+    // Логируем вход (используем Direct, т.к. user ещё не в context)
+    await logActivityDirect(
+      user.id,
+      'LOGIN',
+      'SYSTEM',
+      user.id,
+      user.name
+    );
 
     return response;
   } catch (error: any) {

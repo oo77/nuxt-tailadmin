@@ -3,6 +3,7 @@
  */
 
 import { addDisciplineToCourse } from '../../../repositories/courseRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -71,6 +72,16 @@ export default defineEventHandler(async (event) => {
         message: 'Курс не найден',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'DISCIPLINE',
+      discipline.id,
+      discipline.name,
+      { courseId, totalHours }
+    );
 
     return {
       success: true,

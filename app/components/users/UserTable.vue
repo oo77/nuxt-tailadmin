@@ -51,23 +51,26 @@
           class="border-b border-stroke dark:border-strokedark hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors"
         >
           <td class="px-4 py-5 pl-9 xl:pl-11">
-            <div class="flex items-center gap-3">
+            <NuxtLink 
+              :to="`/users/${user.id}`"
+              class="flex items-center gap-3 group"
+            >
               <div class="flex-shrink-0">
-                <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center transition-colors group-hover:bg-primary/20">
                   <span class="text-primary font-medium text-lg">
                     {{ getUserInitials(user.name) }}
                   </span>
                 </div>
               </div>
               <div>
-                <h5 class="font-medium text-black dark:text-white">
+                <h5 class="font-medium text-black dark:text-white group-hover:text-primary transition-colors">
                   {{ user.name }}
                 </h5>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                   ID: {{ user.id.substring(0, 8) }}...
                 </p>
               </div>
-            </div>
+            </NuxtLink>
           </td>
           <td class="px-4 py-5">
             <p class="text-black dark:text-white">{{ user.email }}</p>
@@ -94,6 +97,33 @@
           </td>
           <td class="px-4 py-5">
             <div class="flex items-center gap-2">
+              <NuxtLink :to="`/users/${user.id}`">
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  title="Просмотр профиля"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                </UiButton>
+              </NuxtLink>
               <UiButton
                 variant="primary"
                 size="sm"

@@ -4,6 +4,7 @@
  */
 
 import { createInstructor, instructorEmailExists, type CreateInstructorInput } from '../../repositories/instructorRepository';
+import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
 
 const instructorSchema = z.object({
@@ -49,6 +50,16 @@ export default defineEventHandler(async (event) => {
 
     // Создаём инструктора
     const instructor = await createInstructor(data as CreateInstructorInput);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'INSTRUCTOR',
+      String(instructor.id),
+      instructor.fullName,
+      { email: instructor.email }
+    );
 
     return {
       success: true,

@@ -4,6 +4,7 @@
  */
 
 import { getFileByUuid, updateFile } from '../../../repositories/fileRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -55,6 +56,16 @@ export default defineEventHandler(async (event) => {
         message: 'Не удалось переименовать файл',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'FILE',
+      uuid,
+      newName.trim(),
+      { oldName: file.filename, newName: newName.trim() }
+    );
 
     return {
       success: true,

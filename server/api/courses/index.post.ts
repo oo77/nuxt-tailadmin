@@ -4,6 +4,7 @@
  */
 
 import { createCourse, courseCodeExists, type CreateCourseInput } from '../../repositories/courseRepository';
+import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
 
 // Схема валидации для дисциплины
@@ -64,6 +65,16 @@ export default defineEventHandler(async (event) => {
 
     // Создаём курс
     const course = await createCourse(data as CreateCourseInput);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'COURSE',
+      String(course.id),
+      course.name,
+      { code: course.code, shortName: course.shortName }
+    );
 
     return {
       success: true,

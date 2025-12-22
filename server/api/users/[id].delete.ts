@@ -1,4 +1,5 @@
 import { executeQuery } from '../../utils/db';
+import { logActivity } from '../../utils/activityLogger';
 import type { User } from '../../types/auth';
 
 /**
@@ -87,6 +88,16 @@ export default defineEventHandler(async (event) => {
     );
 
     console.log(`✅ User deleted by ${currentUser.email}: ${userToDelete.email} (${userToDelete.role})`);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'USER',
+      userId,
+      userToDelete.name,
+      { email: userToDelete.email, role: userToDelete.role }
+    );
 
     return {
       success: true,

@@ -1,6 +1,7 @@
 import { executeQuery } from '../../utils/db';
 import { toPublicUser } from '../../utils/auth';
 import { validate, updateProfileSchema } from '../../utils/validation';
+import { logActivity } from '../../utils/activityLogger';
 import type { User } from '../../types/auth';
 
 /**
@@ -148,6 +149,16 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log(`✅ User updated by ${currentUser.email}: ${updatedUser.email}`);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'USER',
+      userId,
+      updatedUser.name,
+      { updatedFields: Object.keys(data) }
+    );
 
     return {
       success: true,

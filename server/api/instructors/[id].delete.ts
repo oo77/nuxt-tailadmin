@@ -3,7 +3,8 @@
  * DELETE /api/instructors/:id
  */
 
-import { deleteInstructor } from '../../repositories/instructorRepository';
+import { deleteInstructor, getInstructorById } from '../../repositories/instructorRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,6 +17,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    // Получаем инструктора для логирования
+    const instructor = await getInstructorById(id);
+
     const deleted = await deleteInstructor(id);
 
     if (!deleted) {
@@ -24,6 +28,15 @@ export default defineEventHandler(async (event) => {
         message: 'Инструктор не найден',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'INSTRUCTOR',
+      id,
+      instructor?.fullName
+    );
 
     return {
       success: true,

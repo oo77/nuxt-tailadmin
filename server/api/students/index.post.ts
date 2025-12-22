@@ -4,6 +4,7 @@
  */
 
 import { createStudent, studentExistsByPinfl } from '../../repositories/studentRepository';
+import { logActivity } from '../../utils/activityLogger';
 import type { CreateStudentInput } from '../../types/student';
 
 export default defineEventHandler(async (event) => {
@@ -64,6 +65,16 @@ export default defineEventHandler(async (event) => {
       department: body.department?.trim() || undefined,
       position: body.position.trim(),
     });
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'STUDENT',
+      student.id,
+      student.fullName,
+      { pinfl: student.pinfl, organization: student.organization }
+    );
 
     return {
       success: true,

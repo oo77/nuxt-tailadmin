@@ -13,13 +13,16 @@ import {
   type UpdateCourseInput,
   type CreateDisciplineInput,
 } from '../../repositories/courseRepository';
+import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
 
 const disciplineSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
-  hours: z.number().min(0),
+  theoryHours: z.number().min(0).default(0),
+  practiceHours: z.number().min(0).default(0),
+  assessmentHours: z.number().min(0).default(0),
   orderIndex: z.number().optional(),
   instructorIds: z.array(z.string()).optional(),
 });
@@ -110,7 +113,9 @@ export default defineEventHandler(async (event) => {
           await updateDiscipline(discipline.id, {
             name: discipline.name,
             description: discipline.description,
-            hours: discipline.hours,
+            theoryHours: discipline.theoryHours,
+            practiceHours: discipline.practiceHours,
+            assessmentHours: discipline.assessmentHours,
             orderIndex: i,
             instructorIds: discipline.instructorIds,
           });
@@ -119,16 +124,28 @@ export default defineEventHandler(async (event) => {
           await addDisciplineToCourse(id, {
             name: discipline.name,
             description: discipline.description || undefined,
-            hours: discipline.hours,
+            theoryHours: discipline.theoryHours,
+            practiceHours: discipline.practiceHours,
+            assessmentHours: discipline.assessmentHours,
             orderIndex: i,
             instructorIds: discipline.instructorIds,
-          } as CreateDisciplineInput);
+          });
         }
       }
     }
 
     // Возвращаем обновлённый курс
     const updatedCourse = await getCourseById(id, true);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'COURSE',
+      id,
+      updatedCourse?.name,
+      { updatedFields: Object.keys(courseData) }
+    );
 
     return {
       success: true,

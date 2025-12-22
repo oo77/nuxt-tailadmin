@@ -4,6 +4,7 @@
  */
 
 import { renameFolder, getFolderById } from '../../../repositories/folderRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -62,6 +63,16 @@ export default defineEventHandler(async (event) => {
         message: 'Не удалось переименовать папку',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'FOLDER',
+      String(folderId),
+      newName.trim(),
+      { oldName: folder.name, newName: newName.trim() }
+    );
 
     return {
       success: true,

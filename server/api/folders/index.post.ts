@@ -4,6 +4,7 @@
  */
 
 import { createFolder, getFolderByPath, getFolderById } from '../../repositories/folderRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -59,6 +60,16 @@ export default defineEventHandler(async (event) => {
       parentId,
       userId: user.id,
     });
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'FOLDER',
+      String(folder.id),
+      folder.name,
+      { path: folder.path }
+    );
 
     return {
       success: true,

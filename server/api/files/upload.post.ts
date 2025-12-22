@@ -5,6 +5,7 @@
 
 import { storage, validateFile, type FileCategory } from '../../utils/storage';
 import { createFile } from '../../repositories/fileRepository';
+import { logActivity } from '../../utils/activityLogger';
 import type { MultiPartData } from 'h3';
 
 export default defineEventHandler(async (event) => {
@@ -116,6 +117,16 @@ export default defineEventHandler(async (event) => {
       metadata: savedFile.metadata,
       uploadedBy: user.id,
     });
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'FILE',
+      fileRecord.uuid,
+      fileRecord.filename,
+      { category, mimeType: fileRecord.mimeType, sizeBytes: fileRecord.sizeBytes }
+    );
 
     return {
       success: true,

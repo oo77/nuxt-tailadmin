@@ -5,6 +5,7 @@
 
 import { getFileByUuid, deleteFile } from '../../repositories/fileRepository';
 import { storage } from '../../utils/storage';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -65,6 +66,16 @@ export default defineEventHandler(async (event) => {
       console.warn('Не удалось удалить физический файл:', error);
       // Не возвращаем ошибку, так как запись в БД уже удалена (soft delete)
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'FILE',
+      uuid,
+      fileRecord.filename,
+      { mimeType: fileRecord.mimeType, sizeBytes: fileRecord.sizeBytes }
+    );
 
     return {
       success: true,

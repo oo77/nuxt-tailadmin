@@ -3,7 +3,8 @@
  * DELETE /api/students/:id
  */
 
-import { deleteStudent } from '../../repositories/studentRepository';
+import { deleteStudent, getStudentById } from '../../repositories/studentRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,6 +17,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    // Получаем студента для логирования
+    const student = await getStudentById(id);
+
     const deleted = await deleteStudent(id);
 
     if (!deleted) {
@@ -24,6 +28,16 @@ export default defineEventHandler(async (event) => {
         message: 'Студент не найден',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'STUDENT',
+      id,
+      student?.fullName,
+      { pinfl: student?.pinfl }
+    );
 
     return {
       success: true,

@@ -3,7 +3,8 @@
  * DELETE /api/courses/:id
  */
 
-import { deleteCourse } from '../../repositories/courseRepository';
+import { deleteCourse, getCourseById } from '../../repositories/courseRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,6 +17,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    // Получаем курс для логирования
+    const course = await getCourseById(id);
+
     const deleted = await deleteCourse(id);
 
     if (!deleted) {
@@ -24,6 +28,16 @@ export default defineEventHandler(async (event) => {
         message: 'Курс не найден',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'COURSE',
+      id,
+      course?.name,
+      { code: course?.code }
+    );
 
     return {
       success: true,

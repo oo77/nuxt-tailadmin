@@ -3,6 +3,7 @@
  */
 
 import { deleteDiscipline } from '../../../../repositories/courseRepository';
+import { logActivity } from '../../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -23,6 +24,14 @@ export default defineEventHandler(async (event) => {
         message: 'Дисциплина не найдена',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'DISCIPLINE',
+      disciplineId
+    );
 
     return {
       success: true,

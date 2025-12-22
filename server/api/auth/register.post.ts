@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { executeQuery } from '../../utils/db';
 import { hashPassword, generateToken, generateRefreshToken, toPublicUser, createTokenPayload } from '../../utils/auth';
 import { validate, registerSchema } from '../../utils/validation';
+import { logActivityDirect } from '../../utils/activityLogger';
 import type { User, RegisterData, AuthResponse } from '../../types/auth';
 
 /**
@@ -96,6 +97,16 @@ export default defineEventHandler(async (event) => {
     };
 
     console.log(`✅ User registered: ${newUser.email} (${newUser.role})`);
+
+    // Логируем регистрацию
+    await logActivityDirect(
+      newUser.id,
+      'CREATE',
+      'USER',
+      newUser.id,
+      newUser.name,
+      { email: newUser.email, role: newUser.role, selfRegistration: true }
+    );
 
     return response;
   } catch (error: any) {
