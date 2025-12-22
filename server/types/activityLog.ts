@@ -15,6 +15,9 @@ export type EntityType =
   | 'INSTRUCTOR' 
   | 'FILE' 
   | 'FOLDER' 
+  | 'SCHEDULE'
+  | 'GROUP'
+  | 'CLASSROOM'
   | 'SYSTEM';
 
 /**

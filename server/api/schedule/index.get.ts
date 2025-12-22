@@ -3,8 +3,8 @@
  * Получение событий расписания
  */
 
-import { getScheduleEvents } from '~/server/repositories/scheduleRepository';
-import type { ScheduleEventType } from '~/server/repositories/scheduleRepository';
+import { getScheduleEvents } from '../../repositories/scheduleRepository';
+import type { ScheduleEventType } from '../../repositories/scheduleRepository';
 
 export default defineEventHandler(async (event) => {
   try {

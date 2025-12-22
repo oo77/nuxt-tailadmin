@@ -32,9 +32,9 @@
               v-model="form.eventType"
               class="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-10 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary appearance-none"
             >
-              <option value="lesson">Занятие</option>
-              <option value="exam">Экзамен</option>
-              <option value="consultation">Консультация</option>
+              <option value="theory">Теория</option>
+              <option value="practice">Практика</option>
+              <option value="assessment">Проверка знаний</option>
               <option value="other">Другое</option>
             </select>
             <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,6 +217,20 @@
       </div>
     </template>
   </UiModal>
+
+  <!-- Модальное подтверждение удаления -->
+  <UiConfirmModal
+    :is-open="showDeleteConfirm"
+    variant="danger"
+    title="Удалить занятие?"
+    :message="`Вы уверены, что хотите удалить занятие '${form.title}'?`"
+    :warning="'Это действие нельзя отменить.'"
+    confirm-text="Удалить"
+    cancel-text="Отмена"
+    :loading="deleting"
+    @confirm="confirmDelete"
+    @cancel="showDeleteConfirm = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -277,11 +291,13 @@ const form = ref({
   endTime: '',
   isAllDay: false,
   color: 'primary' as ScheduleEventColor,
-  eventType: 'lesson' as ScheduleEventType,
+  eventType: 'theory' as ScheduleEventType,
 });
 
 const errors = ref<Record<string, string>>({});
 const submitting = ref(false);
+const showDeleteConfirm = ref(false);
+const deleting = ref(false);
 
 const isEditMode = computed(() => !!props.event);
 
@@ -356,7 +372,7 @@ const initForm = () => {
       endTime: formatDateTimeLocal(end),
       isAllDay: false,
       color: 'primary',
-      eventType: 'lesson',
+      eventType: 'theory',
     };
   }
   errors.value = {};
@@ -450,15 +466,17 @@ const handleSubmit = async () => {
   }
 };
 
-// Удаление события
-const handleDelete = async () => {
+// Удаление события - открытие модального окна
+const handleDelete = () => {
+  if (!props.event) return;
+  showDeleteConfirm.value = true;
+};
+
+// Подтверждение удаления
+const confirmDelete = async () => {
   if (!props.event) return;
 
-  if (!confirm('Вы уверены, что хотите удалить это занятие?')) {
-    return;
-  }
-
-  submitting.value = true;
+  deleting.value = true;
 
   try {
     const response = await authFetch<{ success: boolean }>(
@@ -472,6 +490,7 @@ const handleDelete = async () => {
         title: 'Событие удалено',
         message: 'Занятие успешно удалено из расписания',
       });
+      showDeleteConfirm.value = false;
       emit('deleted', props.event.id);
     }
   } catch (error: any) {
@@ -482,7 +501,7 @@ const handleDelete = async () => {
       message: error.data?.statusMessage || error.message || 'Не удалось удалить событие',
     });
   } finally {
-    submitting.value = false;
+    deleting.value = false;
   }
 };
 

@@ -18,7 +18,7 @@ export interface Classroom {
 
 // ============ События расписания ============
 
-export type ScheduleEventType = 'lesson' | 'exam' | 'consultation' | 'other';
+export type ScheduleEventType = 'theory' | 'practice' | 'assessment' | 'other';
 export type ScheduleEventColor = 'primary' | 'success' | 'warning' | 'danger';
 
 export interface ScheduleEvent {
@@ -149,8 +149,8 @@ export const EVENT_COLORS: Record<ScheduleEventColor, { bg: string; border: stri
 
 // Типы событий
 export const EVENT_TYPES: Record<ScheduleEventType, string> = {
-  lesson: 'Занятие',
-  exam: 'Экзамен',
-  consultation: 'Консультация',
+  theory: 'Теория',
+  practice: 'Практика',
+  assessment: 'Проверка знаний',
   other: 'Другое',
 };

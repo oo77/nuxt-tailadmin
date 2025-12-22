@@ -177,56 +177,250 @@
               </UiButton>
             </div>
 
-            <div v-else class="overflow-x-auto">
-              <table class="w-full">
-                <thead>
-                  <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Слушатель
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      ПИНФЛ
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Организация
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Должность
-                    </th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Дата зачисления
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                  <tr
-                    v-for="gs in group.students"
-                    :key="gs.id"
-                    class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <td class="px-6 py-4">
-                      <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success font-semibold">
-                          {{ getInitials(gs.student?.fullName) }}
+            <template v-else>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        Слушатель
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        Организация
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        Должность
+                      </th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        Дата зачисления
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr
+                      v-for="gs in paginatedStudents"
+                      :key="gs.id"
+                      class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                          <div class="shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success font-semibold">
+                            {{ getInitials(gs.student?.fullName) }}
+                          </div>
+                          <span class="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" :title="gs.student?.fullName">{{ gs.student?.fullName }}</span>
                         </div>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ gs.student?.fullName }}</span>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {{ gs.student?.pinfl }}
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {{ gs.student?.organization }}
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {{ gs.student?.position }}
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {{ formatDate(gs.enrolledAt) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        <span class="truncate max-w-[200px] inline-block" :title="gs.student?.organization">{{ gs.student?.organization || '—' }}</span>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        <span class="truncate max-w-[180px] inline-block" :title="gs.student?.position">{{ gs.student?.position || '—' }}</span>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {{ formatDate(gs.enrolledAt) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Пагинация -->
+              <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span>Показать:</span>
+                  <select
+                    v-model="studentsPerPage"
+                    class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    @change="currentStudentsPage = 1"
+                  >
+                    <option :value="10">10</option>
+                    <option :value="20">20</option>
+                    <option :value="50">50</option>
+                  </select>
+                  <span>записей</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ paginationInfo }}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <button
+                    :disabled="currentStudentsPage === 1"
+                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    @click="currentStudentsPage = 1"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    :disabled="currentStudentsPage === 1"
+                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    @click="currentStudentsPage--"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <template v-for="page in visiblePages" :key="page">
+                    <button
+                      v-if="page !== '...'"
+                      :class="[
+                        'px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
+                        page === currentStudentsPage
+                          ? 'bg-primary text-white border-primary'
+                          : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ]"
+                      @click="currentStudentsPage = page as number"
+                    >
+                      {{ page }}
+                    </button>
+                    <span v-else class="px-2 text-gray-400">...</span>
+                  </template>
+
+                  <button
+                    :disabled="currentStudentsPage === totalStudentsPages"
+                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    @click="currentStudentsPage++"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    :disabled="currentStudentsPage === totalStudentsPages"
+                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    @click="currentStudentsPage = totalStudentsPages"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Занятия группы -->
+        <div class="lg:col-span-3 mt-6">
+          <div class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Расписание занятий</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ scheduleEvents.length }} запланировано</p>
+                  </div>
+                </div>
+                <NuxtLink to="/schedule" class="text-primary hover:text-primary/80 text-sm font-medium flex items-center gap-1">
+                  Открыть расписание
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </NuxtLink>
+              </div>
+            </div>
+
+            <div v-if="loadingSchedule" class="p-12 text-center">
+              <div class="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+              <p class="mt-2 text-gray-500 dark:text-gray-400">Загрузка расписания...</p>
+            </div>
+
+            <div v-else-if="scheduleEvents.length === 0" class="p-12 text-center text-gray-500 dark:text-gray-400">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p class="mt-4">Занятия не запланированы</p>
+              <NuxtLink to="/schedule" class="inline-block mt-4 text-primary hover:underline">
+                Добавить занятие
+              </NuxtLink>
+            </div>
+
+            <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+              <div
+                v-for="event in scheduleEvents.slice(0, 5)"
+                :key="event.id"
+                class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <div class="flex items-start gap-4">
+                  <!-- Дата -->
+                  <div class="shrink-0 w-16 text-center">
+                    <div class="text-2xl font-bold text-black dark:text-white">
+                      {{ new Date(event.startTime).getDate() }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                      {{ new Date(event.startTime).toLocaleDateString('ru-RU', { month: 'short' }) }}
+                    </div>
+                  </div>
+                  
+                  <!-- Информация -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span 
+                        class="inline-block w-3 h-3 rounded-full"
+                        :class="{
+                          'bg-primary': event.color === 'primary',
+                          'bg-success': event.color === 'success',
+                          'bg-warning': event.color === 'warning',
+                          'bg-danger': event.color === 'danger',
+                        }"
+                      ></span>
+                      <h4 class="font-medium text-black dark:text-white truncate">{{ event.title }}</h4>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400">
+                      <span class="flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {{ formatTime(event.startTime) }} - {{ formatTime(event.endTime) }}
+                      </span>
+                      <span v-if="event.classroom" class="flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                        {{ event.classroom.name }}
+                      </span>
+                      <span v-if="event.instructor" class="flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        {{ event.instructor.fullName }}
+                      </span>
+                    </div>
+                    <span 
+                      class="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium"
+                      :class="{
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400': event.eventType === 'theory',
+                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': event.eventType === 'practice',
+                        'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400': event.eventType === 'assessment',
+                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300': event.eventType === 'other',
+                      }"
+                    >
+                      {{ eventTypeLabels[event.eventType] }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ссылка на все занятия -->
+              <div v-if="scheduleEvents.length > 5" class="p-4 text-center">
+                <NuxtLink 
+                  :to="`/schedule?groupId=${group?.id}`" 
+                  class="text-primary hover:underline text-sm font-medium"
+                >
+                  Показать все {{ scheduleEvents.length }} занятий →
+                </NuxtLink>
+              </div>
             </div>
           </div>
         </div>
@@ -267,6 +461,20 @@ const loading = ref(true);
 const group = ref<StudyGroup | null>(null);
 const showEditModal = ref(false);
 const showManageStudentsModal = ref(false);
+const loadingSchedule = ref(false);
+const scheduleEvents = ref<any[]>([]);
+
+// Пагинация слушателей
+const currentStudentsPage = ref(1);
+const studentsPerPage = ref(10);
+
+// Метки типов событий
+const eventTypeLabels: Record<string, string> = {
+  theory: 'Теория',
+  practice: 'Практика',
+  assessment: 'Проверка знаний',
+  other: 'Другое',
+};
 
 // Computed
 const statusClass = computed(() => {
@@ -335,6 +543,64 @@ const daysInfo = computed(() => {
   return `${daysPassed} из ${totalDays} дн.`;
 });
 
+// Пагинация - computed свойства
+const totalStudentsPages = computed(() => {
+  if (!group.value?.students) return 1;
+  return Math.ceil(group.value.students.length / studentsPerPage.value) || 1;
+});
+
+const paginatedStudents = computed(() => {
+  if (!group.value?.students) return [];
+  const start = (currentStudentsPage.value - 1) * studentsPerPage.value;
+  const end = start + studentsPerPage.value;
+  return group.value.students.slice(start, end);
+});
+
+const paginationInfo = computed(() => {
+  if (!group.value?.students) return '';
+  const total = group.value.students.length;
+  const start = (currentStudentsPage.value - 1) * studentsPerPage.value + 1;
+  const end = Math.min(currentStudentsPage.value * studentsPerPage.value, total);
+  return `${start}–${end} из ${total}`;
+});
+
+const visiblePages = computed(() => {
+  const total = totalStudentsPages.value;
+  const current = currentStudentsPage.value;
+  const pages: (number | string)[] = [];
+
+  if (total <= 7) {
+    // Показываем все страницы, если их мало
+    for (let i = 1; i <= total; i++) {
+      pages.push(i);
+    }
+  } else {
+    // Всегда показываем первую страницу
+    pages.push(1);
+
+    if (current > 3) {
+      pages.push('...');
+    }
+
+    // Показываем страницы вокруг текущей
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (current < total - 2) {
+      pages.push('...');
+    }
+
+    // Всегда показываем последнюю страницу
+    pages.push(total);
+  }
+
+  return pages;
+});
+
 // Methods
 const loadGroup = async () => {
   loading.value = true;
@@ -394,6 +660,11 @@ const formatDate = (date: string | Date): string => {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+const formatTime = (date: string | Date): string => {
+  const d = new Date(date);
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+};
+
 const getInitials = (name?: string): string => {
   if (!name) return '??';
   const parts = name.split(' ');
@@ -405,13 +676,39 @@ const getInitials = (name?: string): string => {
   return name.substring(0, 2).toUpperCase();
 };
 
+// Загрузка расписания группы
+const loadSchedule = async () => {
+  if (!group.value) return;
+  
+  loadingSchedule.value = true;
+  try {
+    const response = await authFetch<{ success: boolean; events: any[] }>(
+      `/api/schedule?groupId=${group.value.id}`
+    );
+
+    if (response.success) {
+      // Сортируем по дате начала и берём будущие занятия
+      const now = new Date();
+      scheduleEvents.value = response.events
+        .filter(e => new Date(e.endTime) >= now)
+        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    }
+  } catch (error) {
+    console.error('Error loading schedule:', error);
+  } finally {
+    loadingSchedule.value = false;
+  }
+};
+
 // Initialize
-onMounted(() => {
-  loadGroup();
+onMounted(async () => {
+  await loadGroup();
+  loadSchedule();
 });
 
 // Watch for route changes
-watch(() => route.params.id, () => {
-  loadGroup();
+watch(() => route.params.id, async () => {
+  await loadGroup();
+  loadSchedule();
 });
 </script>

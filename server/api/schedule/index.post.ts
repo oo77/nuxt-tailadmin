@@ -3,8 +3,9 @@
  * Создание события расписания
  */
 
-import { createScheduleEvent, checkScheduleConflicts } from '~/server/repositories/scheduleRepository';
-import type { CreateScheduleEventInput } from '~/server/repositories/scheduleRepository';
+import { createScheduleEvent, checkScheduleConflicts } from '../../repositories/scheduleRepository';
+import type { CreateScheduleEventInput } from '../../repositories/scheduleRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -68,6 +69,22 @@ export default defineEventHandler(async (event) => {
     }
 
     const scheduleEvent = await createScheduleEvent(body);
+
+    // Логирование действия
+    await logActivity(
+      event,
+      'CREATE',
+      'SCHEDULE',
+      scheduleEvent.id,
+      scheduleEvent.title,
+      {
+        startTime: scheduleEvent.startTime,
+        endTime: scheduleEvent.endTime,
+        groupId: body.groupId,
+        instructorId: body.instructorId,
+        classroomId: body.classroomId,
+      }
+    );
 
     return {
       success: true,

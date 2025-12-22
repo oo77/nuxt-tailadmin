@@ -3,7 +3,8 @@
  * Удаление события расписания
  */
 
-import { deleteScheduleEvent } from '~/server/repositories/scheduleRepository';
+import { deleteScheduleEvent, getScheduleEventById } from '../../repositories/scheduleRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,6 +17,15 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Получаем событие перед удалением для логирования
+    const scheduleEvent = await getScheduleEventById(id);
+    if (!scheduleEvent) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Событие не найдено',
+      });
+    }
+
     const deleted = await deleteScheduleEvent(id);
 
     if (!deleted) {
@@ -24,6 +34,24 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Событие не найдено',
       });
     }
+
+    // Логирование действия
+    await logActivity(
+      event,
+      'DELETE',
+      'SCHEDULE',
+      id,
+      scheduleEvent.title,
+      {
+        deletedEvent: {
+          title: scheduleEvent.title,
+          startTime: scheduleEvent.startTime,
+          endTime: scheduleEvent.endTime,
+          groupId: scheduleEvent.groupId,
+          instructorId: scheduleEvent.instructorId,
+        },
+      }
+    );
 
     return {
       success: true,

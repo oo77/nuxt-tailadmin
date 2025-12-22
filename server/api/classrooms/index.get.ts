@@ -3,7 +3,7 @@
  * Получение списка аудиторий
  */
 
-import { getClassrooms } from '~/server/repositories/scheduleRepository';
+import { getClassrooms } from '../../repositories/scheduleRepository';
 
 export default defineEventHandler(async (event) => {
   try {

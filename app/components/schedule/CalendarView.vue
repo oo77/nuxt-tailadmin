@@ -488,8 +488,13 @@ const loadEvents = async (start?: Date, end?: Date) => {
 
 const loadSelectData = async () => {
   try {
-    // Загружаем группы
-    const groupsResponse = await authFetch<{ success: boolean; groups: any[] }>('/api/groups?limit=1000&isActive=true');
+    // Запускаем все запросы параллельно
+    const [groupsResponse, instructorsResponse, classroomsResponse] = await Promise.all([
+      authFetch<{ success: boolean; groups: any[] }>('/api/groups?limit=1000&isActive=true'),
+      authFetch<{ success: boolean; instructors: Instructor[] }>('/api/instructors?limit=1000&isActive=true'),
+      authFetch<{ success: boolean; classrooms: Classroom[] }>('/api/classrooms'),
+    ]);
+
     if (groupsResponse.success && groupsResponse.groups) {
       groups.value = groupsResponse.groups.map(g => ({
         id: g.id,
@@ -497,14 +502,10 @@ const loadSelectData = async () => {
       }));
     }
 
-    // Загружаем инструкторов
-    const instructorsResponse = await authFetch<{ success: boolean; instructors: Instructor[] }>('/api/instructors?limit=1000&isActive=true');
     if (instructorsResponse.success && instructorsResponse.instructors) {
       instructors.value = instructorsResponse.instructors;
     }
 
-    // Загружаем аудитории
-    const classroomsResponse = await authFetch<{ success: boolean; classrooms: Classroom[] }>('/api/classrooms');
     if (classroomsResponse.success) {
       classrooms.value = classroomsResponse.classrooms;
     }

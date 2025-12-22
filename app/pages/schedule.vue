@@ -110,34 +110,32 @@ const loadStats = async () => {
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
 
-    // Загружаем события на сегодня
-    const todayResponse = await authFetch<{ success: boolean; events: any[] }>(
-      `/api/schedule?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`
-    );
+    // Запускаем все запросы параллельно
+    const [todayResponse, weekResponse, groupsResponse, classroomsResponse] = await Promise.all([
+      authFetch<{ success: boolean; events: any[] }>(
+        `/api/schedule?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`
+      ),
+      authFetch<{ success: boolean; events: any[] }>(
+        `/api/schedule?startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`
+      ),
+      authFetch<{ success: boolean; stats: { active: number } }>(
+        '/api/groups?limit=1'
+      ),
+      authFetch<{ success: boolean; classrooms: any[] }>(
+        '/api/classrooms'
+      ),
+    ]);
+
+    // Обновляем статистику
     if (todayResponse.success) {
       stats.value.today = todayResponse.events.length;
     }
-
-    // Загружаем события на неделю
-    const weekResponse = await authFetch<{ success: boolean; events: any[] }>(
-      `/api/schedule?startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`
-    );
     if (weekResponse.success) {
       stats.value.thisWeek = weekResponse.events.length;
     }
-
-    // Загружаем количество активных групп
-    const groupsResponse = await authFetch<{ success: boolean; stats: { active: number } }>(
-      '/api/groups?limit=1'
-    );
     if (groupsResponse.success && groupsResponse.stats) {
       stats.value.activeGroups = groupsResponse.stats.active;
     }
-
-    // Загружаем количество аудиторий
-    const classroomsResponse = await authFetch<{ success: boolean; classrooms: any[] }>(
-      '/api/classrooms'
-    );
     if (classroomsResponse.success) {
       stats.value.classrooms = classroomsResponse.classrooms.length;
     }

@@ -3,8 +3,9 @@
  * Обновление события расписания
  */
 
-import { updateScheduleEvent, checkScheduleConflicts, getScheduleEventById } from '~/server/repositories/scheduleRepository';
-import type { UpdateScheduleEventInput } from '~/server/repositories/scheduleRepository';
+import { updateScheduleEvent, checkScheduleConflicts, getScheduleEventById } from '../../repositories/scheduleRepository';
+import type { UpdateScheduleEventInput } from '../../repositories/scheduleRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -87,6 +88,19 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Событие не найдено',
       });
     }
+
+    // Логирование действия
+    await logActivity(
+      event,
+      'UPDATE',
+      'SCHEDULE',
+      scheduleEvent.id,
+      scheduleEvent.title,
+      {
+        changes: body,
+        previousTitle: existing.title,
+      }
+    );
 
     return {
       success: true,

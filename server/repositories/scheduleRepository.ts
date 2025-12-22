@@ -10,7 +10,7 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/prom
 // ИНТЕРФЕЙСЫ
 // ============================================================================
 
-export type ScheduleEventType = 'lesson' | 'exam' | 'consultation' | 'other';
+export type ScheduleEventType = 'theory' | 'practice' | 'assessment' | 'other';
 export type ScheduleEventColor = 'primary' | 'success' | 'warning' | 'danger';
 
 export interface ScheduleEvent {
@@ -342,7 +342,7 @@ export async function createScheduleEvent(data: CreateScheduleEventInput): Promi
       data.endTime,
       data.isAllDay || false,
       data.color || 'primary',
-      data.eventType || 'lesson',
+      data.eventType || 'theory',
       data.isRecurring || false,
       data.recurrenceRule || null,
       data.notes || null,

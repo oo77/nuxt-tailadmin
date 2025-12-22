@@ -114,6 +114,9 @@ export function formatActivityDescription(
     INSTRUCTOR: 'инструктора',
     FILE: 'файл',
     FOLDER: 'папку',
+    SCHEDULE: 'занятие',
+    GROUP: 'группу',
+    CLASSROOM: 'аудиторию',
     SYSTEM: 'системные настройки',
   };
 
