@@ -3,7 +3,7 @@
     <div class="col-span-12">
       <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
         <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-          eCommerce Dashboard
+          Панель управления
         </h1>
         <p class="text-gray-600 dark:text-gray-400">
           Welcome to TailAdmin Nuxt 4 Dashboard! This is the main dashboard page.
@@ -34,10 +34,10 @@
 <script setup lang="ts">
 definePageMeta({
   layout: 'default',
-  title: 'eCommerce Dashboard'
+  title: 'Панель управления'
 })
 
 useHead({
-  title: 'eCommerce Dashboard'
+  title: 'Панель управления'
 })
 </script>

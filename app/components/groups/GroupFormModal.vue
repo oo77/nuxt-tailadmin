@@ -76,7 +76,6 @@
           <input
             v-model="form.endDate"
             type="date"
-            :min="form.startDate"
             :class="[
               'w-full rounded border-[1.5px] bg-transparent px-5 py-3 font-medium outline-none transition',
               errors.endDate
@@ -213,8 +212,8 @@ const validateForm = (): boolean => {
 
   if (!form.value.endDate) {
     errors.value.endDate = 'Укажите дату окончания';
-  } else if (form.value.startDate && new Date(form.value.endDate) <= new Date(form.value.startDate)) {
-    errors.value.endDate = 'Дата окончания должна быть позже даты начала';
+  } else if (form.value.startDate && new Date(form.value.endDate) < new Date(form.value.startDate)) {
+    errors.value.endDate = 'Дата окончания не может быть раньше даты начала';
   }
 
   return Object.keys(errors.value).length === 0;

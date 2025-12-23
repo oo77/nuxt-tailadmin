@@ -467,15 +467,30 @@ export async function updateGroup(id: string, data: UpdateGroupInput): Promise<S
 }
 
 /**
- * Удалить группу
+ * Удалить группу (каскадно удаляет расписание и связи со слушателями)
  */
 export async function deleteGroup(id: string): Promise<boolean> {
-  const result = await executeQuery<ResultSetHeader>(
-    'DELETE FROM study_groups WHERE id = ?',
-    [id]
-  );
+  return executeTransaction(async (connection: PoolConnection) => {
+    // 1. Удаляем все события расписания, связанные с этой группой
+    await connection.execute(
+      'DELETE FROM schedule_events WHERE group_id = ?',
+      [id]
+    );
 
-  return result.affectedRows > 0;
+    // 2. Удаляем связи со слушателями (study_group_students)
+    await connection.execute(
+      'DELETE FROM study_group_students WHERE group_id = ?',
+      [id]
+    );
+
+    // 3. Удаляем саму группу
+    const [result] = await connection.execute<ResultSetHeader>(
+      'DELETE FROM study_groups WHERE id = ?',
+      [id]
+    );
+
+    return result.affectedRows > 0;
+  });
 }
 
 // ============================================================================

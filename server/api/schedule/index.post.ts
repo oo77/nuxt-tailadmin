@@ -1,17 +1,40 @@
 /**
  * POST /api/schedule
- * Создание события расписания
+ * Создание события расписания с валидацией часов и дат группы
  */
 
 import { createScheduleEvent, checkScheduleConflicts } from '../../repositories/scheduleRepository';
 import type { CreateScheduleEventInput } from '../../repositories/scheduleRepository';
+import { executeQuery } from '../../utils/db';
 import { logActivity } from '../../utils/activityLogger';
+import type { RowDataPacket } from 'mysql2/promise';
+
+interface GroupRow extends RowDataPacket {
+  id: string;
+  start_date: Date;
+  end_date: Date;
+  course_id: string;
+}
+
+interface DisciplineRow extends RowDataPacket {
+  id: string;
+  theory_hours: number;
+  practice_hours: number;
+  assessment_hours: number;
+}
+
+interface UsedHoursRow extends RowDataPacket {
+  total_minutes: number;
+}
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<CreateScheduleEventInput>(event);
 
-    // Валидация
+    // ===============================
+    // БАЗОВАЯ ВАЛИДАЦИЯ
+    // ===============================
+
     if (!body.title?.trim()) {
       throw createError({
         statusCode: 400,
@@ -36,7 +59,105 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Проверка конфликтов
+    // ===============================
+    // ВАЛИДАЦИЯ ГРУППЫ И ДАТ
+    // ===============================
+
+    if (body.groupId) {
+      const groupRows = await executeQuery<GroupRow[]>(
+        'SELECT id, start_date, end_date, course_id FROM study_groups WHERE id = ? LIMIT 1',
+        [body.groupId]
+      );
+
+      if (groupRows.length === 0) {
+        throw createError({
+          statusCode: 404,
+          statusMessage: 'Группа не найдена',
+        });
+      }
+
+      const group = groupRows[0];
+      const eventDate = startTime.toISOString().split('T')[0];
+      const groupStartDate = group.start_date.toISOString().split('T')[0];
+      const groupEndDate = group.end_date.toISOString().split('T')[0];
+
+      // Проверяем, что дата занятия входит в период обучения группы
+      if (eventDate < groupStartDate || eventDate > groupEndDate) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: `Дата занятия должна быть в пределах периода обучения группы (${formatDate(groupStartDate)} — ${formatDate(groupEndDate)})`,
+        });
+      }
+
+      // ===============================
+      // ВАЛИДАЦИЯ ДИСЦИПЛИНЫ И ЧАСОВ
+      // ===============================
+
+      if (body.disciplineId && body.eventType && body.eventType !== 'other') {
+        // Получаем информацию о дисциплине
+        const disciplineRows = await executeQuery<DisciplineRow[]>(
+          'SELECT id, theory_hours, practice_hours, assessment_hours FROM disciplines WHERE id = ? AND course_id = ? LIMIT 1',
+          [body.disciplineId, group.course_id]
+        );
+
+        if (disciplineRows.length === 0) {
+          throw createError({
+            statusCode: 404,
+            statusMessage: 'Дисциплина не найдена или не принадлежит учебной программе группы',
+          });
+        }
+
+        const discipline = disciplineRows[0];
+        
+        // Получаем выделенные часы для данного типа занятия
+        let allocatedHours = 0;
+        const eventType = body.eventType as 'theory' | 'practice' | 'assessment';
+        
+        if (eventType === 'theory') {
+          allocatedHours = discipline.theory_hours;
+        } else if (eventType === 'practice') {
+          allocatedHours = discipline.practice_hours;
+        } else if (eventType === 'assessment') {
+          allocatedHours = discipline.assessment_hours;
+        }
+
+        // Получаем уже использованные часы
+        const usedHoursRows = await executeQuery<UsedHoursRow[]>(
+          `SELECT SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as total_minutes
+           FROM schedule_events
+           WHERE group_id = ? AND discipline_id = ? AND event_type = ?`,
+          [body.groupId, body.disciplineId, body.eventType]
+        );
+
+        const usedMinutes = usedHoursRows[0]?.total_minutes || 0;
+        // Академический час = 45 минут
+        const usedAcademicHours = Math.ceil(usedMinutes / 45);
+
+        // Вычисляем длительность нового занятия в академических часах
+        const newEventMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        const newEventHours = Math.ceil(newEventMinutes / 45);
+
+        const remainingHours = allocatedHours - usedAcademicHours;
+
+        if (newEventHours > remainingHours) {
+          const typeNames = {
+            theory: 'теории',
+            practice: 'практики',
+            assessment: 'проверки знаний',
+          };
+
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Превышение лимита часов для ${typeNames[eventType]}! Осталось ${remainingHours} ч., запрашивается ${newEventHours} ч.`,
+          });
+        }
+      }
+    }
+
+    // ===============================
+    // ПРОВЕРКА КОНФЛИКТОВ РАСПИСАНИЯ
+    // ===============================
+
     if (body.classroomId || body.instructorId || body.groupId) {
       const conflicts = await checkScheduleConflicts(body.startTime, body.endTime, {
         classroomId: body.classroomId,
@@ -68,6 +189,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // ===============================
+    // СОЗДАНИЕ СОБЫТИЯ
+    // ===============================
+
     const scheduleEvent = await createScheduleEvent(body);
 
     // Логирование действия
@@ -81,8 +206,10 @@ export default defineEventHandler(async (event) => {
         startTime: scheduleEvent.startTime,
         endTime: scheduleEvent.endTime,
         groupId: body.groupId,
+        disciplineId: body.disciplineId,
         instructorId: body.instructorId,
         classroomId: body.classroomId,
+        eventType: body.eventType,
       }
     );
 
@@ -90,8 +217,8 @@ export default defineEventHandler(async (event) => {
       success: true,
       event: {
         ...scheduleEvent,
-        startTime: scheduleEvent.startTime.toISOString(),
-        endTime: scheduleEvent.endTime.toISOString(),
+        startTime: dateToLocalIso(scheduleEvent.startTime),
+        endTime: dateToLocalIso(scheduleEvent.endTime),
         createdAt: scheduleEvent.createdAt.toISOString(),
         updatedAt: scheduleEvent.updatedAt.toISOString(),
       },
@@ -107,3 +234,24 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+
+/**
+ * Конвертирует MySQL DATETIME (как Date объект) обратно в ISO строку
+ * без конвертации часового пояса.
+ */
+function dateToLocalIso(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
+}
+
+// Вспомогательная функция форматирования даты
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}

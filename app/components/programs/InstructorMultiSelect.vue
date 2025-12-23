@@ -101,13 +101,13 @@ const availableInstructors = computed(() => {
 const loadInstructors = async () => {
   loading.value = true;
   try {
-    const response = await authFetch<{ success: boolean; data: Instructor[] }>('/api/instructors', {
+    const response = await authFetch<{ success: boolean; instructors: Instructor[] }>('/api/instructors', {
       method: 'GET',
       params: { isActive: true, limit: 1000 },
     });
     
-    if (response.success && response.data) {
-      instructors.value = response.data;
+    if (response.success && response.instructors) {
+      instructors.value = response.instructors;
     }
   } catch (error) {
     console.error('Error loading instructors:', error);
@@ -131,9 +131,11 @@ const removeInstructor = (index: number) => {
 
 const setPrimary = (index: number) => {
   const newValue = [...props.modelValue];
-  const [instructor] = newValue.splice(index, 1);
-  newValue.unshift(instructor);
-  emit('update:modelValue', newValue);
+  const instructor = newValue.splice(index, 1)[0];
+  if (instructor) {
+    newValue.unshift(instructor);
+    emit('update:modelValue', newValue);
+  }
 };
 
 const getInstructorName = (id: string): string => {
@@ -144,7 +146,7 @@ const getInstructorName = (id: string): string => {
 const getInstructorInitials = (id: string): string => {
   const name = getInstructorName(id);
   const parts = name.split(' ');
-  if (parts.length >= 2) {
+  if (parts.length >= 2 && parts[0] && parts[1]) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();

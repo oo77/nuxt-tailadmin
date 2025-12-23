@@ -4,6 +4,7 @@
  */
 
 import { deleteGroup, getGroupById } from '../../repositories/groupRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Проверяем существование
+    // Проверяем существование и сохраняем данные для логирования
     const group = await getGroupById(id);
     if (!group) {
       return {
@@ -25,7 +26,9 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Удаляем группу (каскадно удалятся и связи со слушателями)
+    const groupCode = group.code;
+
+    // Удаляем группу (каскадно удалятся расписание и связи со слушателями)
     const deleted = await deleteGroup(id);
 
     if (!deleted) {
@@ -34,6 +37,16 @@ export default defineEventHandler(async (event) => {
         message: 'Не удалось удалить группу',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'DELETE',
+      'GROUP',
+      id,
+      groupCode,
+      { studentsCount: group.students?.length || 0 }
+    );
 
     return {
       success: true,

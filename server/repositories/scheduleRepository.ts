@@ -6,9 +6,17 @@ import { executeQuery, executeTransaction } from '../utils/db';
 import { v4 as uuidv4 } from 'uuid';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-// ============================================================================
-// ИНТЕРФЕЙСЫ
-// ============================================================================
+/**
+ * Конвертирует ISO строку в формат MySQL DATETIME без изменения часового пояса.
+ * "2025-12-23T10:00:00.000Z" -> "2025-12-23 10:00:00"
+ */
+function isoToMySqlDatetime(isoString: string): string {
+  // Извлекаем компоненты напрямую из строки без конвертации часового пояса
+  // ISO формат: "YYYY-MM-DDTHH:MM:SS.sssZ"
+  const datePart = isoString.substring(0, 10); // "2025-12-23"
+  const timePart = isoString.substring(11, 19); // "10:00:00"
+  return `${datePart} ${timePart}`;
+}
 
 export type ScheduleEventType = 'theory' | 'practice' | 'assessment' | 'other';
 export type ScheduleEventColor = 'primary' | 'success' | 'warning' | 'danger';
@@ -325,6 +333,10 @@ export async function getScheduleEventById(id: string): Promise<ScheduleEvent | 
 export async function createScheduleEvent(data: CreateScheduleEventInput): Promise<ScheduleEvent> {
   const id = uuidv4();
 
+  // Конвертируем ISO время в MySQL формат без конвертации часового пояса
+  const startTimeMysql = isoToMySqlDatetime(data.startTime);
+  const endTimeMysql = isoToMySqlDatetime(data.endTime);
+
   await executeQuery(
     `INSERT INTO schedule_events (
       id, title, description, group_id, discipline_id, instructor_id, classroom_id,
@@ -338,8 +350,8 @@ export async function createScheduleEvent(data: CreateScheduleEventInput): Promi
       data.disciplineId || null,
       data.instructorId || null,
       data.classroomId || null,
-      data.startTime,
-      data.endTime,
+      startTimeMysql,
+      endTimeMysql,
       data.isAllDay || false,
       data.color || 'primary',
       data.eventType || 'theory',
@@ -395,11 +407,11 @@ export async function updateScheduleEvent(id: string, data: UpdateScheduleEventI
   }
   if (data.startTime !== undefined) {
     updates.push('start_time = ?');
-    params.push(data.startTime);
+    params.push(isoToMySqlDatetime(data.startTime));
   }
   if (data.endTime !== undefined) {
     updates.push('end_time = ?');
-    params.push(data.endTime);
+    params.push(isoToMySqlDatetime(data.endTime));
   }
   if (data.isAllDay !== undefined) {
     updates.push('is_all_day = ?');
@@ -462,10 +474,14 @@ export async function checkScheduleConflicts(
     excludeEventId?: string;
   } = {}
 ): Promise<ScheduleEvent[]> {
+  // Конвертируем ISO время в MySQL формат
+  const startTimeMysql = isoToMySqlDatetime(startTime);
+  const endTimeMysql = isoToMySqlDatetime(endTime);
+
   const conditions: string[] = [
     '((se.start_time < ? AND se.end_time > ?) OR (se.start_time >= ? AND se.start_time < ?) OR (se.end_time > ? AND se.end_time <= ?))',
   ];
-  const params: any[] = [endTime, startTime, startTime, endTime, startTime, endTime];
+  const params: any[] = [endTimeMysql, startTimeMysql, startTimeMysql, endTimeMysql, startTimeMysql, endTimeMysql];
 
   const orConditions: string[] = [];
   

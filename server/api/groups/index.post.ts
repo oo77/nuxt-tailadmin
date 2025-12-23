@@ -43,15 +43,15 @@ export default defineEventHandler(async (event) => {
 
     const data = validationResult.data;
 
-    // Проверяем, что дата окончания позже даты начала
+    // Проверяем, что дата окончания не раньше даты начала (допускается один день)
     const startDate = new Date(data.startDate);
     const endDate = new Date(data.endDate);
     
-    if (endDate <= startDate) {
+    if (endDate < startDate) {
       return {
         success: false,
-        message: 'Дата окончания должна быть позже даты начала',
-        errors: [{ field: 'endDate', message: 'Дата окончания должна быть позже даты начала' }],
+        message: 'Дата окончания не может быть раньше даты начала',
+        errors: [{ field: 'endDate', message: 'Дата окончания не может быть раньше даты начала' }],
       };
     }
 

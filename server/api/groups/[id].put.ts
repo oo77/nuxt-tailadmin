@@ -61,15 +61,15 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Проверяем даты, если они обновляются
+    // Проверяем даты, если они обновляются (допускается одинаковые даты для однодневных групп)
     const newStartDate = data.startDate || existingGroup.startDate.toString().split('T')[0];
     const newEndDate = data.endDate || existingGroup.endDate.toString().split('T')[0];
     
-    if (new Date(newEndDate) <= new Date(newStartDate)) {
+    if (new Date(newEndDate) < new Date(newStartDate)) {
       return {
         success: false,
-        message: 'Дата окончания должна быть позже даты начала',
-        errors: [{ field: 'endDate', message: 'Дата окончания должна быть позже даты начала' }],
+        message: 'Дата окончания не может быть раньше даты начала',
+        errors: [{ field: 'endDate', message: 'Дата окончания не может быть раньше даты начала' }],
       };
     }
 

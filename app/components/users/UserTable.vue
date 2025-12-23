@@ -55,7 +55,7 @@
               :to="`/users/${user.id}`"
               class="flex items-center gap-3 group"
             >
-              <div class="flex-shrink-0">
+              <div class="shrink-0">
                 <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center transition-colors group-hover:bg-primary/20">
                   <span class="text-primary font-medium text-lg">
                     {{ getUserInitials(user.name) }}

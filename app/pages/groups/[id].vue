@@ -51,7 +51,7 @@
               </svg>
               Редактировать
             </UiButton>
-            <UiButton variant="danger" @click="confirmDelete">
+            <UiButton variant="danger" @click="showDeleteModal = true">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
@@ -441,6 +441,18 @@
       @close="showManageStudentsModal = false"
       @updated="loadGroup"
     />
+
+    <!-- Модальное окно подтверждения удаления -->
+    <UiConfirmModal
+      :is-open="showDeleteModal"
+      title="Удаление группы"
+      message="Вы уверены, что хотите удалить эту группу?"
+      :item-name="group?.code"
+      warning="Все слушатели будут удалены из этой группы. Это действие нельзя отменить."
+      :loading="isDeleting"
+      @confirm="deleteGroup"
+      @cancel="showDeleteModal = false"
+    />
   </div>
 </template>
 
@@ -461,6 +473,8 @@ const loading = ref(true);
 const group = ref<StudyGroup | null>(null);
 const showEditModal = ref(false);
 const showManageStudentsModal = ref(false);
+const showDeleteModal = ref(false);
+const isDeleting = ref(false);
 const loadingSchedule = ref(false);
 const scheduleEvents = ref<any[]>([]);
 
@@ -629,15 +643,10 @@ const handleGroupUpdated = (updatedGroup: StudyGroup) => {
   loadGroup(); // Перезагружаем для получения связанных данных
 };
 
-const confirmDelete = () => {
-  if (confirm(`Вы уверены, что хотите удалить группу "${group.value?.code}"?\n\nВсе слушатели будут удалены из этой группы.`)) {
-    deleteGroup();
-  }
-};
-
 const deleteGroup = async () => {
   if (!group.value) return;
 
+  isDeleting.value = true;
   try {
     const response = await authFetch<{ success: boolean; message?: string }>(
       `/api/groups/${group.value.id}`,
@@ -652,6 +661,9 @@ const deleteGroup = async () => {
     }
   } catch (error) {
     toast.error('Произошла ошибка при удалении');
+  } finally {
+    isDeleting.value = false;
+    showDeleteModal.value = false;
   }
 };
 
@@ -686,15 +698,30 @@ const loadSchedule = async () => {
       `/api/schedule?groupId=${group.value.id}`
     );
 
-    if (response.success) {
-      // Сортируем по дате начала и берём будущие занятия
+    if (response.success && response.events) {
+      // Сортируем по дате начала
+      // Показываем все занятия (включая прошедшие), но сортируем так чтобы ближайшие были первыми
       const now = new Date();
       scheduleEvents.value = response.events
-        .filter(e => new Date(e.endTime) >= now)
-        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+        .sort((a, b) => {
+          const dateA = new Date(a.startTime);
+          const dateB = new Date(b.startTime);
+          // Сначала будущие события, потом прошедшие
+          const aFuture = dateA >= now;
+          const bFuture = dateB >= now;
+          if (aFuture && !bFuture) return -1;
+          if (!aFuture && bFuture) return 1;
+          // Среди будущих - ближайшие первыми, среди прошедших - недавние первыми
+          return aFuture 
+            ? dateA.getTime() - dateB.getTime() 
+            : dateB.getTime() - dateA.getTime();
+        });
+    } else {
+      scheduleEvents.value = [];
     }
   } catch (error) {
     console.error('Error loading schedule:', error);
+    scheduleEvents.value = [];
   } finally {
     loadingSchedule.value = false;
   }
