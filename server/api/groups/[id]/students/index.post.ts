@@ -54,12 +54,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // Проверяем конфликты дат
-    const startDate = group.startDate instanceof Date 
-      ? group.startDate.toISOString().split('T')[0]
-      : group.startDate.toString().split('T')[0];
-    const endDate = group.endDate instanceof Date 
-      ? group.endDate.toISOString().split('T')[0]
-      : group.endDate.toString().split('T')[0];
+    const startDate = formatDateLocal(group.startDate);
+    const endDate = formatDateLocal(group.endDate);
 
     const conflicts = await checkStudentConflicts(
       studentIds,
@@ -94,3 +90,12 @@ export default defineEventHandler(async (event) => {
     };
   }
 });
+
+// Форматирует дату в YYYY-MM-DD без сдвига временной зоны
+function formatDateLocal(date: Date | string): string {
+  const d = date instanceof Date ? date : new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

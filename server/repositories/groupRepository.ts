@@ -10,12 +10,22 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/prom
 // ИНТЕРФЕЙСЫ
 // ============================================================================
 
+/**
+ * Форматирует дату в строку YYYY-MM-DD без сдвига временной зоны
+ */
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export interface StudyGroup {
   id: string;
   code: string;
   courseId: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | string;
+  endDate: Date | string;
   classroom: string | null;
   description: string | null;
   isActive: boolean;
@@ -161,8 +171,9 @@ function mapRowToGroup(row: StudyGroupRow): StudyGroup {
     id: row.id,
     code: row.code,
     courseId: row.course_id,
-    startDate: row.start_date,
-    endDate: row.end_date,
+    // Форматируем даты как строки YYYY-MM-DD для избежания сдвига при сериализации
+    startDate: formatDateLocal(row.start_date),
+    endDate: formatDateLocal(row.end_date),
     classroom: row.classroom,
     description: row.description,
     isActive: row.is_active,

@@ -580,7 +580,11 @@ const colorOptions = [
 // ===================
 
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
+  // Парсим дату вручную, чтобы избежать проблем с часовыми поясами
+  // dateStr в формате 'YYYY-MM-DD'
+  const [year, month, day] = dateStr.split('-').map(Number);
+  // Создаём дату в локальном часовом поясе (не UTC)
+  const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 

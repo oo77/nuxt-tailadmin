@@ -84,9 +84,10 @@ export default defineEventHandler(async (event) => {
       }
 
       const group = groupRows[0];
-      const eventDate = startTime.toISOString().split('T')[0];
-      const groupStartDate = group.start_date.toISOString().split('T')[0];
-      const groupEndDate = group.end_date.toISOString().split('T')[0];
+      // Используем локальное форматирование для избежания сдвига временной зоны
+      const eventDate = formatDateOnly(startTime);
+      const groupStartDate = formatDateOnly(group.start_date);
+      const groupEndDate = formatDateOnly(group.end_date);
 
       // Проверяем, что дата занятия входит в период обучения группы
       if (eventDate < groupStartDate || eventDate > groupEndDate) {
@@ -267,8 +268,17 @@ function dateToLocalIso(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
 }
 
-// Вспомогательная функция форматирования даты
+// Форматирует только дату (YYYY-MM-DD) без сдвига временной зоны
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Вспомогательная функция форматирования даты для отображения
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }

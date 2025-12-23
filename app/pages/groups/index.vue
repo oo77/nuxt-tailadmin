@@ -417,6 +417,13 @@ const handleGroupCreated = () => {
 };
 
 const formatDate = (date: string | Date): string => {
+  // Если это строка в формате YYYY-MM-DD, парсим вручную
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    const [year, month, day] = date.split('T')[0].split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  // Иначе используем обычное преобразование
   const d = new Date(date);
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };

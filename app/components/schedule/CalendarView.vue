@@ -167,10 +167,18 @@
       />
     </div>
 
-    <!-- Модальное окно события -->
+    <!-- Модальное окно просмотра деталей события -->
+    <ScheduleEventDetailModal
+      :is-open="showDetailModal"
+      :event="selectedEvent"
+      @close="closeDetailModal"
+      @edit="handleEditFromDetail"
+    />
+
+    <!-- Модальное окно создания/редактирования события -->
     <ScheduleEventModal
       :is-open="showEventModal"
-      :event="selectedEvent"
+      :event="editingEvent"
       :default-start="defaultEventStart"
       :default-end="defaultEventEnd"
       @close="closeEventModal"
@@ -223,7 +231,9 @@ const classrooms = ref<Classroom[]>([]);
 const currentView = ref('dayGridMonth');
 const currentTitle = ref('');
 const showEventModal = ref(false);
+const showDetailModal = ref(false);
 const selectedEvent = ref<ScheduleEvent | null>(null);
+const editingEvent = ref<ScheduleEvent | null>(null);
 const defaultEventStart = ref<Date | undefined>(undefined);
 const defaultEventEnd = ref<Date | undefined>(undefined);
 
@@ -294,12 +304,12 @@ const onEventClick = (arg: EventClickArg) => {
   const event = events.value.find(e => e.id === arg.event.id);
   if (event) {
     selectedEvent.value = event;
-    showEventModal.value = true;
+    showDetailModal.value = true;
   }
 };
 
 const onDateSelect = (arg: DateSelectArg) => {
-  selectedEvent.value = null;
+  editingEvent.value = null;
   defaultEventStart.value = arg.start;
   defaultEventEnd.value = arg.end;
   showEventModal.value = true;
@@ -522,15 +532,27 @@ const updateCalendarEvents = () => {
 };
 
 const openAddModal = (start?: Date) => {
-  selectedEvent.value = null;
+  editingEvent.value = null;
   defaultEventStart.value = start || new Date();
   defaultEventEnd.value = new Date((start || new Date()).getTime() + 90 * 60 * 1000);
   showEventModal.value = true;
 };
 
+const closeDetailModal = () => {
+  showDetailModal.value = false;
+  selectedEvent.value = null;
+};
+
+const handleEditFromDetail = (event: ScheduleEvent) => {
+  // Закрываем модальное окно деталей и открываем окно редактирования
+  showDetailModal.value = false;
+  editingEvent.value = event;
+  showEventModal.value = true;
+};
+
 const closeEventModal = () => {
   showEventModal.value = false;
-  selectedEvent.value = null;
+  editingEvent.value = null;
   defaultEventStart.value = undefined;
   defaultEventEnd.value = undefined;
 };

@@ -39,6 +39,14 @@ interface GroupRow extends RowDataPacket {
   end_date: Date;
 }
 
+// Вспомогательная функция для форматирования даты без сдвига временной зоны
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id');
@@ -78,8 +86,8 @@ export default defineEventHandler(async (event) => {
         group: {
           id: group.id,
           courseId: group.course_id,
-          startDate: group.start_date.toISOString().split('T')[0],
-          endDate: group.end_date.toISOString().split('T')[0],
+          startDate: formatDateLocal(group.start_date),
+          endDate: formatDateLocal(group.end_date),
         },
       };
     }
@@ -199,8 +207,8 @@ export default defineEventHandler(async (event) => {
       group: {
         id: group.id,
         courseId: group.course_id,
-        startDate: group.start_date.toISOString().split('T')[0],
-        endDate: group.end_date.toISOString().split('T')[0],
+        startDate: formatDateLocal(group.start_date),
+        endDate: formatDateLocal(group.end_date),
       },
     };
   } catch (error: any) {
