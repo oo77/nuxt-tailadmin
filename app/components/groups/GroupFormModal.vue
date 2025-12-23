@@ -306,7 +306,11 @@ const fillFormFromGroup = (group: StudyGroup) => {
 
 const formatDateForInput = (date: string | Date): string => {
   const d = new Date(date);
-  return d.toISOString().split('T')[0] || '';
+  // Используем локальные методы для избежания сдвига временной зоны
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Watch for modal open/close

@@ -239,6 +239,14 @@ const formData = reactive({
   isActive: true,
 });
 
+// Вспомогательная функция для форматирования даты
+const formatDateForInputLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Вычисляемые свойства
 const isEditMode = computed(() => !!props.instructor);
 
@@ -448,7 +456,7 @@ onMounted(() => {
     formData.hireDate = props.instructor.hireDate 
       ? (typeof props.instructor.hireDate === 'string' 
         ? props.instructor.hireDate.split('T')[0]!
-        : new Date(props.instructor.hireDate).toISOString().split('T')[0]!)
+        : formatDateForInputLocal(props.instructor.hireDate))
       : '';
     formData.contractInfo = props.instructor.contractInfo || '';
     formData.maxHours = props.instructor.maxHours || 0;

@@ -953,7 +953,11 @@ const initForm = () => {
   } else {
     // Создание нового
     const now = props.defaultStart ?? new Date();
-    const dateStr = now.toISOString().split('T')[0];
+    // Используем локальные методы для избежания сдвига временной зоны
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     
     form.value = {
       groupId: '',

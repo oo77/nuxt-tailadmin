@@ -261,9 +261,14 @@ const transformEventForCalendar = (event: ScheduleEvent): EventInput => {
   const defaultColors = { bg: '#3C50E0', border: '#3C50E0', text: '#ffffff' };
   const colors = eventColors[event.color] ?? defaultColors;
   
+  // Формируем заголовок с аудиторией если она указана
+  const titleWithClassroom = event.classroom?.name 
+    ? `${event.title} (${event.classroom.name})`
+    : event.title;
+  
   return {
     id: event.id,
-    title: event.title,
+    title: titleWithClassroom,
     start: event.startTime,
     end: event.endTime,
     allDay: false,
@@ -384,7 +389,7 @@ const calendarOptions: CalendarOptions = {
   locale: ruLocale,
   headerToolbar: false,
   height: 'auto',
-  timeZone: 'UTC',
+  timeZone: 'local', // Используем локальное время для избежания сдвига дат
   
   // События будут управляться через API календаря
   events: [],
