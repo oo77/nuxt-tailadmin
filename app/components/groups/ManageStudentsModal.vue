@@ -229,6 +229,20 @@
       </div>
     </template>
   </UiModal>
+
+  <!-- Модальное окно подтверждения удаления -->
+  <UiConfirmModal
+    :is-open="showDeleteConfirm"
+    title="Удаление слушателя"
+    message="Вы уверены, что хотите удалить слушателя из группы?"
+    :item-name="studentToDelete?.student?.fullName"
+    confirm-text="Удалить"
+    cancel-text="Отмена"
+    variant="danger"
+    :loading="deletingStudent"
+    @confirm="confirmDeleteStudent"
+    @cancel="cancelDeleteStudent"
+  />
 </template>
 
 <script setup lang="ts">
@@ -264,6 +278,11 @@ const studentToTransfer = ref<GroupStudent | null>(null);
 const availableGroups = ref<Array<{ id: string; code: string; courseName: string }>>([]);
 const loadingGroups = ref(false);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// State для модального подтверждения удаления
+const showDeleteConfirm = ref(false);
+const studentToDelete = ref<GroupStudent | null>(null);
+const deletingStudent = ref(false);
 
 // Computed
 const currentStudents = computed(() => props.group?.students || []);
@@ -350,9 +369,23 @@ const addSelectedStudents = async () => {
 };
 
 const removeStudentConfirm = (gs: GroupStudent) => {
-  if (confirm(`Удалить "${gs.student?.fullName}" из группы?`)) {
-    removeStudent(gs.studentId);
-  }
+  studentToDelete.value = gs;
+  showDeleteConfirm.value = true;
+};
+
+const confirmDeleteStudent = async () => {
+  if (!studentToDelete.value) return;
+  
+  deletingStudent.value = true;
+  await removeStudent(studentToDelete.value.studentId);
+  deletingStudent.value = false;
+  showDeleteConfirm.value = false;
+  studentToDelete.value = null;
+};
+
+const cancelDeleteStudent = () => {
+  showDeleteConfirm.value = false;
+  studentToDelete.value = null;
 };
 
 const removeStudent = async (studentId: string) => {
