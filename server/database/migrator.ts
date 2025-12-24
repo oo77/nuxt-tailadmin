@@ -20,6 +20,11 @@ import * as migration008 from './migrations/20251218_008_add_folders_support';
 import * as migration009 from './migrations/20251219_009_create_activity_logs_table';
 import * as migration010 from './migrations/20251222_010_create_study_groups_tables';
 import * as migration011 from './migrations/20251222_011_create_schedule_events_table';
+import * as migration012 from './migrations/20251224_012_fix_schedule_event_type';
+import * as migration013 from './migrations/20251224_013_create_organizations_table';
+import * as migration014 from './migrations/20251224_014_create_representatives_table';
+import * as migration015 from './migrations/20251224_015_create_telegram_sessions_table';
+import * as migration016 from './migrations/20251224_016_create_schedule_settings_table';
 
 /**
  * ============================================================================
@@ -121,13 +126,36 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     down: migration011.down,
     description: migration011.description,
   },
-  // Добавляйте новые миграции здесь:
-  // {
-  //   name: '20251223_011_your_migration',
-  //   up: migration011.up,
-  //   down: migration011.down,
-  //   description: migration011.description,
-  // },
+  {
+    name: '20251224_012_fix_schedule_event_type',
+    up: migration012.up,
+    down: migration012.down,
+    description: migration012.description,
+  },
+  {
+    name: '20251224_013_create_organizations_table',
+    up: migration013.up,
+    down: migration013.down,
+    description: migration013.description,
+  },
+  {
+    name: '20251224_014_create_representatives_table',
+    up: migration014.up,
+    down: migration014.down,
+    description: migration014.description,
+  },
+  {
+    name: '20251224_015_create_telegram_sessions_table',
+    up: migration015.up,
+    down: migration015.down,
+    description: migration015.description,
+  },
+  {
+    name: '20251224_016_create_schedule_settings_table',
+    up: migration016.up,
+    down: migration016.down,
+    description: migration016.description,
+  },
 ];
 
 // ============================================================================

@@ -5,23 +5,8 @@
 
 import { getScheduleEvents } from '../../repositories/scheduleRepository';
 import type { ScheduleEventType } from '../../repositories/scheduleRepository';
+import { dateToLocalIso } from '../../utils/timeUtils';
 
-/**
- * Конвертирует MySQL DATETIME (как Date объект) обратно в ISO строку
- * без конвертации часового пояса.
- * MySQL хранит "2025-12-23 10:00:00", драйвер создаёт Date с локальным временем,
- * но toISOString() конвертирует в UTC. Нам нужно сохранить время "как есть".
- */
-function dateToLocalIso(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
-}
 
 export default defineEventHandler(async (event) => {
   try {
@@ -36,7 +21,21 @@ export default defineEventHandler(async (event) => {
       eventType: query.eventType as ScheduleEventType | undefined,
     };
 
+    console.log('[Schedule API] Фильтры запроса:', JSON.stringify(filters));
+
     const events = await getScheduleEvents(filters);
+    
+    console.log(`[Schedule API] Найдено событий: ${events.length}`);
+
+    // Логируем первое событие для отладки
+    if (events.length > 0) {
+      console.log('[Schedule API] Пример события из БД:', JSON.stringify({
+        id: events[0].id,
+        title: events[0].title,
+        eventType: events[0].eventType,
+        color: events[0].color,
+      }));
+    }
 
     return {
       success: true,

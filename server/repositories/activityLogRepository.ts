@@ -243,6 +243,7 @@ export async function getUserActivityStats(userId: string): Promise<{
     CREATE: 0,
     UPDATE: 0,
     DELETE: 0,
+    VIEW: 0,
     LOGIN: 0,
     LOGOUT: 0,
     IMPORT: 0,

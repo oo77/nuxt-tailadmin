@@ -18,4 +18,6 @@ export const storage: IStorage = new LocalStorage();
 // Реэкспорт типов и утилит
 export * from './IStorage';
 export * from './fileUtils';
-export { LocalStorage } from './LocalStorage';
+// Примечание: LocalStorage не реэкспортируем, чтобы избежать дублирования в Nuxt auto-import
+// Используйте: import { LocalStorage } from '~/server/utils/storage/LocalStorage';
+

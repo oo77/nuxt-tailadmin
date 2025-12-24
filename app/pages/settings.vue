@@ -275,6 +275,11 @@
             </div>
           </div>
         </div>
+
+        <!-- Расписание -->
+        <div v-show="activeTab === 'schedule'" class="p-6">
+          <SettingsScheduleSettings />
+        </div>
       </div>
     </div>
   </div>
@@ -285,7 +290,8 @@ import { ref } from 'vue';
 import { 
   Settings, 
   Bell, 
-  Palette 
+  Palette,
+  Calendar 
 } from 'lucide-vue-next';
 
 // Определяем мета-данные страницы
@@ -306,6 +312,11 @@ const tabs = [
     id: 'general',
     label: 'Общие',
     icon: Settings,
+  },
+  {
+    id: 'schedule',
+    label: 'Расписание',
+    icon: Calendar,
   },
   {
     id: 'notifications',

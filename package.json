@@ -27,6 +27,7 @@
     "bcryptjs": "^3.0.3",
     "dropzone": "^6.0.0-beta.2",
     "flatpickr": "^4.6.13",
+    "grammy": "^1.38.4",
     "jsonwebtoken": "^9.0.3",
     "jsvectormap": "^1.7.0",
     "lucide-vue-next": "^0.561.0",

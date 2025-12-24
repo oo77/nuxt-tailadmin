@@ -3,7 +3,7 @@
  */
 
 // Типы действий
-export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'IMPORT' | 'EXPORT';
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW' | 'LOGIN' | 'LOGOUT' | 'IMPORT' | 'EXPORT';
 
 // Типы сущностей
 export type EntityType = 
@@ -18,6 +18,8 @@ export type EntityType =
   | 'SCHEDULE'
   | 'GROUP'
   | 'CLASSROOM'
+  | 'ORGANIZATION'
+  | 'REPRESENTATIVE'
   | 'SYSTEM';
 
 /**

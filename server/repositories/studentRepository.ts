@@ -7,6 +7,7 @@ import { executeQuery, executeTransaction } from '../utils/db';
 import type { Student, StudentCertificate, CreateStudentInput, UpdateStudentInput } from '../types/student';
 import { v4 as uuidv4 } from 'uuid';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { getOrCreateOrganizationByName, updateStudentsCount } from './organizationRepository';
 
 // ============================================================================
 // ИНТЕРФЕЙСЫ
@@ -38,6 +39,7 @@ interface StudentRow extends RowDataPacket {
   full_name: string;
   pinfl: string;
   organization: string;
+  organization_id: string | null;
   department: string | null;
   position: string;
   created_at: Date;
@@ -464,11 +466,13 @@ export interface BatchUpsertResult {
   created: number;
   updated: number;
   errors: Array<{ pinfl: string; error: string }>;
+  organizationsCreated: number;
 }
 
 /**
  * Массовое создание/обновление студентов (upsert)
  * Использует транзакцию для атомарности
+ * Автоматически создаёт организации при необходимости
  */
 export async function batchUpsertStudents(
   students: Array<{
@@ -483,40 +487,70 @@ export async function batchUpsertStudents(
     created: 0,
     updated: 0,
     errors: [],
+    organizationsCreated: 0,
   };
 
   if (students.length === 0) {
     return result;
   }
 
+  // Кэш организаций для оптимизации
+  const organizationCache = new Map<string, string>(); // name -> id
+  const affectedOrganizationIds = new Set<string>();
+
+  // Сначала получаем или создаём все организации
+  const uniqueOrganizations = [...new Set(students.map(s => s.organization.trim()))];
+  for (const orgName of uniqueOrganizations) {
+    try {
+      const org = await getOrCreateOrganizationByName(orgName);
+      organizationCache.set(orgName, org.id);
+      // Подсчитываем только новые (без studentsCount)
+      if (org.studentsCount === 0) {
+        result.organizationsCreated++;
+      }
+    } catch (error) {
+      console.error(`Error creating organization "${orgName}":`, error);
+    }
+  }
+
   await executeTransaction(async (connection: PoolConnection) => {
     for (const student of students) {
       try {
+        const organizationId = organizationCache.get(student.organization.trim()) || null;
+        
         // Проверяем существование по ПИНФЛ
         const [existingRows] = await connection.execute<StudentRow[]>(
-          'SELECT id FROM students WHERE pinfl = ? LIMIT 1',
+          'SELECT id, organization_id FROM students WHERE pinfl = ? LIMIT 1',
           [student.pinfl]
         );
 
         if (existingRows.length > 0) {
+          const existingOrgId = existingRows[0].organization_id;
+          
           // Обновляем
           await connection.execute(
             `UPDATE students 
-             SET full_name = ?, organization = ?, department = ?, position = ?
+             SET full_name = ?, organization = ?, organization_id = ?, department = ?, position = ?, updated_at = ?
              WHERE pinfl = ?`,
-            [student.fullName, student.organization, student.department || null, student.position, student.pinfl]
+            [student.fullName, student.organization, organizationId, student.department || null, student.position, new Date(), student.pinfl]
           );
           result.updated++;
+          
+          // Отслеживаем изменённые организации
+          if (organizationId) affectedOrganizationIds.add(organizationId);
+          if (existingOrgId && existingOrgId !== organizationId) affectedOrganizationIds.add(existingOrgId);
         } else {
           // Создаём
           const id = uuidv4();
           const now = new Date();
           await connection.execute(
-            `INSERT INTO students (id, full_name, pinfl, organization, department, position, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, student.fullName, student.pinfl, student.organization, student.department || null, student.position, now, now]
+            `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, now, now]
           );
           result.created++;
+          
+          if (organizationId) affectedOrganizationIds.add(organizationId);
         }
       } catch (error) {
         result.errors.push({
@@ -527,11 +561,21 @@ export async function batchUpsertStudents(
     }
   });
 
+  // Обновляем счётчики студентов для затронутых организаций
+  for (const orgId of affectedOrganizationIds) {
+    try {
+      await updateStudentsCount(orgId);
+    } catch (error) {
+      console.error(`Error updating students count for organization ${orgId}:`, error);
+    }
+  }
+
   return result;
 }
 
 /**
  * Массовое создание/обновление с прогрессом (для импорта с отслеживанием)
+ * Автоматически создаёт организации при необходимости
  */
 export async function batchUpsertStudentsWithProgress(
   students: Array<{
@@ -549,10 +593,29 @@ export async function batchUpsertStudentsWithProgress(
     created: 0,
     updated: 0,
     errors: [],
+    organizationsCreated: 0,
   };
 
   if (students.length === 0) {
     return result;
+  }
+
+  // Кэш организаций для оптимизации
+  const organizationCache = new Map<string, string>(); // name -> id
+  const affectedOrganizationIds = new Set<string>();
+
+  // Сначала получаем или создаём все организации
+  const uniqueOrganizations = [...new Set(students.map(s => s.organization.trim()))];
+  for (const orgName of uniqueOrganizations) {
+    try {
+      const org = await getOrCreateOrganizationByName(orgName);
+      organizationCache.set(orgName, org.id);
+      if (org.studentsCount === 0) {
+        result.organizationsCreated++;
+      }
+    } catch (error) {
+      console.error(`Error creating organization "${orgName}":`, error);
+    }
   }
 
   // Обрабатываем батчами
@@ -562,31 +625,40 @@ export async function batchUpsertStudentsWithProgress(
     await executeTransaction(async (connection: PoolConnection) => {
       for (const student of batch) {
         try {
+          const organizationId = organizationCache.get(student.organization.trim()) || null;
+          
           // Проверяем существование по ПИНФЛ
           const [existingRows] = await connection.execute<StudentRow[]>(
-            'SELECT id FROM students WHERE pinfl = ? LIMIT 1',
+            'SELECT id, organization_id FROM students WHERE pinfl = ? LIMIT 1',
             [student.pinfl]
           );
 
           if (existingRows.length > 0) {
+            const existingOrgId = existingRows[0].organization_id;
+            
             // Обновляем
             await connection.execute(
               `UPDATE students 
-               SET full_name = ?, organization = ?, department = ?, position = ?
+               SET full_name = ?, organization = ?, organization_id = ?, department = ?, position = ?, updated_at = ?
                WHERE pinfl = ?`,
-              [student.fullName, student.organization, student.department || null, student.position, student.pinfl]
+              [student.fullName, student.organization, organizationId, student.department || null, student.position, new Date(), student.pinfl]
             );
             result.updated++;
+            
+            if (organizationId) affectedOrganizationIds.add(organizationId);
+            if (existingOrgId && existingOrgId !== organizationId) affectedOrganizationIds.add(existingOrgId);
           } else {
             // Создаём
             const id = uuidv4();
             const now = new Date();
             await connection.execute(
-              `INSERT INTO students (id, full_name, pinfl, organization, department, position, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [id, student.fullName, student.pinfl, student.organization, student.department || null, student.position, now, now]
+              `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [id, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, now, now]
             );
             result.created++;
+            
+            if (organizationId) affectedOrganizationIds.add(organizationId);
           }
         } catch (error) {
           result.errors.push({
@@ -610,6 +682,15 @@ export async function batchUpsertStudentsWithProgress(
     // Небольшая пауза между батчами для снижения нагрузки
     if (i + batchSize < students.length) {
       await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+
+  // Обновляем счётчики студентов для затронутых организаций
+  for (const orgId of affectedOrganizationIds) {
+    try {
+      await updateStudentsCount(orgId);
+    } catch (error) {
+      console.error(`Error updating students count for organization ${orgId}:`, error);
     }
   }
 

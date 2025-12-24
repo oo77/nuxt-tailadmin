@@ -48,9 +48,9 @@ export default defineNuxtConfig({
         format: 'esm'
       }
     },
-    // Исключаем xlsx из бандлинга через rollup external для избежания проблем с ESM на Windows
+    // Исключаем xlsx и sharp из бандлинга через rollup external для избежания проблем с ESM на Windows
     externals: {
-      external: ['xlsx']
+      external: ['xlsx', 'sharp']
     }
   }
 })

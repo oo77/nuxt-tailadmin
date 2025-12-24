@@ -86,19 +86,68 @@
                   </p>
                 </div>
 
-                <!-- Организация -->
-                <div>
+                <!-- Организация с автокомплитом -->
+                <div class="relative">
                   <label class="mb-3 block text-sm font-medium text-black dark:text-white">
                     Организация <span class="text-danger">*</span>
                   </label>
-                  <input
-                    v-model="formData.organization"
-                    type="text"
-                    placeholder="Введите название организации"
-                    class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                    :class="{ 'border-danger': errors.organization }"
-                    required
-                  />
+                  <div class="relative">
+                    <input
+                      v-model="formData.organization"
+                      type="text"
+                      placeholder="Введите название организации"
+                      class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                      :class="{ 'border-danger': errors.organization }"
+                      required
+                      autocomplete="off"
+                      @input="onOrganizationInput"
+                      @focus="showOrganizationDropdown = true"
+                      @blur="hideDropdownWithDelay"
+                    />
+                    <!-- Индикатор загрузки -->
+                    <div v-if="isLoadingOrganizations" class="absolute right-3 top-1/2 -translate-y-1/2">
+                      <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <!-- Dropdown с организациями -->
+                  <div
+                    v-if="showOrganizationDropdown && organizationSuggestions.length > 0"
+                    class="absolute z-50 w-full mt-1 bg-white dark:bg-boxdark border border-stroke dark:border-strokedark rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                  >
+                    <button
+                      v-for="org in organizationSuggestions"
+                      :key="org.id"
+                      type="button"
+                      class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors border-b border-stroke dark:border-strokedark last:border-b-0"
+                      @mousedown.prevent="selectOrganization(org)"
+                    >
+                      <div class="font-medium text-black dark:text-white">{{ org.name }}</div>
+                      <div v-if="org.shortName" class="text-sm text-gray-500 dark:text-gray-400">
+                        {{ org.shortName }}
+                      </div>
+                      <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        {{ org.studentsCount }} слушателей
+                      </div>
+                    </button>
+                  </div>
+                  <!-- Подсказка: будет создана новая организация -->
+                  <div
+                    v-if="showOrganizationDropdown && formData.organization.trim() && organizationSuggestions.length === 0 && !isLoadingOrganizations"
+                    class="absolute z-50 w-full mt-1 bg-white dark:bg-boxdark border border-stroke dark:border-strokedark rounded-lg shadow-lg"
+                  >
+                    <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                      <span class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Будет создана новая организация: 
+                        <span class="font-medium text-black dark:text-white">{{ formData.organization.trim() }}</span>
+                      </span>
+                    </div>
+                  </div>
                   <p v-if="errors.organization" class="mt-1 text-sm text-danger">
                     {{ errors.organization[0] }}
                   </p>
@@ -165,6 +214,14 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import type { Student, CreateStudentData, UpdateStudentData } from '~/types/student';
 
+// Интерфейс для организации
+interface Organization {
+  id: string;
+  name: string;
+  shortName: string | null;
+  studentsCount: number;
+}
+
 interface Props {
   student?: Student | null;
   isOpen: boolean;
@@ -177,11 +234,20 @@ const emit = defineEmits<{
   submit: [data: CreateStudentData | UpdateStudentData];
 }>();
 
+// Используем authFetch для авторизованных запросов
+const { authFetch } = useAuthFetch();
+
 // Состояние
 const isSubmitting = ref(false);
 const isVisible = ref(false);
 const errors = reactive<Record<string, string[]>>({});
 const notification = useNotification();
+
+// Автокомплит организаций
+const isLoadingOrganizations = ref(false);
+const showOrganizationDropdown = ref(false);
+const organizationSuggestions = ref<Organization[]>([]);
+let organizationSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Данные формы
 const formData = reactive({
@@ -238,6 +304,54 @@ const handleClose = () => {
   setTimeout(() => {
     emit('close');
   }, 300); // Ждем завершения анимации
+};
+
+// Автокомплит организаций
+const searchOrganizations = async (query: string) => {
+  if (!query.trim()) {
+    organizationSuggestions.value = [];
+    return;
+  }
+
+  isLoadingOrganizations.value = true;
+  try {
+    const response = await authFetch<{ success: boolean; data: Organization[] }>(
+      `/api/organizations/search?q=${encodeURIComponent(query.trim())}&limit=5`,
+      { method: 'GET' }
+    );
+
+    if (response.success) {
+      organizationSuggestions.value = response.data;
+    }
+  } catch (error) {
+    console.error('Error searching organizations:', error);
+    organizationSuggestions.value = [];
+  } finally {
+    isLoadingOrganizations.value = false;
+  }
+};
+
+const onOrganizationInput = () => {
+  // Debounce поиск
+  if (organizationSearchTimer) {
+    clearTimeout(organizationSearchTimer);
+  }
+  organizationSearchTimer = setTimeout(() => {
+    searchOrganizations(formData.organization);
+  }, 300);
+};
+
+const selectOrganization = (org: Organization) => {
+  formData.organization = org.name;
+  organizationSuggestions.value = [];
+  showOrganizationDropdown.value = false;
+};
+
+const hideDropdownWithDelay = () => {
+  // Задержка чтобы успеть кликнуть на элемент
+  setTimeout(() => {
+    showOrganizationDropdown.value = false;
+  }, 200);
 };
 
 const handleSubmit = async () => {

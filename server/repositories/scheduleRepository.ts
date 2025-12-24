@@ -3,20 +3,10 @@
  */
 
 import { executeQuery, executeTransaction } from '../utils/db';
+import { isoToMySqlDatetime } from '../utils/timeUtils';
 import { v4 as uuidv4 } from 'uuid';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 
-/**
- * Конвертирует ISO строку в формат MySQL DATETIME без изменения часового пояса.
- * "2025-12-23T10:00:00.000Z" -> "2025-12-23 10:00:00"
- */
-function isoToMySqlDatetime(isoString: string): string {
-  // Извлекаем компоненты напрямую из строки без конвертации часового пояса
-  // ISO формат: "YYYY-MM-DDTHH:MM:SS.sssZ"
-  const datePart = isoString.substring(0, 10); // "2025-12-23"
-  const timePart = isoString.substring(11, 19); // "10:00:00"
-  return `${datePart} ${timePart}`;
-}
 
 export type ScheduleEventType = 'theory' | 'practice' | 'assessment' | 'other';
 export type ScheduleEventColor = 'primary' | 'success' | 'warning' | 'danger';
@@ -237,14 +227,20 @@ export async function getScheduleEvents(filters: ScheduleFilters = {}): Promise<
 
   // Фильтр по диапазону дат
   if (filters.startDate && filters.endDate) {
+    // Если даты без времени (YYYY-MM-DD), расширяем endDate до конца дня
+    const startDateStr = filters.startDate.includes('T') ? filters.startDate : `${filters.startDate} 00:00:00`;
+    const endDateStr = filters.endDate.includes('T') ? filters.endDate : `${filters.endDate} 23:59:59`;
+    
     conditions.push('((se.start_time >= ? AND se.start_time <= ?) OR (se.end_time >= ? AND se.end_time <= ?) OR (se.start_time <= ? AND se.end_time >= ?))');
-    params.push(filters.startDate, filters.endDate, filters.startDate, filters.endDate, filters.startDate, filters.endDate);
+    params.push(startDateStr, endDateStr, startDateStr, endDateStr, startDateStr, endDateStr);
   } else if (filters.startDate) {
+    const startDateStr = filters.startDate.includes('T') ? filters.startDate : `${filters.startDate} 00:00:00`;
     conditions.push('se.end_time >= ?');
-    params.push(filters.startDate);
+    params.push(startDateStr);
   } else if (filters.endDate) {
+    const endDateStr = filters.endDate.includes('T') ? filters.endDate : `${filters.endDate} 23:59:59`;
     conditions.push('se.start_time <= ?');
-    params.push(filters.endDate);
+    params.push(endDateStr);
   }
 
   // Фильтр по группе
@@ -644,4 +640,313 @@ export async function deleteClassroom(id: string): Promise<boolean> {
   );
 
   return result.affectedRows > 0;
+}
+
+// ============================================================================
+// АКАДЕМИЧЕСКИЕ ПАРЫ И НАСТРОЙКИ РАСПИСАНИЯ
+// ============================================================================
+
+export interface SchedulePeriod {
+  id: number;
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+  isAfterBreak: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ScheduleSetting {
+  id: number;
+  settingKey: string;
+  settingValue: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface SchedulePeriodRow extends RowDataPacket {
+  id: number;
+  period_number: number;
+  start_time: string;
+  end_time: string;
+  is_after_break: boolean;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ScheduleSettingRow extends RowDataPacket {
+  id: number;
+  setting_key: string;
+  setting_value: string;
+  description: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+function mapRowToSchedulePeriod(row: SchedulePeriodRow): SchedulePeriod {
+  return {
+    id: row.id,
+    periodNumber: row.period_number,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    isAfterBreak: row.is_after_break,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapRowToScheduleSetting(row: ScheduleSettingRow): ScheduleSetting {
+  return {
+    id: row.id,
+    settingKey: row.setting_key,
+    settingValue: row.setting_value,
+    description: row.description,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Получить все академические пары (отсортированные по номеру)
+ */
+export async function getSchedulePeriods(activeOnly = true): Promise<SchedulePeriod[]> {
+  let query = 'SELECT * FROM schedule_periods';
+  const params: any[] = [];
+
+  if (activeOnly) {
+    query += ' WHERE is_active = true';
+  }
+
+  query += ' ORDER BY period_number ASC';
+
+  const rows = await executeQuery<SchedulePeriodRow[]>(query, params);
+  return rows.map(mapRowToSchedulePeriod);
+}
+
+/**
+ * Получить академическую пару по ID
+ */
+export async function getSchedulePeriodById(id: number): Promise<SchedulePeriod | null> {
+  const rows = await executeQuery<SchedulePeriodRow[]>(
+    'SELECT * FROM schedule_periods WHERE id = ? LIMIT 1',
+    [id]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return mapRowToSchedulePeriod(rows[0]);
+}
+
+/**
+ * Получить академическую пару по номеру
+ */
+export async function getSchedulePeriodByNumber(periodNumber: number): Promise<SchedulePeriod | null> {
+  const rows = await executeQuery<SchedulePeriodRow[]>(
+    'SELECT * FROM schedule_periods WHERE period_number = ? LIMIT 1',
+    [periodNumber]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return mapRowToSchedulePeriod(rows[0]);
+}
+
+/**
+ * Обновить академическую пару
+ */
+export async function updateSchedulePeriod(
+  id: number,
+  data: { startTime?: string; endTime?: string; isAfterBreak?: boolean; isActive?: boolean }
+): Promise<SchedulePeriod | null> {
+  const existing = await getSchedulePeriodById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (data.startTime !== undefined) {
+    updates.push('start_time = ?');
+    params.push(data.startTime);
+  }
+  if (data.endTime !== undefined) {
+    updates.push('end_time = ?');
+    params.push(data.endTime);
+  }
+  if (data.isAfterBreak !== undefined) {
+    updates.push('is_after_break = ?');
+    params.push(data.isAfterBreak);
+  }
+  if (data.isActive !== undefined) {
+    updates.push('is_active = ?');
+    params.push(data.isActive);
+  }
+
+  if (updates.length === 0) {
+    return existing;
+  }
+
+  params.push(id);
+  await executeQuery(`UPDATE schedule_periods SET ${updates.join(', ')} WHERE id = ?`, params);
+
+  return getSchedulePeriodById(id);
+}
+
+/**
+ * Массовое обновление всех академических пар
+ */
+export async function updateAllSchedulePeriods(
+  periods: Array<{ periodNumber: number; startTime: string; endTime: string; isAfterBreak?: boolean }>
+): Promise<SchedulePeriod[]> {
+  for (const period of periods) {
+    await executeQuery(
+      `UPDATE schedule_periods 
+       SET start_time = ?, end_time = ?, is_after_break = ?
+       WHERE period_number = ?`,
+      [period.startTime, period.endTime, period.isAfterBreak || false, period.periodNumber]
+    );
+  }
+
+  return getSchedulePeriods();
+}
+
+/**
+ * Получить все настройки расписания
+ */
+export async function getScheduleSettings(): Promise<ScheduleSetting[]> {
+  const rows = await executeQuery<ScheduleSettingRow[]>(
+    'SELECT * FROM schedule_settings ORDER BY setting_key ASC'
+  );
+  return rows.map(mapRowToScheduleSetting);
+}
+
+/**
+ * Получить настройку по ключу
+ */
+export async function getScheduleSettingByKey(key: string): Promise<ScheduleSetting | null> {
+  const rows = await executeQuery<ScheduleSettingRow[]>(
+    'SELECT * FROM schedule_settings WHERE setting_key = ? LIMIT 1',
+    [key]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return mapRowToScheduleSetting(rows[0]);
+}
+
+/**
+ * Получить значение настройки по ключу
+ */
+export async function getScheduleSettingValue(key: string): Promise<string | null> {
+  const setting = await getScheduleSettingByKey(key);
+  return setting ? setting.settingValue : null;
+}
+
+/**
+ * Обновить настройку по ключу
+ */
+export async function updateScheduleSetting(key: string, value: string): Promise<ScheduleSetting | null> {
+  await executeQuery(
+    'UPDATE schedule_settings SET setting_value = ? WHERE setting_key = ?',
+    [value, key]
+  );
+
+  return getScheduleSettingByKey(key);
+}
+
+/**
+ * Массовое обновление настроек
+ */
+export async function updateScheduleSettings(
+  settings: Array<{ key: string; value: string }>
+): Promise<ScheduleSetting[]> {
+  for (const setting of settings) {
+    await executeQuery(
+      'UPDATE schedule_settings SET setting_value = ? WHERE setting_key = ?',
+      [setting.value, setting.key]
+    );
+  }
+
+  return getScheduleSettings();
+}
+
+/**
+ * Получить все настройки расписания как объект
+ */
+export async function getScheduleSettingsAsObject(): Promise<Record<string, string>> {
+  const settings = await getScheduleSettings();
+  const result: Record<string, string> = {};
+
+  for (const setting of settings) {
+    result[setting.settingKey] = setting.settingValue;
+  }
+
+  return result;
+}
+
+/**
+ * Найти ближайшую академическую пару по времени (HH:MM)
+ */
+export async function findNearestPeriod(time: string): Promise<SchedulePeriod | null> {
+  const periods = await getSchedulePeriods();
+  
+  if (periods.length === 0) {
+    return null;
+  }
+
+  // Преобразуем время в минуты для сравнения
+  const [hours, minutes] = time.split(':').map(Number);
+  const timeInMinutes = hours * 60 + minutes;
+
+  let nearestPeriod: SchedulePeriod | null = null;
+  let minDiff = Infinity;
+
+  for (const period of periods) {
+    const [startHours, startMinutes] = period.startTime.split(':').map(Number);
+    const startInMinutes = startHours * 60 + startMinutes;
+    const diff = Math.abs(timeInMinutes - startInMinutes);
+
+    if (diff < minDiff) {
+      minDiff = diff;
+      nearestPeriod = period;
+    }
+  }
+
+  return nearestPeriod;
+}
+
+/**
+ * Получить пару по времени (HH:MM)
+ * Возвращает пару, в которую попадает указанное время
+ */
+export async function getPeriodByTime(time: string): Promise<SchedulePeriod | null> {
+  const periods = await getSchedulePeriods();
+  
+  // Преобразуем время в минуты для сравнения
+  const [hours, minutes] = time.split(':').map(Number);
+  const timeInMinutes = hours * 60 + minutes;
+
+  for (const period of periods) {
+    const [startHours, startMinutes] = period.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = period.endTime.split(':').map(Number);
+    const startInMinutes = startHours * 60 + startMinutes;
+    const endInMinutes = endHours * 60 + endMinutes;
+
+    if (timeInMinutes >= startInMinutes && timeInMinutes < endInMinutes) {
+      return period;
+    }
+  }
+
+  return null;
 }

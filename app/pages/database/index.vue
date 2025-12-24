@@ -45,6 +45,12 @@
           <DatabaseStudentManagementPanel />
         </div>
 
+        <!-- База организаций Tab -->
+        <div v-show="activeTab === 'organizations'" class="p-6">
+          <OrganizationsOrganizationManagementPanel />
+        </div>
+
+        <!-- База сертификатов Tab -->
         <div v-show="activeTab === 'certificates'" class="p-6">
           <div class="text-center py-12 text-gray-500 dark:text-gray-400">
             <p class="text-lg font-medium">База сертификатов</p>
@@ -75,6 +81,11 @@ const tabs = [
     disabled: false,
   },
   {
+    id: 'organizations',
+    label: 'База организаций',
+    disabled: false,
+  },
+  {
     id: 'courses',
     label: 'База курсов',
     disabled: true, // Пока отключено
@@ -86,3 +97,4 @@ const tabs = [
   },
 ];
 </script>
+

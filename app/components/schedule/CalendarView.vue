@@ -160,6 +160,11 @@
         </div>
       </div>
       
+      <!-- Подсказка о горячих клавишах -->
+      <div class="mb-2 text-xs text-gray-400 dark:text-gray-500 flex items-center gap-4">
+        <span>💡 <kbd class="px-1 py-0.5 bg-gray-100 dark:bg-meta-4 rounded text-[10px]">CTRL</kbd> + перетаскивание = копирование занятия</span>
+      </div>
+      
       <FullCalendar
         ref="calendarRef"
         :options="calendarOptions"
@@ -198,6 +203,7 @@ import ruLocale from '@fullcalendar/core/locales/ru';
 import type { CalendarOptions, EventInput, EventClickArg, DateSelectArg, DatesSetArg, EventDropArg } from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { ScheduleEvent } from '~/types/schedule';
+import { dateToLocalIsoString, formatDateOnly } from '~/utils/dateTime';
 
 interface Group {
   id: string;
@@ -216,6 +222,17 @@ interface Classroom {
 
 const { authFetch } = useAuthFetch();
 const notification = useNotification();
+
+// Настройки расписания (академические пары)
+const {
+  periods,
+  settings: scheduleSettings,
+  loadSettings: loadScheduleSettings,
+  getFirstPeriodStart,
+  getLastPeriodEnd,
+  getNearestPeriod,
+  getPeriodByTime,
+} = useScheduleSettings();
 
 // Refs
 const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null);
@@ -310,6 +327,32 @@ const onEventClick = (arg: EventClickArg) => {
 
 const onDateSelect = (arg: DateSelectArg) => {
   editingEvent.value = null;
+  
+  // Привязка к академическим парам при выборе времени
+  const shouldSnap = scheduleSettings.value.snap_to_periods === 'true';
+  
+  if (shouldSnap && (currentView.value === 'timeGridWeek' || currentView.value === 'timeGridDay')) {
+    const startTimeStr = `${String(arg.start.getHours()).padStart(2, '0')}:${String(arg.start.getMinutes()).padStart(2, '0')}`;
+    const endTimeStr = `${String(arg.end.getHours()).padStart(2, '0')}:${String(arg.end.getMinutes()).padStart(2, '0')}`;
+    
+    const nearestStartPeriod = getNearestPeriod(startTimeStr);
+    const nearestEndPeriod = getPeriodByTime(endTimeStr) || getNearestPeriod(endTimeStr);
+    
+    if (nearestStartPeriod) {
+      const parts = nearestStartPeriod.startTime.split(':').map(Number);
+      const startH = parts[0] ?? 0;
+      const startM = parts[1] ?? 0;
+      arg.start.setHours(startH, startM, 0, 0);
+    }
+    
+    if (nearestEndPeriod) {
+      const endParts = nearestEndPeriod.endTime.split(':').map(Number);
+      const endH = endParts[0] ?? 0;
+      const endM = endParts[1] ?? 0;
+      arg.end.setHours(endH, endM, 0, 0);
+    }
+  }
+  
   defaultEventStart.value = arg.start;
   defaultEventEnd.value = arg.end;
   showEventModal.value = true;
@@ -318,33 +361,83 @@ const onDateSelect = (arg: DateSelectArg) => {
 const onDatesSet = (arg: DatesSetArg) => {
   currentTitle.value = arg.view.title;
   currentView.value = arg.view.type;
+  
+  const prevRange = currentDateRange.value;
   currentDateRange.value = { start: arg.start, end: arg.end };
   
+  // Первая инициализация
   if (!isInitialized.value) {
     isInitialized.value = true;
+    // События уже могут быть загружены в onMounted — просто обновляем календарь
+    if (events.value.length > 0) {
+      updateCalendarEvents();
+      return;
+    }
   }
   
-  loadEvents(arg.start, arg.end);
+  // Загружаем только если диапазон изменился
+  const rangeChanged = !prevRange || 
+    formatDateOnly(arg.start) !== formatDateOnly(prevRange.start) || 
+    formatDateOnly(arg.end) !== formatDateOnly(prevRange.end);
+  
+  if (rangeChanged) {
+    loadEvents(arg.start, arg.end);
+  }
 };
 
 const onEventDrop = async (info: EventDropArg) => {
   const event = events.value.find(e => e.id === info.event.id);
   if (!event) return;
 
-  try {
-    await authFetch(`/api/schedule/${event.id}`, {
-      method: 'PUT',
-      body: {
-        startTime: info.event.start?.toISOString(),
-        endTime: info.event.end?.toISOString() || new Date(info.event.start!.getTime() + 60 * 60 * 1000).toISOString(),
-      },
-    });
+  // Проверяем, был ли зажат CTRL - тогда дублируем вместо перемещения
+  const isCopyMode = info.jsEvent.ctrlKey || info.jsEvent.metaKey;
 
-    notification.show({
-      type: 'success',
-      title: 'Занятие перемещено',
-      message: 'Время занятия успешно обновлено',
-    });
+  try {
+    if (isCopyMode) {
+      // Режим копирования - создаём новое событие
+      info.revert(); // Возвращаем оригинал на место
+      
+      const newStartTime = info.event.start ? dateToLocalIsoString(info.event.start) : undefined;
+      const newEndTime = info.event.end ? dateToLocalIsoString(info.event.end) : dateToLocalIsoString(new Date(info.event.start!.getTime() + 60 * 60 * 1000));
+      
+      await authFetch('/api/schedule', {
+        method: 'POST',
+        body: {
+          title: event.title,
+          description: event.description,
+          groupId: event.groupId,
+          disciplineId: event.disciplineId,
+          instructorId: event.instructorId,
+          classroomId: event.classroomId,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          isAllDay: event.isAllDay,
+          color: event.color,
+          eventType: event.eventType,
+        },
+      });
+
+      notification.show({
+        type: 'success',
+        title: 'Занятие скопировано',
+        message: 'Создана копия занятия на новую дату/время',
+      });
+    } else {
+      // Режим перемещения - обновляем существующее событие
+      await authFetch(`/api/schedule/${event.id}`, {
+        method: 'PUT',
+        body: {
+          startTime: info.event.start ? dateToLocalIsoString(info.event.start) : undefined,
+          endTime: info.event.end ? dateToLocalIsoString(info.event.end) : dateToLocalIsoString(new Date(info.event.start!.getTime() + 60 * 60 * 1000)),
+        },
+      });
+
+      notification.show({
+        type: 'success',
+        title: 'Занятие перемещено',
+        message: 'Время занятия успешно обновлено',
+      });
+    }
 
     if (currentDateRange.value) {
       loadEvents(currentDateRange.value.start, currentDateRange.value.end);
@@ -355,7 +448,7 @@ const onEventDrop = async (info: EventDropArg) => {
     notification.show({
       type: 'error',
       title: 'Ошибка',
-      message: error.data?.statusMessage || 'Не удалось переместить занятие',
+      message: error.data?.statusMessage || 'Не удалось выполнить операцию',
     });
   }
 };
@@ -368,7 +461,7 @@ const onEventResize = async (info: EventResizeDoneArg) => {
     await authFetch(`/api/schedule/${event.id}`, {
       method: 'PUT',
       body: {
-        endTime: info.event.end?.toISOString(),
+        endTime: info.event.end ? dateToLocalIsoString(info.event.end) : undefined,
       },
     });
 
@@ -392,47 +485,157 @@ const onEventResize = async (info: EventResizeDoneArg) => {
   }
 };
 
-// СТАТИЧЕСКИЕ опции календаря - БЕЗ events
-const calendarOptions: CalendarOptions = {
-  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
-  initialView: 'dayGridMonth',
-  locale: ruLocale,
-  headerToolbar: false,
-  height: 'auto',
-  timeZone: 'local', // Используем локальное время для избежания сдвига дат
+// Вычисляемые настройки календаря на основе академических пар
+const slotMinTime = computed(() => {
+  const firstStart = getFirstPeriodStart.value;
+  // Добавляем буфер в 30 минут до первой пары
+  const parts = firstStart.split(':').map(Number);
+  const h = parts[0] ?? 9;
+  const m = parts[1] ?? 0;
+  const bufferMinutes = h * 60 + m - 30;
+  const hours = Math.floor(bufferMinutes / 60);
+  const mins = bufferMinutes % 60;
+  return `${String(Math.max(0, hours)).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
+});
+
+const slotMaxTime = computed(() => {
+  const lastEnd = getLastPeriodEnd.value;
+  // Добавляем буфер в 30 минут после последней пары
+  const parts = lastEnd.split(':').map(Number);
+  const h = parts[0] ?? 18;
+  const m = parts[1] ?? 20;
+  const bufferMinutes = h * 60 + m + 30;
+  const hours = Math.floor(bufferMinutes / 60);
+  const mins = bufferMinutes % 60;
+  return `${String(Math.min(24, hours)).padStart(2, '0')}:${String(mins).padStart(2, '0')}:00`;
+});
+
+// Длительность слота - 10 минут для точной сетки
+const slotDuration = computed(() => {
+  return '00:10:00';
+});
+
+// Интервал меток - каждые 10 минут, но скрываем ненужные через slotLabelContent
+const slotLabelInterval = computed(() => {
+  return '00:10:00';
+});
+
+// Набор времён начала пар для быстрого поиска
+const periodStartTimes = computed(() => {
+  return new Set(periods.value.map(p => p.startTime));
+});
+
+// Набор времён окончания пар (для визуальной границы)
+const periodEndTimes = computed(() => {
+  return new Set(periods.value.map(p => p.endTime));
+});
+
+// Генерация кастомных меток для слотов - показываем ТОЛЬКО для начала пар
+const slotLabelContent = (arg: { date: Date; text: string }) => {
+  const showNumbers = scheduleSettings.value.show_period_numbers === 'true';
   
-  // События будут управляться через API календаря
-  events: [],
+  const timeStr = `${String(arg.date.getHours()).padStart(2, '0')}:${String(arg.date.getMinutes()).padStart(2, '0')}`;
+  const period = periods.value.find(p => p.startTime === timeStr);
   
-  editable: true,
-  selectable: true,
-  selectMirror: true,
-  dayMaxEvents: 3,
-  moreLinkClick: 'popover',
-  weekends: true,
-  nowIndicator: true,
-  slotMinTime: '07:00:00',
-  slotMaxTime: '22:00:00',
-  slotDuration: '00:30:00',
-  allDaySlot: false,
+  // Если это начало пары - показываем метку
+  if (period) {
+    if (showNumbers) {
+      // Показываем номер пары и время с диапазоном
+      return {
+        html: `<div class="slot-label-period">
+          <span class="period-badge">${period.periodNumber}</span>
+          <div class="period-info">
+            <span class="period-time-main">${period.startTime}</span>
+            <span class="period-time-end">–${period.endTime}</span>
+          </div>
+        </div>`
+      };
+    }
+    // Просто время начала пары
+    return {
+      html: `<span class="period-time-start">${arg.text}</span>`
+    };
+  }
   
-  slotLabelFormat: {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  },
-  eventTimeFormat: {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  },
-  
-  eventClick: onEventClick,
-  select: onDateSelect,
-  datesSet: onDatesSet,
-  eventDrop: onEventDrop,
-  eventResize: onEventResize,
+  // Для всех остальных слотов - скрываем текст, но оставляем пустой контейнер для структуры
+  // Возвращаем пустую строку, чтобы скрыть ненужные метки
+  return '';
 };
+
+// Привязка событий к академическим парам при перетаскивании
+const snapToGrid = (date: Date): Date => {
+  const shouldSnap = scheduleSettings.value.snap_to_periods === 'true';
+  if (!shouldSnap) return date;
+  
+  const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const nearestPeriod = getNearestPeriod(timeStr);
+  
+  if (nearestPeriod) {
+    const parts = nearestPeriod.startTime.split(':').map(Number);
+    const h = parts[0] ?? 0;
+    const m = parts[1] ?? 0;
+    const newDate = new Date(date);
+    newDate.setHours(h, m, 0, 0);
+    return newDate;
+  }
+  
+  return date;
+};
+
+// ДИНАМИЧЕСКИЕ опции календаря - используем computed
+const calendarOptions = computed<CalendarOptions>(() => {
+  // Длительность пары для привязки при перетаскивании
+  const periodDuration = parseInt(scheduleSettings.value.period_duration_minutes || '40', 10);
+  const snapDurationValue = `00:${String(periodDuration).padStart(2, '0')}:00`;
+  
+  return {
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
+    initialView: 'dayGridMonth',
+    locale: ruLocale,
+    headerToolbar: false,
+    height: 'auto',
+    timeZone: 'local', // Используем локальное время для избежания сдвига дат
+    
+    // События будут управляться через API календаря
+    events: [],
+    
+    editable: true,
+    selectable: true,
+    selectMirror: true,
+    dayMaxEvents: 3,
+    moreLinkClick: 'popover',
+    weekends: true,
+    nowIndicator: true,
+    slotMinTime: slotMinTime.value,
+    slotMaxTime: slotMaxTime.value,
+    slotDuration: slotDuration.value,
+    slotLabelInterval: slotLabelInterval.value,
+    allDaySlot: false,
+    
+    // Привязка к сетке при перетаскивании - привязываем к длительности пары
+    snapDuration: snapDurationValue,
+    
+    slotLabelFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    },
+    eventTimeFormat: {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    },
+    
+    // Кастомные метки слотов с номерами пар
+    slotLabelContent,
+    
+    eventClick: onEventClick,
+    select: onDateSelect,
+    datesSet: onDatesSet,
+    eventDrop: onEventDrop,
+    eventResize: onEventResize,
+  };
+});
 
 // Навигация
 const handlePrev = () => {
@@ -477,8 +680,8 @@ const loadEvents = async (start?: Date, end?: Date) => {
     const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const params = new URLSearchParams();
-    params.append('startDate', (viewStart || defaultStart).toISOString());
-    params.append('endDate', (viewEnd || defaultEnd).toISOString());
+    params.append('startDate', formatDateOnly(viewStart || defaultStart));
+    params.append('endDate', formatDateOnly(viewEnd || defaultEnd));
     if (filters.value.groupId) params.append('groupId', filters.value.groupId);
     if (filters.value.instructorId) params.append('instructorId', filters.value.instructorId);
     if (filters.value.classroomId) params.append('classroomId', filters.value.classroomId);
@@ -616,15 +819,29 @@ const loadSelectData = async () => {
 };
 
 // Lifecycle
-onMounted(() => {
-  loadSelectData();
+onMounted(async () => {
+  // Вычисляем диапазон дат для текущего месяца заранее
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   
-  setTimeout(() => {
-    if (!isInitialized.value) {
-      console.warn('FullCalendar did not initialize in time, forcing loading off');
-      loading.value = false;
-    }
-  }, 2000);
+  // Загружаем ВСЁ параллельно для мгновенной загрузки
+  await Promise.all([
+    loadScheduleSettings(),
+    loadSelectData(),
+    // Предзагружаем события для текущего месяца
+    loadEvents(monthStart, monthEnd),
+  ]);
+  
+  // Устанавливаем флаг инициализации если FullCalendar ещё не сделал это
+  if (!isInitialized.value) {
+    isInitialized.value = true;
+  }
+  
+  // Если события загрузились раньше календаря — обновляем когда календарь готов
+  nextTick(() => {
+    updateCalendarEvents();
+  });
 });
 
 onUnmounted(() => {
@@ -862,5 +1079,161 @@ onUnmounted(() => {
 .schedule-calendar .fc-daygrid-event .fc-event-title {
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+/* ============================================
+   СТИЛИ ДЛЯ АКАДЕМИЧЕСКИХ ПАР В КАЛЕНДАРЕ
+   ============================================ */
+
+/* Метки слотов (время начала пар) */
+.schedule-calendar .slot-label-period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  background: rgba(60, 80, 224, 0.08);
+  border-radius: 6px;
+  margin: 1px 0;
+}
+
+.dark .schedule-calendar .slot-label-period {
+  background: rgba(60, 80, 224, 0.15);
+}
+
+/* Бейдж с номером пары */
+.schedule-calendar .period-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, #3C50E0 0%, #5B6EF0 100%);
+  color: white;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(60, 80, 224, 0.3);
+}
+
+/* Информация о времени пары */
+.schedule-calendar .period-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.schedule-calendar .period-time-main {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.dark .schedule-calendar .period-time-main {
+  color: #e5e7eb;
+}
+
+.schedule-calendar .period-time-end {
+  font-size: 0.65rem;
+  color: #6b7280;
+}
+
+.dark .schedule-calendar .period-time-end {
+  color: #9ca3af;
+}
+
+/* Время начала пары (без номера) */
+.schedule-calendar .period-time-start {
+  font-weight: 600;
+  color: #3C50E0;
+}
+
+.dark .schedule-calendar .period-time-start {
+  color: #5B6EF0;
+}
+
+/* Расширяем слоты с метками для лучшего отображения */
+.schedule-calendar .fc-timegrid-slot-label-frame {
+  min-width: 75px;
+}
+
+/* Скрываем пустые метки (промежуточные слоты) */
+.schedule-calendar .fc-timegrid-slot-label-cushion:empty {
+  display: none;
+}
+
+/* Улучшенная граница между периодами */
+.schedule-calendar .fc-timegrid-slot {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.dark .schedule-calendar .fc-timegrid-slot {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Выделяем строки с номерами пар */
+.schedule-calendar .fc-timegrid-slot-label:has(.slot-label-period) {
+  background: transparent !important;
+}
+
+.schedule-calendar .fc-timegrid-slot-label:has(.slot-label-period) + td.fc-timegrid-slot-lane,
+.schedule-calendar .fc-timegrid-slot:has(.slot-label-period) ~ .fc-timegrid-slot-lane {
+  border-top: 1px solid rgba(60, 80, 224, 0.2) !important;
+}
+
+/* ============================================
+   РАЗДЕЛИТЕЛЬ БОЛЬШОГО ПЕРЕРЫВА (ОБЕД)
+   ============================================ */
+
+/* Визуальное разделение после большого перерыва - 7 пара в 14:00 */
+.schedule-calendar .fc-timegrid-slot[data-time="14:00:00"],
+.schedule-calendar .fc-timegrid-slot-lane[data-time="14:00:00"] {
+  border-top: 3px solid #f59e0b !important;
+  position: relative;
+}
+
+/* Метка перерыва после 6й пары */
+.schedule-calendar .fc-timegrid-slot-label[data-time="13:20:00"]::after {
+  content: '🍽️ Обед';
+  display: block;
+  font-size: 0.6rem;
+  color: #f59e0b;
+  font-weight: 600;
+  margin-top: 4px;
+  padding: 2px 4px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 4px;
+}
+
+/* ============================================
+   УСТАРЕВШИЕ СТИЛИ (для обратной совместимости)
+   ============================================ */
+
+/* Старые кастомные метки */
+.schedule-calendar .slot-label-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.schedule-calendar .slot-label-custom .period-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #3C50E0 0%, #5B6EF0 100%);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.schedule-calendar .slot-label-custom .period-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .schedule-calendar .slot-label-custom .period-time {
+  color: #9ca3af;
 }
 </style>

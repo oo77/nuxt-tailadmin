@@ -7,6 +7,7 @@ import { updateScheduleEvent, checkScheduleConflicts, getScheduleEventById } fro
 import type { UpdateScheduleEventInput } from '../../repositories/scheduleRepository';
 import { executeQuery } from '../../utils/db';
 import { logActivity } from '../../utils/activityLogger';
+import { dateToLocalIso, dateToLocalIsoString, formatDateOnly, formatDateForDisplay } from '../../utils/timeUtils';
 import type { RowDataPacket } from 'mysql2/promise';
 
 interface GroupRow extends RowDataPacket {
@@ -93,7 +94,7 @@ export default defineEventHandler(async (event) => {
       if (eventDate < groupStartDate || eventDate > groupEndDate) {
         throw createError({
           statusCode: 400,
-          statusMessage: `Дата занятия должна быть в пределах периода обучения группы (${formatDate(groupStartDate)} — ${formatDate(groupEndDate)})`,
+          statusMessage: `Дата занятия должна быть в пределах периода обучения группы (${formatDateForDisplay(groupStartDate)} — ${formatDateForDisplay(groupEndDate)})`,
         });
       }
 
@@ -168,8 +169,8 @@ export default defineEventHandler(async (event) => {
 
     if (checkClassroom || checkInstructor || finalGroupId) {
       const conflicts = await checkScheduleConflicts(
-        startTime.toISOString(),
-        endTime.toISOString(),
+        dateToLocalIsoString(startTime),
+        dateToLocalIsoString(endTime),
         {
           classroomId: checkClassroom || undefined,
           instructorId: checkInstructor || undefined,
@@ -252,33 +253,3 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
-
-/**
- * Конвертирует MySQL DATETIME (как Date объект) обратно в ISO строку
- * без конвертации часового пояса.
- */
-function dateToLocalIso(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
-}
-
-// Форматирует только дату (YYYY-MM-DD) без сдвига временной зоны
-function formatDateOnly(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-// Вспомогательная функция форматирования даты для отображения
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-}
