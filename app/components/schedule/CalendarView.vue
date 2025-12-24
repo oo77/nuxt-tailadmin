@@ -702,7 +702,13 @@ const loadEvents = async (start?: Date, end?: Date) => {
       updateCalendarEvents();
     }
   } catch (error: any) {
-    if (error.name === 'AbortError') {
+    // Игнорируем ошибки отмены запроса (AbortError или сигнал уже отменён)
+    if (error.name === 'AbortError' || controller.signal.aborted) {
+      return;
+    }
+    
+    // Игнорируем ошибки если контроллер уже заменён (был новый запрос)
+    if (loadingAbortController.value !== controller) {
       return;
     }
     

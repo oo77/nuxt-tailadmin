@@ -13,9 +13,19 @@ node_modules
 logs
 *.log
 
+# Environment
+.env
+.env.local
+.env.*.local
+
 # Misc
 .DS_Store
 .fleet
 .idea
+*.resolved
 
+# Local scripts (not for production)
+scripts/
 
+# Storage uploads (local files)
+storage/uploads/
