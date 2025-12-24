@@ -9,22 +9,7 @@ import type { PoolConnection } from 'mysql2/promise';
 // 2. Добавьте import ниже
 // 3. Добавьте в MIGRATIONS_REGISTRY
 
-import * as migration001 from './migrations/20251215_001_create_users_table';
-import * as migration002 from './migrations/20251215_002_seed_admin_user';
-import * as migration003 from './migrations/20251216_003_create_students_tables';
-import * as migration004 from './migrations/20251216_004_create_courses_tables';
-import * as migration005 from './migrations/20251217_005_update_instructors_table';
-import * as migration006 from './migrations/20251218_add_discipline_hours_breakdown';
-import * as migration007 from './migrations/20251218_007_create_files_table';
-import * as migration008 from './migrations/20251218_008_add_folders_support';
-import * as migration009 from './migrations/20251219_009_create_activity_logs_table';
-import * as migration010 from './migrations/20251222_010_create_study_groups_tables';
-import * as migration011 from './migrations/20251222_011_create_schedule_events_table';
-import * as migration012 from './migrations/20251224_012_fix_schedule_event_type';
-import * as migration013 from './migrations/20251224_013_create_organizations_table';
-import * as migration014 from './migrations/20251224_014_create_representatives_table';
-import * as migration015 from './migrations/20251224_015_create_telegram_sessions_table';
-import * as migration016 from './migrations/20251224_016_create_schedule_settings_table';
+import * as consolidatedSchema from './migrations/20251224_001_consolidated_schema';
 
 /**
  * ============================================================================
@@ -60,102 +45,45 @@ interface Migration {
 // ============================================================================
 
 const MIGRATIONS_REGISTRY: Migration[] = [
+  // ============================================================
+  // Консолидированная миграция - полная схема БД
+  // Объединяет все предыдущие миграции в одну актуальную
+  // ============================================================
   {
-    name: '20251215_001_create_users_table',
-    up: migration001.up,
-    down: migration001.down,
-    description: migration001.description,
+    name: '20251224_001_consolidated_schema',
+    up: consolidatedSchema.up,
+    down: consolidatedSchema.down,
+    description: consolidatedSchema.description,
   },
-  {
-    name: '20251215_002_seed_admin_user',
-    up: migration002.up,
-    down: migration002.down,
-    description: migration002.description,
-  },
-  {
-    name: '20251216_003_create_students_tables',
-    up: migration003.up,
-    down: migration003.down,
-    description: migration003.description,
-  },
-  {
-    name: '20251216_004_create_courses_tables',
-    up: migration004.up,
-    down: migration004.down,
-    description: migration004.description,
-  },
-  {
-    name: '20251217_005_update_instructors_table',
-    up: migration005.up,
-    down: migration005.down,
-    description: migration005.description,
-  },
-  {
-    name: '20251218_add_discipline_hours_breakdown',
-    up: migration006.up,
-    down: migration006.down,
-    description: migration006.description,
-  },
-  {
-    name: '20251218_007_create_files_table',
-    up: migration007.up,
-    down: migration007.down,
-    description: migration007.description,
-  },
-  {
-    name: '20251218_008_add_folders_support',
-    up: migration008.up,
-    down: migration008.down,
-    description: migration008.description,
-  },
-  {
-    name: '20251219_009_create_activity_logs_table',
-    up: migration009.up,
-    down: migration009.down,
-    description: migration009.description,
-  },
-  {
-    name: '20251222_010_create_study_groups_tables',
-    up: migration010.up,
-    down: migration010.down,
-    description: migration010.description,
-  },
-  {
-    name: '20251222_011_create_schedule_events_table',
-    up: migration011.up,
-    down: migration011.down,
-    description: migration011.description,
-  },
-  {
-    name: '20251224_012_fix_schedule_event_type',
-    up: migration012.up,
-    down: migration012.down,
-    description: migration012.description,
-  },
-  {
-    name: '20251224_013_create_organizations_table',
-    up: migration013.up,
-    down: migration013.down,
-    description: migration013.description,
-  },
-  {
-    name: '20251224_014_create_representatives_table',
-    up: migration014.up,
-    down: migration014.down,
-    description: migration014.description,
-  },
-  {
-    name: '20251224_015_create_telegram_sessions_table',
-    up: migration015.up,
-    down: migration015.down,
-    description: migration015.description,
-  },
-  {
-    name: '20251224_016_create_schedule_settings_table',
-    up: migration016.up,
-    down: migration016.down,
-    description: migration016.description,
-  },
+  // ============================================================
+  // Новые миграции добавлять ниже
+  // ============================================================
+];
+
+// ============================================================================
+// МАППИНГ СТАРЫХ МИГРАЦИЙ НА КОНСОЛИДИРОВАННУЮ
+// ============================================================================
+// Если в БД есть записи о старых миграциях, они считаются частью
+// консолидированной и не будут применены повторно.
+
+const LEGACY_MIGRATIONS_INCLUDED_IN_CONSOLIDATED = [
+  '20251215_001_create_users_table',
+  '20251215_002_seed_admin_user',
+  '20251216_003_create_students_tables',
+  '20251216_004_create_courses_tables',
+  '20251217_005_update_instructors_table',
+  '20251218_add_discipline_hours_breakdown',
+  '20251218_007_create_files_table',
+  '20251218_008_add_folders_support',
+  '20251219_009_add_folder_password',
+  '20251219_009_create_activity_logs_table',
+  '20251222_010_create_study_groups_tables',
+  '20251222_011_create_schedule_events_table',
+  '20251224_012_fix_schedule_event_type',
+  '20251224_013_create_organizations_table',
+  '20251224_014_create_representatives_table',
+  '20251224_015_create_telegram_sessions_table',
+  '20251224_016_create_schedule_settings_table',
 ];
 
 // ============================================================================
@@ -221,6 +149,34 @@ function loadMigrations(): Migration[] {
   return MIGRATIONS_REGISTRY;
 }
 
+/**
+ * Проверка, были ли применены старые миграции
+ * Если да — консолидированная миграция уже неявно применена
+ */
+function hasLegacyMigrationsApplied(executedMigrations: string[]): boolean {
+  return executedMigrations.some(m => LEGACY_MIGRATIONS_INCLUDED_IN_CONSOLIDATED.includes(m));
+}
+
+/**
+ * Очистка записей о старых миграциях и добавление записи о консолидированной
+ */
+async function consolidateMigrationRecords(connection: PoolConnection): Promise<void> {
+  console.log('🔄 Consolidating old migration records...');
+  
+  // Удаляем записи о старых миграциях
+  for (const legacyMigration of LEGACY_MIGRATIONS_INCLUDED_IN_CONSOLIDATED) {
+    await connection.query('DELETE FROM migrations WHERE name = ?', [legacyMigration]);
+  }
+  
+  // Добавляем запись о консолидированной миграции
+  await connection.query(
+    `INSERT IGNORE INTO migrations (name, description) VALUES (?, ?)`,
+    ['20251224_001_consolidated_schema', consolidatedSchema.description]
+  );
+  
+  console.log('✅ Migration records consolidated');
+}
+
 // ============================================================================
 // ОСНОВНЫЕ ФУНКЦИИ МИГРАЦИЙ
 // ============================================================================
@@ -246,8 +202,16 @@ export async function runMigrations(): Promise<void> {
       await createMigrationsTable(connection);
 
       // Получение выполненных миграций
-      const executedMigrations = await getExecutedMigrations(connection);
+      let executedMigrations = await getExecutedMigrations(connection);
       console.log(`ℹ️  Found ${executedMigrations.length} executed migrations`);
+
+      // Проверяем, есть ли старые миграции в БД
+      if (hasLegacyMigrationsApplied(executedMigrations)) {
+        console.log('ℹ️  Legacy migrations detected, consolidating records...');
+        await consolidateMigrationRecords(connection);
+        // Обновляем список выполненных миграций
+        executedMigrations = await getExecutedMigrations(connection);
+      }
 
       // Загрузка всех миграций
       const allMigrations = loadMigrations();
@@ -375,7 +339,8 @@ export async function rollbackAllMigrations(): Promise<void> {
         const migration = allMigrations.find((m) => m.name === migrationName);
 
         if (!migration) {
-          console.warn(`⚠️  Migration file not found: ${migrationName}, skipping...`);
+          console.warn(`⚠️  Migration file not found: ${migrationName}, removing record...`);
+          await removeMigrationRecord(connection, migrationName);
           continue;
         }
 
@@ -421,17 +386,31 @@ export async function getMigrationStatus(): Promise<void> {
       const executedMigrations = await getExecutedMigrations(connection);
       const allMigrations = loadMigrations();
 
+      // Проверяем на старые миграции
+      const hasLegacy = hasLegacyMigrationsApplied(executedMigrations);
+
       console.log(`Total migrations: ${allMigrations.length}`);
       console.log(`Executed: ${executedMigrations.length}`);
-      console.log(`Pending: ${allMigrations.length - executedMigrations.length}\n`);
+      console.log(`Pending: ${allMigrations.length - executedMigrations.length}`);
+      
+      if (hasLegacy) {
+        console.log(`\n⚠️  Legacy migrations detected. Run migrations to consolidate.`);
+      }
 
-      if (allMigrations.length > 0) {
-        console.log('Migrations:');
-        for (const migration of allMigrations) {
-          const status = executedMigrations.includes(migration.name) ? '✅' : '⏳';
-          console.log(`${status} ${migration.name}`);
-          if (migration.description) {
-            console.log(`   ${migration.description}`);
+      console.log('\nMigrations:');
+      for (const migration of allMigrations) {
+        const status = executedMigrations.includes(migration.name) ? '✅' : '⏳';
+        console.log(`${status} ${migration.name}`);
+        if (migration.description) {
+          console.log(`   ${migration.description}`);
+        }
+      }
+
+      if (hasLegacy) {
+        console.log('\nLegacy migrations in database (will be consolidated):');
+        for (const legacyMigration of LEGACY_MIGRATIONS_INCLUDED_IN_CONSOLIDATED) {
+          if (executedMigrations.includes(legacyMigration)) {
+            console.log(`  📦 ${legacyMigration}`);
           }
         }
       }
@@ -440,6 +419,31 @@ export async function getMigrationStatus(): Promise<void> {
     }
   } catch (error) {
     console.error('❌ Failed to get migration status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Сброс таблицы миграций (опасно! только для разработки)
+ */
+export async function resetMigrations(): Promise<void> {
+  console.log('⚠️  Resetting migrations table...');
+
+  try {
+    const pool = getDbPool();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.query('DROP TABLE IF EXISTS migrations');
+      console.log('✅ Migrations table dropped');
+      
+      await createMigrationsTable(connection);
+      console.log('✅ Migrations table recreated');
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('❌ Reset failed:', error);
     throw error;
   }
 }
