@@ -3,6 +3,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   
+  // Настройка dev-сервера для доступа извне
+  devServer: {
+    host: '0.0.0.0', // Слушает все сетевые интерфейсы
+    port: 3000,      // Порт можно изменить при необходимости
+  },
+  
   css: ['~/assets/css/main.css'],
   
   postcss: {
@@ -13,12 +19,15 @@ export default defineNuxtConfig({
   
   app: {
     head: {
-      title: 'TailAdmin - Nuxt Dashboard',
+      title: 'АТЦ - Учебный центр',
       meta: [
-        { name: 'description', content: 'Admin Dashboard Template built with Nuxt 4' }
+        { name: 'description', content: 'Платформа управления учебно-тренировочным центром АТЦ' }
       ],
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
+        { rel: 'manifest', href: '/site.webmanifest' }
       ]
     }
   },

@@ -170,6 +170,43 @@
         :options="calendarOptions"
         class="schedule-calendar"
       />
+      
+      <!-- Легенда групп -->
+      <div 
+        v-if="usedGroupsWithColors.length > 0" 
+        class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+      >
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Группы:</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="group in usedGroupsWithColors"
+            :key="group.id"
+            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all hover:scale-105"
+            :class="[
+              filters.groupId === group.id 
+                ? 'ring-2 ring-offset-2 ring-primary dark:ring-offset-boxdark' 
+                : 'hover:bg-gray-100 dark:hover:bg-meta-4'
+            ]"
+            :style="{ 
+              backgroundColor: filters.groupId === group.id ? group.color + '20' : 'transparent',
+              color: filters.groupId === group.id ? group.color : undefined
+            }"
+            @click="toggleGroupFilter(group.id)"
+            :title="filters.groupId === group.id ? 'Нажмите, чтобы сбросить фильтр' : 'Нажмите, чтобы фильтровать по группе'"
+          >
+            <span 
+              class="w-3 h-3 rounded-full shrink-0 shadow-sm"
+              :style="{ backgroundColor: group.color }"
+            ></span>
+            <span class="text-gray-700 dark:text-gray-300">{{ group.code }}</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Модальное окно просмотра деталей события -->
@@ -200,10 +237,10 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import ruLocale from '@fullcalendar/core/locales/ru';
-import type { CalendarOptions, EventInput, EventClickArg, DateSelectArg, DatesSetArg, EventDropArg } from '@fullcalendar/core';
+import type { CalendarOptions, EventInput, EventClickArg, DateSelectArg, DatesSetArg, EventDropArg, EventMountArg } from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { ScheduleEvent } from '~/types/schedule';
-import { dateToLocalIsoString, formatDateOnly } from '~/utils/dateTime';
+import { dateToLocalIsoString, formatDateOnly, formatTimeOnly } from '~/utils/dateTime';
 
 interface Group {
   id: string;
@@ -275,13 +312,64 @@ const viewOptions = [
   { value: 'listWeek', label: 'Список' },
 ];
 
-// Цвета событий
+// Цвета событий (по типу)
 const eventColors: Record<string, { bg: string; border: string; text: string }> = {
   primary: { bg: '#3C50E0', border: '#3C50E0', text: '#ffffff' },
   success: { bg: '#10B981', border: '#10B981', text: '#ffffff' },
   warning: { bg: '#F59E0B', border: '#F59E0B', text: '#ffffff' },
   danger: { bg: '#EF4444', border: '#EF4444', text: '#ffffff' },
 };
+
+// Палитра цветов для групп (12 контрастных цветов)
+const GROUP_COLOR_PALETTE = [
+  '#E91E63', // Розовый
+  '#9C27B0', // Фиолетовый
+  '#673AB7', // Глубокий фиолетовый
+  '#3F51B5', // Индиго
+  '#2196F3', // Синий
+  '#00BCD4', // Циан
+  '#009688', // Бирюзовый
+  '#4CAF50', // Зелёный
+  '#8BC34A', // Лаймовый
+  '#FF9800', // Оранжевый
+  '#FF5722', // Глубокий оранжевый
+  '#795548', // Коричневый
+];
+
+// Хеш-функция для генерации индекса цвета из groupId
+const hashStringToIndex = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % GROUP_COLOR_PALETTE.length;
+};
+
+// Получить цвет группы по её ID
+const getGroupColor = (groupId: string | undefined): string => {
+  if (!groupId) return 'transparent';
+  return GROUP_COLOR_PALETTE[hashStringToIndex(groupId)];
+};
+
+// Вычисляемое свойство: группы, используемые в текущих событиях, с их цветами
+const usedGroupsWithColors = computed(() => {
+  const groupMap = new Map<string, { id: string; code: string; color: string }>();
+  
+  for (const event of events.value) {
+    if (event.groupId && event.group?.code && !groupMap.has(event.groupId)) {
+      groupMap.set(event.groupId, {
+        id: event.groupId,
+        code: event.group.code,
+        color: getGroupColor(event.groupId),
+      });
+    }
+  }
+  
+  // Сортируем по коду группы
+  return Array.from(groupMap.values()).sort((a, b) => a.code.localeCompare(b.code));
+});
 
 // Преобразование события для FullCalendar
 const transformEventForCalendar = (event: ScheduleEvent): EventInput => {
@@ -293,6 +381,9 @@ const transformEventForCalendar = (event: ScheduleEvent): EventInput => {
     ? `${event.title} (${event.classroom.name})`
     : event.title;
   
+  // Получаем цвет группы для полосы слева
+  const groupColor = getGroupColor(event.groupId || undefined);
+  
   return {
     id: event.id,
     title: titleWithClassroom,
@@ -302,10 +393,13 @@ const transformEventForCalendar = (event: ScheduleEvent): EventInput => {
     backgroundColor: colors.bg,
     borderColor: colors.border,
     textColor: colors.text,
+    // Добавляем класс с data-атрибутом для CSS-стилизации полосы группы
+    classNames: event.groupId ? [`group-stripe-${hashStringToIndex(event.groupId)}`] : [],
     extendedProps: {
       description: event.description || undefined,
       groupId: event.groupId || undefined,
       groupCode: event.group?.code,
+      groupColor: groupColor,
       instructorId: event.instructorId || undefined,
       instructorName: event.instructor?.fullName,
       classroomId: event.classroomId || undefined,
@@ -485,6 +579,156 @@ const onEventResize = async (info: EventResizeDoneArg) => {
   }
 };
 
+// Форматирование типа события для tooltip
+const getEventTypeLabel = (eventType: string | undefined): string => {
+  const types: Record<string, string> = {
+    theory: 'Теория',
+    practice: 'Практика',
+    assessment: 'Аттестация',
+    lecture: 'Лекция',
+    seminar: 'Семинар',
+    exam: 'Экзамен',
+    consultation: 'Консультация',
+    other: 'Другое',
+  };
+  return types[eventType || ''] || eventType || 'Занятие';
+};
+
+// Создание tooltip при монтировании события
+const onEventDidMount = (arg: EventMountArg) => {
+  const { event, el } = arg;
+  const extendedProps = event.extendedProps;
+  
+  // Формируем содержимое tooltip
+  const parts: string[] = [];
+  
+  // Название (заголовок)
+  parts.push(`<div class="event-tooltip-title">${event.title}</div>`);
+  
+  // Время
+  if (event.start) {
+    const startTime = formatTimeOnly(event.start);
+    const endTime = event.end ? formatTimeOnly(event.end) : '';
+    parts.push(`<div class="event-tooltip-row">
+      <span class="event-tooltip-icon">🕐</span>
+      <span class="event-tooltip-text">${startTime}${endTime ? ' – ' + endTime : ''}</span>
+    </div>`);
+  }
+  
+  // Группа
+  if (extendedProps.groupCode) {
+    parts.push(`<div class="event-tooltip-row">
+      <span class="event-tooltip-icon">👥</span>
+      <span class="event-tooltip-text">${extendedProps.groupCode}</span>
+    </div>`);
+  }
+  
+  // Инструктор
+  if (extendedProps.instructorName) {
+    parts.push(`<div class="event-tooltip-row">
+      <span class="event-tooltip-icon">👨‍🏫</span>
+      <span class="event-tooltip-text">${extendedProps.instructorName}</span>
+    </div>`);
+  }
+  
+  // Аудитория
+  if (extendedProps.classroomName) {
+    parts.push(`<div class="event-tooltip-row">
+      <span class="event-tooltip-icon">🚪</span>
+      <span class="event-tooltip-text">${extendedProps.classroomName}</span>
+    </div>`);
+  }
+  
+  // Тип события
+  if (extendedProps.eventType) {
+    parts.push(`<div class="event-tooltip-row">
+      <span class="event-tooltip-icon">📋</span>
+      <span class="event-tooltip-text">${getEventTypeLabel(extendedProps.eventType)}</span>
+    </div>`);
+  }
+  
+  // Описание (если есть, показываем первые 100 символов)
+  if (extendedProps.description) {
+    const desc = extendedProps.description.length > 100 
+      ? extendedProps.description.substring(0, 100) + '...' 
+      : extendedProps.description;
+    parts.push(`<div class="event-tooltip-row event-tooltip-description">
+      <span class="event-tooltip-text">${desc}</span>
+    </div>`);
+  }
+  
+  // Создаём tooltip элемент
+  const tooltip = document.createElement('div');
+  tooltip.className = 'event-tooltip';
+  tooltip.innerHTML = parts.join('');
+  
+  // Добавляем обработчики
+  const showTooltip = (e: MouseEvent) => {
+    document.body.appendChild(tooltip);
+    
+    // Позиционируем tooltip с задержкой для корректного расчёта размеров
+    requestAnimationFrame(() => {
+      const tooltipRect = tooltip.getBoundingClientRect();
+      
+      let left = e.clientX + 15;
+      let top = e.clientY + 15;
+      
+      // Корректируем если выходит за границы экрана
+      if (left + tooltipRect.width > window.innerWidth - 10) {
+        left = e.clientX - tooltipRect.width - 15;
+      }
+      if (top + tooltipRect.height > window.innerHeight - 10) {
+        top = e.clientY - tooltipRect.height - 15;
+      }
+      
+      // Убеждаемся что tooltip не выходит за левый/верхний край
+      left = Math.max(10, left);
+      top = Math.max(10, top);
+      
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+      tooltip.classList.add('event-tooltip-visible');
+    });
+  };
+  
+  const moveTooltip = (e: MouseEvent) => {
+    if (!tooltip.parentNode) return;
+    
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = e.clientX + 10;
+    let top = e.clientY + 10;
+    
+    if (left + tooltipRect.width > window.innerWidth - 10) {
+      left = e.clientX - tooltipRect.width - 10;
+    }
+    if (top + tooltipRect.height > window.innerHeight - 10) {
+      top = e.clientY - tooltipRect.height - 10;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  };
+  
+  const hideTooltip = () => {
+    tooltip.classList.remove('event-tooltip-visible');
+    if (tooltip.parentNode) {
+      tooltip.parentNode.removeChild(tooltip);
+    }
+  };
+  
+  el.addEventListener('mouseenter', showTooltip);
+  el.addEventListener('mousemove', moveTooltip);
+  el.addEventListener('mouseleave', hideTooltip);
+  
+  // Сохраняем ссылку для очистки
+  (el as any)._tooltipCleanup = () => {
+    el.removeEventListener('mouseenter', showTooltip);
+    el.removeEventListener('mousemove', moveTooltip);
+    el.removeEventListener('mouseleave', hideTooltip);
+    hideTooltip();
+  };
+};
+
 // Вычисляемые настройки календаря на основе академических пар
 const slotMinTime = computed(() => {
   const firstStart = getFirstPeriodStart.value;
@@ -634,6 +878,7 @@ const calendarOptions = computed<CalendarOptions>(() => {
     datesSet: onDatesSet,
     eventDrop: onEventDrop,
     eventResize: onEventResize,
+    eventDidMount: onEventDidMount,
   };
 });
 
@@ -795,6 +1040,17 @@ const resetFilters = () => {
   if (currentDateRange.value) {
     loadEvents(currentDateRange.value.start, currentDateRange.value.end);
   }
+};
+
+// Быстрый фильтр по группе из легенды
+const toggleGroupFilter = (groupId: string) => {
+  if (filters.value.groupId === groupId) {
+    // Сбрасываем фильтр при повторном клике
+    filters.value.groupId = '';
+  } else {
+    filters.value.groupId = groupId;
+  }
+  handleFilterChange();
 };
 
 const loadSelectData = async () => {
@@ -1242,4 +1498,180 @@ onUnmounted(() => {
 .dark .schedule-calendar .slot-label-custom .period-time {
   color: #9ca3af;
 }
+
+/* ============================================
+   ЦВЕТОВАЯ ПОЛОСА ГРУППЫ НА СОБЫТИЯХ
+   ============================================ */
+
+/* Базовый стиль для событий с полосой группы */
+.schedule-calendar .fc-event[class*="group-stripe-"] {
+  position: relative;
+  overflow: visible;
+  border-left: 4px solid transparent !important;
+  margin-left: 0 !important;
+}
+
+/* Цвета полос для каждой группы (соответствуют GROUP_COLOR_PALETTE) */
+.schedule-calendar .fc-event.group-stripe-0 { border-left-color: #E91E63 !important; } /* Розовый */
+.schedule-calendar .fc-event.group-stripe-1 { border-left-color: #9C27B0 !important; } /* Фиолетовый */
+.schedule-calendar .fc-event.group-stripe-2 { border-left-color: #673AB7 !important; } /* Глубокий фиолетовый */
+.schedule-calendar .fc-event.group-stripe-3 { border-left-color: #3F51B5 !important; } /* Индиго */
+.schedule-calendar .fc-event.group-stripe-4 { border-left-color: #2196F3 !important; } /* Синий */
+.schedule-calendar .fc-event.group-stripe-5 { border-left-color: #00BCD4 !important; } /* Циан */
+.schedule-calendar .fc-event.group-stripe-6 { border-left-color: #009688 !important; } /* Бирюзовый */
+.schedule-calendar .fc-event.group-stripe-7 { border-left-color: #4CAF50 !important; } /* Зелёный */
+.schedule-calendar .fc-event.group-stripe-8 { border-left-color: #8BC34A !important; } /* Лаймовый */
+.schedule-calendar .fc-event.group-stripe-9 { border-left-color: #FF9800 !important; } /* Оранжевый */
+.schedule-calendar .fc-event.group-stripe-10 { border-left-color: #FF5722 !important; } /* Глубокий оранжевый */
+.schedule-calendar .fc-event.group-stripe-11 { border-left-color: #795548 !important; } /* Коричневый */
+
+/* Стили для дневного/недельного вида - более заметная полоса */
+.schedule-calendar .fc-timegrid-event[class*="group-stripe-"] {
+  border-left-width: 5px !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+/* Стили для месячного вида */
+.schedule-calendar .fc-daygrid-event[class*="group-stripe-"] {
+  border-left-width: 4px !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+/* Стили для списка */
+.schedule-calendar .fc-list-event[class*="group-stripe-"] td:first-child {
+  position: relative;
+}
+
+.schedule-calendar .fc-list-event[class*="group-stripe-"] td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.schedule-calendar .fc-list-event.group-stripe-0 td:first-child::before { background-color: #E91E63; }
+.schedule-calendar .fc-list-event.group-stripe-1 td:first-child::before { background-color: #9C27B0; }
+.schedule-calendar .fc-list-event.group-stripe-2 td:first-child::before { background-color: #673AB7; }
+.schedule-calendar .fc-list-event.group-stripe-3 td:first-child::before { background-color: #3F51B5; }
+.schedule-calendar .fc-list-event.group-stripe-4 td:first-child::before { background-color: #2196F3; }
+.schedule-calendar .fc-list-event.group-stripe-5 td:first-child::before { background-color: #00BCD4; }
+.schedule-calendar .fc-list-event.group-stripe-6 td:first-child::before { background-color: #009688; }
+.schedule-calendar .fc-list-event.group-stripe-7 td:first-child::before { background-color: #4CAF50; }
+.schedule-calendar .fc-list-event.group-stripe-8 td:first-child::before { background-color: #8BC34A; }
+.schedule-calendar .fc-list-event.group-stripe-9 td:first-child::before { background-color: #FF9800; }
+.schedule-calendar .fc-list-event.group-stripe-10 td:first-child::before { background-color: #FF5722; }
+.schedule-calendar .fc-list-event.group-stripe-11 td:first-child::before { background-color: #795548; }
+
+/* Hover эффект - подсветка полосы */
+.schedule-calendar .fc-event[class*="group-stripe-"]:hover {
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
+   TOOLTIP ДЛЯ СОБЫТИЙ КАЛЕНДАРЯ
+   ============================================ */
+
+.event-tooltip {
+  position: fixed;
+  z-index: 99999;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.12),
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dark .event-tooltip {
+  background: linear-gradient(135deg, rgba(36, 48, 63, 0.95) 0%, rgba(28, 36, 52, 0.98) 100%);
+  border-color: rgba(61, 77, 95, 0.8);
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.event-tooltip-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Заголовок tooltip */
+.event-tooltip-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+  line-height: 1.4;
+}
+
+.dark .event-tooltip-title {
+  color: #f1f5f9;
+  border-bottom-color: rgba(61, 77, 95, 0.6);
+}
+
+/* Строка информации */
+.event-tooltip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.event-tooltip-row:last-child {
+  padding-bottom: 0;
+}
+
+/* Иконка */
+.event-tooltip-icon {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  width: 20px;
+  text-align: center;
+}
+
+/* Текст */
+.event-tooltip-text {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.dark .event-tooltip-text {
+  color: #cbd5e1;
+}
+
+/* Описание */
+.event-tooltip-description {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
+}
+
+.event-tooltip-description .event-tooltip-text {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.dark .event-tooltip-description .event-tooltip-text {
+  color: #94a3b8;
+}
 </style>
+

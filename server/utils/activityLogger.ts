@@ -99,6 +99,7 @@ export function formatActivityDescription(
     CREATE: 'Создал',
     UPDATE: 'Обновил',
     DELETE: 'Удалил',
+    VIEW: 'Просмотрел',
     LOGIN: 'Вошёл в систему',
     LOGOUT: 'Вышел из системы',
     IMPORT: 'Импортировал',
@@ -117,6 +118,10 @@ export function formatActivityDescription(
     SCHEDULE: 'занятие',
     GROUP: 'группу',
     CLASSROOM: 'аудиторию',
+    ORGANIZATION: 'организацию',
+    REPRESENTATIVE: 'представителя',
+    ATTENDANCE: 'посещаемость',
+    GRADE: 'оценку',
     SYSTEM: 'системные настройки',
   };
 

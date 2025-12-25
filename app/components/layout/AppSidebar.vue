@@ -15,34 +15,44 @@
   >
     <div
       :class="[
-        'py-8 flex',
-        !isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start',
+        'py-6 flex items-center justify-center',
+        !isExpanded && !isHovered ? 'lg:px-0' : 'px-2',
       ]"
     >
-      <NuxtLink to="/">
-        <img
-          v-if="isExpanded || isHovered || isMobileOpen"
-          class="dark:hidden"
-          src="/images/logo/logo.svg"
-          alt="Logo"
-          width="150"
-          height="40"
-        />
-        <img
-          v-if="isExpanded || isHovered || isMobileOpen"
-          class="hidden dark:block"
-          src="/images/logo/logo-dark.svg"
-          alt="Logo"
-          width="150"
-          height="40"
-        />
-        <img
-          v-else
-          src="/images/logo/logo-icon.svg"
-          alt="Logo"
-          width="32"
-          height="32"
-        />
+      <NuxtLink to="/" class="block w-full">
+        <!-- Полный логотип при развёрнутом сайдбаре -->
+        <Transition
+          enter-active-class="transition-all duration-500 ease-out"
+          enter-from-class="opacity-0 scale-90"
+          enter-to-class="opacity-100 scale-100"
+          leave-active-class="transition-all duration-300 ease-in"
+          leave-from-class="opacity-100 scale-100"
+          leave-to-class="opacity-0 scale-90"
+          mode="out-in"
+        >
+          <img
+            v-if="isExpanded || isHovered || isMobileOpen"
+            key="full-logo"
+            src="/logo.png"
+            alt="АТЦ Logo"
+            class="w-full h-auto object-contain max-h-20 transition-all duration-300"
+          />
+          <!-- Favicon при свёрнутом сайдбаре -->
+          <div
+            v-else
+            key="favicon"
+            class="flex items-center justify-center mx-auto"
+          >
+            <div class="relative group">
+              <div class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+              <img
+                src="/android-chrome-192x192.png"
+                alt="АТЦ"
+                class="relative w-12 h-12 rounded-xl object-contain transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+              />
+            </div>
+          </div>
+        </Transition>
       </NuxtLink>
     </div>
     <div

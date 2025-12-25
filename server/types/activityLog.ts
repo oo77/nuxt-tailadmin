@@ -20,6 +20,8 @@ export type EntityType =
   | 'CLASSROOM'
   | 'ORGANIZATION'
   | 'REPRESENTATIVE'
+  | 'ATTENDANCE'
+  | 'GRADE'
   | 'SYSTEM';
 
 /**

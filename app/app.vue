@@ -13,8 +13,8 @@ useTheme()
 
 useHead({
   titleTemplate: (title) => title 
-    ? `${title} | TailAdmin - Nuxt Dashboard` 
-    : 'TailAdmin - Nuxt Dashboard',
+    ? `${title} | ATC - Nuxt Dashboard` 
+    : 'ATC - Nuxt Dashboard',
   htmlAttrs: {
     lang: 'ru'
   },

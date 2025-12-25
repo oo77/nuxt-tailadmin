@@ -61,276 +61,364 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Основная информация -->
-        <div class="lg:col-span-1 space-y-6">
-          <!-- Карточка информации -->
-          <div class="rounded-xl bg-white dark:bg-boxdark shadow-md p-6">
-            <h3 class="text-lg font-semibold text-black dark:text-white mb-4">Информация о группе</h3>
-            
-            <div class="space-y-4">
-              <div>
-                <label class="text-sm text-gray-500 dark:text-gray-400">Код группы</label>
-                <p class="text-gray-900 dark:text-white font-medium">{{ group.code }}</p>
-              </div>
-              
-              <div>
-                <label class="text-sm text-gray-500 dark:text-gray-400">Статус</label>
-                <p>
-                  <span
-                    :class="[
-                      'inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium',
-                      statusClass
-                    ]"
-                  >
-                    {{ statusText }}
-                  </span>
-                </p>
-              </div>
-              
-              <div>
-                <label class="text-sm text-gray-500 dark:text-gray-400">Даты обучения</label>
-                <p class="text-gray-900 dark:text-white font-medium">
-                  {{ formatDate(group.startDate) }} — {{ formatDate(group.endDate) }}
-                </p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ daysInfo }}</p>
-              </div>
-              
-              <div>
-                <label class="text-sm text-gray-500 dark:text-gray-400">Аудитория</label>
-                <p class="text-gray-900 dark:text-white font-medium">{{ group.classroom || '—' }}</p>
-              </div>
-              
-              <div v-if="group.description">
-                <label class="text-sm text-gray-500 dark:text-gray-400">Описание</label>
-                <p class="text-gray-900 dark:text-white">{{ group.description }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Карточка курса -->
-          <div v-if="group.course" class="rounded-xl bg-white dark:bg-boxdark shadow-md p-6">
-            <h3 class="text-lg font-semibold text-black dark:text-white mb-4">Учебная программа</h3>
-            
-            <div class="space-y-3">
-              <div>
-                <label class="text-sm text-gray-500 dark:text-gray-400">Название</label>
-                <p class="text-gray-900 dark:text-white font-medium">{{ group.course.name }}</p>
-              </div>
-              
-              <div class="flex gap-4">
-                <div>
-                  <label class="text-sm text-gray-500 dark:text-gray-400">Код</label>
-                  <p class="text-gray-900 dark:text-white font-medium">{{ group.course.code }}</p>
-                </div>
-                <div>
-                  <label class="text-sm text-gray-500 dark:text-gray-400">Часов</label>
-                  <p class="text-gray-900 dark:text-white font-medium">{{ group.course.totalHours }}</p>
-                </div>
-              </div>
-              
-              <NuxtLink
-                :to="`/programs/${group.courseId}`"
-                class="inline-flex items-center gap-1 text-primary hover:underline text-sm"
-              >
-                Перейти к программе
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </NuxtLink>
-            </div>
-          </div>
-        </div>
-
-        <!-- Слушатели -->
-        <div class="lg:col-span-2">
-          <div class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Слушатели</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ group.students?.length || 0 }} человек</p>
-                  </div>
-                </div>
-                <UiButton @click="showManageStudentsModal = true">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  Управление слушателями
-                </UiButton>
-              </div>
-            </div>
-
-            <div v-if="!group.students || group.students.length === 0" class="p-12 text-center text-gray-500 dark:text-gray-400">
-              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      <!-- Блок дисциплин на всю ширину -->
+      <div v-if="disciplines.length > 0" class="mb-6 rounded-xl bg-white dark:bg-boxdark shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-              <p class="mt-4">В группе пока нет слушателей</p>
-              <UiButton class="mt-4" @click="showManageStudentsModal = true">
-                Добавить слушателей
-              </UiButton>
             </div>
-
-            <template v-else>
-              <div class="overflow-x-auto">
-                <table class="w-full">
-                  <thead>
-                    <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                        Слушатель
-                      </th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                        Организация
-                      </th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                        Должность
-                      </th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                        Дата зачисления
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    <tr
-                      v-for="gs in paginatedStudents"
-                      :key="gs.id"
-                      class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-3">
-                          <div class="shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success font-semibold">
-                            {{ getInitials(gs.student?.fullName) }}
-                          </div>
-                          <span class="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" :title="gs.student?.fullName">{{ gs.student?.fullName }}</span>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        <span class="truncate max-w-[200px] inline-block" :title="gs.student?.organization">{{ gs.student?.organization || '—' }}</span>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        <span class="truncate max-w-[180px] inline-block" :title="gs.student?.position">{{ gs.student?.position || '—' }}</span>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        {{ formatDate(gs.enrolledAt) }}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div>
+              <h3 class="text-lg font-semibold text-black dark:text-white">Журналы дисциплин</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ disciplines.length }} дисциплин в программе</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <NuxtLink
+            v-for="discipline in disciplines"
+            :key="discipline.id"
+            :to="`/groups/journal/${group?.id}_${discipline.id}`"
+            class="group p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 border border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary hover:shadow-lg transition-all duration-200"
+          >
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
+              <svg class="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{{ discipline.name }}</h4>
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                {{ discipline.theoryHours }} т
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                {{ discipline.practiceHours }} п
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                {{ discipline.assessmentHours }} о
+              </span>
+            </div>
+          </NuxtLink>
+        </div>
+      </div>
 
-              <!-- Пагинация -->
-              <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span>Показать:</span>
-                  <select
-                    v-model="studentsPerPage"
-                    class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    @change="currentStudentsPage = 1"
-                  >
-                    <option :value="10">10</option>
-                    <option :value="20">20</option>
-                    <option :value="50">50</option>
-                  </select>
-                  <span>записей</span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ paginationInfo }}
-                  </span>
-                </div>
-
-                <div class="flex items-center gap-1">
-                  <button
-                    :disabled="currentStudentsPage === 1"
-                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    @click="currentStudentsPage = 1"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <button
-                    :disabled="currentStudentsPage === 1"
-                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    @click="currentStudentsPage--"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  <template v-for="page in visiblePages" :key="page">
-                    <button
-                      v-if="page !== '...'"
-                      :class="[
-                        'px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
-                        page === currentStudentsPage
-                          ? 'bg-primary text-white border-primary'
-                          : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      ]"
-                      @click="currentStudentsPage = page as number"
-                    >
-                      {{ page }}
-                    </button>
-                    <span v-else class="px-2 text-gray-400">...</span>
-                  </template>
-
-                  <button
-                    :disabled="currentStudentsPage === totalStudentsPages"
-                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    @click="currentStudentsPage++"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                  <button
-                    :disabled="currentStudentsPage === totalStudentsPages"
-                    class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    @click="currentStudentsPage = totalStudentsPages"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </template>
+      <!-- Информация о группе и Учебная программа в один ряд -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Карточка информации -->
+        <div class="rounded-xl bg-white dark:bg-boxdark shadow-md p-6">
+          <h3 class="text-lg font-semibold text-black dark:text-white mb-4">Информация о группе</h3>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-gray-500 dark:text-gray-400">Код группы</label>
+              <p class="text-gray-900 dark:text-white font-medium">{{ group.code }}</p>
+            </div>
+            
+            <div>
+              <label class="text-sm text-gray-500 dark:text-gray-400">Статус</label>
+              <p>
+                <span
+                  :class="[
+                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium',
+                    statusClass
+                  ]"
+                >
+                  {{ statusText }}
+                </span>
+              </p>
+            </div>
+            
+            <div>
+              <label class="text-sm text-gray-500 dark:text-gray-400">Даты обучения</label>
+              <p class="text-gray-900 dark:text-white font-medium">
+                {{ formatDate(group.startDate) }} — {{ formatDate(group.endDate) }}
+              </p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ daysInfo }}</p>
+            </div>
+            
+            <div>
+              <label class="text-sm text-gray-500 dark:text-gray-400">Аудитория</label>
+              <p class="text-gray-900 dark:text-white font-medium">{{ group.classroom || '—' }}</p>
+            </div>
+            
+            <div v-if="group.description" class="col-span-2">
+              <label class="text-sm text-gray-500 dark:text-gray-400">Описание</label>
+              <p class="text-gray-900 dark:text-white">{{ group.description }}</p>
+            </div>
           </div>
         </div>
 
-        <!-- Занятия группы -->
-        <div class="lg:col-span-3 mt-6">
-          <div class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Расписание занятий</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ scheduleEvents.length }} запланировано</p>
-                  </div>
-                </div>
-                <NuxtLink to="/schedule" class="text-primary hover:text-primary/80 text-sm font-medium flex items-center gap-1">
-                  Открыть расписание
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </NuxtLink>
+        <!-- Карточка курса -->
+        <div v-if="group.course" class="rounded-xl bg-white dark:bg-boxdark shadow-md p-6">
+          <h3 class="text-lg font-semibold text-black dark:text-white mb-4">Учебная программа</h3>
+          
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm text-gray-500 dark:text-gray-400">Название</label>
+              <p class="text-gray-900 dark:text-white font-medium">{{ group.course.name }}</p>
+            </div>
+            
+            <div class="flex gap-6">
+              <div>
+                <label class="text-sm text-gray-500 dark:text-gray-400">Код</label>
+                <p class="text-gray-900 dark:text-white font-medium">{{ group.course.code }}</p>
+              </div>
+              <div>
+                <label class="text-sm text-gray-500 dark:text-gray-400">Всего часов</label>
+                <p class="text-gray-900 dark:text-white font-medium">{{ group.course.totalHours }} а-ч</p>
+              </div>
+              <div>
+                <label class="text-sm text-gray-500 dark:text-gray-400">Дисциплин</label>
+                <p class="text-gray-900 dark:text-white font-medium">{{ disciplines.length }}</p>
               </div>
             </div>
+            
+            <NuxtLink
+              :to="`/programs/${group.courseId}`"
+              class="inline-flex items-center gap-1 text-primary hover:underline text-sm"
+            >
+              Перейти к программе
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </NuxtLink>
+          </div>
+        </div>
+      </div>
 
+      <!-- Слушатели на всю ширину -->
+      <div class="mb-6 rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-black dark:text-white">Слушатели</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ group.students?.length || 0 }} человек</p>
+              </div>
+            </div>
+            <UiButton @click="showManageStudentsModal = true">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Управление слушателями
+            </UiButton>
+          </div>
+        </div>
+
+        <div v-if="!group.students || group.students.length === 0" class="p-12 text-center text-gray-500 dark:text-gray-400">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <p class="mt-4">В группе пока нет слушателей</p>
+          <UiButton class="mt-4" @click="showManageStudentsModal = true">
+            Добавить слушателей
+          </UiButton>
+        </div>
+
+        <template v-else>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Слушатель
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Организация
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Должность
+                  </th>
+                  <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Посещаемость
+                  </th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                    Дата зачисления
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                <tr
+                  v-for="gs in paginatedStudents"
+                  :key="gs.id"
+                  class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center gap-3">
+                      <div class="shrink-0 flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success font-semibold">
+                        {{ getInitials(gs.student?.fullName) }}
+                      </div>
+                      <span class="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" :title="gs.student?.fullName">{{ gs.student?.fullName }}</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    <span class="truncate max-w-[200px] inline-block" :title="gs.student?.organization">{{ gs.student?.organization || '—' }}</span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    <span class="truncate max-w-[180px] inline-block" :title="gs.student?.position">{{ gs.student?.position || '—' }}</span>
+                  </td>
+                  <td class="px-6 py-4 text-center whitespace-nowrap">
+                    <span 
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium"
+                      :class="getAttendanceColorClass(getStudentAttendance(gs.studentId))"
+                    >
+                      {{ getStudentAttendance(gs.studentId).toFixed(0) }}%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {{ formatDate(gs.enrolledAt) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Пагинация -->
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <span>Показать:</span>
+              <select
+                v-model="studentsPerPage"
+                class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                @change="currentStudentsPage = 1"
+              >
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+              <span>записей</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500 dark:text-gray-400">
+                {{ paginationInfo }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <button
+                :disabled="currentStudentsPage === 1"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                @click="currentStudentsPage = 1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                :disabled="currentStudentsPage === 1"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                @click="currentStudentsPage--"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <template v-for="page in visiblePages" :key="page">
+                <button
+                  v-if="page !== '...'"
+                  :class="[
+                    'px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
+                    page === currentStudentsPage
+                      ? 'bg-primary text-white border-primary'
+                      : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ]"
+                  @click="currentStudentsPage = page as number"
+                >
+                  {{ page }}
+                </button>
+                <span v-else class="px-2 text-gray-400">...</span>
+              </template>
+
+              <button
+                :disabled="currentStudentsPage === totalStudentsPages"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                @click="currentStudentsPage++"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                :disabled="currentStudentsPage === totalStudentsPages"
+                class="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                @click="currentStudentsPage = totalStudentsPages"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Расписание занятий как шторка -->
+      <div class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
+        <button 
+          class="w-full p-6 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          @click="scheduleExpanded = !scheduleExpanded"
+        >
+          <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div class="text-left">
+              <h3 class="text-lg font-semibold text-black dark:text-white">Расписание занятий</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ scheduleEvents.length }} запланировано</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <NuxtLink 
+              to="/schedule" 
+              class="text-primary hover:text-primary/80 text-sm font-medium flex items-center gap-1"
+              @click.stop
+            >
+              Открыть расписание
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </NuxtLink>
+            <svg 
+              class="w-5 h-5 text-gray-500 transition-transform duration-200"
+              :class="{ 'rotate-180': scheduleExpanded }"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        <Transition
+          enter-active-class="transition-all duration-300 ease-out"
+          leave-active-class="transition-all duration-200 ease-in"
+          enter-from-class="opacity-0 max-h-0"
+          enter-to-class="opacity-100 max-h-[1000px]"
+          leave-from-class="opacity-100 max-h-[1000px]"
+          leave-to-class="opacity-0 max-h-0"
+        >
+          <div v-show="scheduleExpanded" class="overflow-hidden border-t border-gray-200 dark:border-gray-700">
             <div v-if="loadingSchedule" class="p-12 text-center">
               <div class="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
               <p class="mt-2 text-gray-500 dark:text-gray-400">Загрузка расписания...</p>
@@ -348,7 +436,7 @@
 
             <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
               <div
-                v-for="event in scheduleEvents.slice(0, 5)"
+                v-for="event in scheduleEvents.slice(0, 10)"
                 :key="event.id"
                 class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
@@ -413,7 +501,7 @@
               </div>
 
               <!-- Ссылка на все занятия -->
-              <div v-if="scheduleEvents.length > 5" class="p-4 text-center">
+              <div v-if="scheduleEvents.length > 10" class="p-4 text-center">
                 <NuxtLink 
                   :to="`/schedule?groupId=${group?.id}`" 
                   class="text-primary hover:underline text-sm font-medium"
@@ -423,7 +511,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </Transition>
       </div>
     </template>
 
@@ -459,6 +547,16 @@
 <script setup lang="ts">
 import type { StudyGroup } from '~/types/group';
 
+// Интерфейс для дисциплины
+interface Discipline {
+  id: string;
+  name: string;
+  theoryHours: number;
+  practiceHours: number;
+  assessmentHours: number;
+  hours: number;
+}
+
 definePageMeta({
   layout: 'default',
 });
@@ -477,10 +575,62 @@ const showDeleteModal = ref(false);
 const isDeleting = ref(false);
 const loadingSchedule = ref(false);
 const scheduleEvents = ref<any[]>([]);
+const disciplines = ref<Discipline[]>([]);
+const scheduleExpanded = ref(false); // Шторка расписания
+const studentAttendanceData = ref<Map<string, { attended: number; total: number }>>(new Map());
 
 // Пагинация слушателей
 const currentStudentsPage = ref(1);
 const studentsPerPage = ref(10);
+
+// Функция для получения посещаемости студента
+const getStudentAttendance = (studentId: string): number => {
+  const data = studentAttendanceData.value.get(studentId);
+  if (!data || data.total === 0) return 0;
+  return (data.attended / data.total) * 100;
+};
+
+// Цвет для посещаемости
+const getAttendanceColorClass = (percent: number): string => {
+  if (percent >= 75) return 'bg-success/10 text-success';
+  if (percent >= 50) return 'bg-warning/10 text-warning';
+  return 'bg-danger/10 text-danger';
+};
+
+// Загрузка посещаемости для всех студентов
+const loadStudentAttendance = async () => {
+  if (!group.value?.id || !group.value?.students?.length) return;
+  
+  const groupId = group.value.id;
+  const newData = new Map<string, { attended: number; total: number }>();
+  
+  // Для каждой дисциплины загружаем данные журнала
+  for (const discipline of disciplines.value) {
+    try {
+      const response = await authFetch<{
+        success: boolean;
+        rows?: Array<{
+          student: { id: string };
+          totalHoursAttended: number;
+          totalMaxHours: number;
+        }>;
+      }>(`/api/attendance/journal?groupId=${groupId}&disciplineId=${discipline.id}`);
+      
+      if (response.success && response.rows) {
+        for (const row of response.rows) {
+          const current = newData.get(row.student.id) || { attended: 0, total: 0 };
+          current.attended += row.totalHoursAttended || 0;
+          current.total += row.totalMaxHours || 0;
+          newData.set(row.student.id, current);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading attendance for discipline:', discipline.id, err);
+    }
+  }
+  
+  studentAttendanceData.value = newData;
+};
 
 // Метки типов событий
 const eventTypeLabels: Record<string, string> = {
@@ -670,7 +820,11 @@ const deleteGroup = async () => {
 const formatDate = (date: string | Date): string => {
   // Если это строка в формате YYYY-MM-DD, парсим вручную
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
-    const [year, month, day] = date.split('T')[0].split('-').map(Number);
+    const datePart = date.split('T')[0] || date;
+    const parts = datePart.split('-').map(Number);
+    const year = parts[0] ?? 0;
+    const month = parts[1] ?? 1;
+    const day = parts[2] ?? 1;
     const d = new Date(year, month - 1, day);
     return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
@@ -734,15 +888,40 @@ const loadSchedule = async () => {
   }
 };
 
+// Загрузка дисциплин курса
+const loadDisciplines = async () => {
+  if (!group.value?.courseId) {
+    disciplines.value = [];
+    return;
+  }
+  
+  try {
+    const response = await authFetch<{ success: boolean; course?: { disciplines?: Discipline[] } }>(
+      `/api/courses/${group.value.courseId}`
+    );
+    
+    if (response.success && response.course?.disciplines) {
+      disciplines.value = response.course.disciplines;
+    } else {
+      disciplines.value = [];
+    }
+  } catch (error) {
+    console.error('Error loading disciplines:', error);
+    disciplines.value = [];
+  }
+};
+
 // Initialize
 onMounted(async () => {
   await loadGroup();
-  loadSchedule();
+  await Promise.all([loadSchedule(), loadDisciplines()]);
+  // Загружаем посещаемость после дисциплин
+  await loadStudentAttendance();
 });
 
 // Watch for route changes
 watch(() => route.params.id, async () => {
   await loadGroup();
-  loadSchedule();
+  await Promise.all([loadSchedule(), loadDisciplines()]);
 });
 </script>

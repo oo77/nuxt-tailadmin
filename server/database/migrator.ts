@@ -10,6 +10,7 @@ import type { PoolConnection } from 'mysql2/promise';
 // 3. Добавьте в MIGRATIONS_REGISTRY
 
 import * as consolidatedSchema from './migrations/20251224_001_consolidated_schema';
+import * as attendanceGrades from './migrations/20251225_020_attendance_grades';
 
 /**
  * ============================================================================
@@ -54,6 +55,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: consolidatedSchema.up,
     down: consolidatedSchema.down,
     description: consolidatedSchema.description,
+  },
+  // ============================================================
+  // Миграция 020: Посещаемость и оценки
+  // ============================================================
+  {
+    name: '20251225_020_attendance_grades',
+    up: attendanceGrades.up,
+    down: attendanceGrades.down,
+    description: attendanceGrades.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

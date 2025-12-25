@@ -5,6 +5,20 @@
       <div class="flex flex-col flex-1 w-full lg:w-1/2">
         <div class="flex flex-col justify-center flex-1 w-full max-w-md px-6 mx-auto py-12">
           <div>
+            <!-- Логотип -->
+            <div class="flex justify-center mb-6">
+              <div class="relative group">
+                <div class="absolute -inset-2 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+                <div class="relative p-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                  <img
+                    src="/logo.png"
+                    alt="АТЦ Logo"
+                    class="h-16 w-auto object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+
             <!-- Заголовок -->
             <div class="mb-8 text-center">
               <h1 class="mb-2 text-3xl font-bold text-gray-800 dark:text-white">
