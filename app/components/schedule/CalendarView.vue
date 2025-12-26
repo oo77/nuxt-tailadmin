@@ -350,7 +350,7 @@ const hashStringToIndex = (str: string): number => {
 // Получить цвет группы по её ID
 const getGroupColor = (groupId: string | undefined): string => {
   if (!groupId) return 'transparent';
-  return GROUP_COLOR_PALETTE[hashStringToIndex(groupId)];
+  return GROUP_COLOR_PALETTE[hashStringToIndex(groupId)] || '#3C50E0';
 };
 
 // Вычисляемое свойство: группы, используемые в текущих событиях, с их цветами

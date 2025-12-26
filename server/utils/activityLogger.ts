@@ -110,6 +110,8 @@ export function formatActivityDescription(
     USER: 'пользователя',
     STUDENT: 'студента',
     CERTIFICATE: 'сертификат',
+    CERTIFICATE_TEMPLATE: 'шаблон сертификата',
+    ISSUED_CERTIFICATE: 'выданный сертификат',
     COURSE: 'курс',
     DISCIPLINE: 'дисциплину',
     INSTRUCTOR: 'инструктора',

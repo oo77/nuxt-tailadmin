@@ -10,6 +10,8 @@ export type EntityType =
   | 'USER' 
   | 'STUDENT' 
   | 'CERTIFICATE' 
+  | 'CERTIFICATE_TEMPLATE'
+  | 'ISSUED_CERTIFICATE'
   | 'COURSE' 
   | 'DISCIPLINE' 
   | 'INSTRUCTOR' 

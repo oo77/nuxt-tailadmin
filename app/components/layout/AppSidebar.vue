@@ -289,6 +289,11 @@ const menuGroups = [
         icon: FolderIcon,
         name: "Файловый менеджер",
         path: "/files",
+      },
+      {
+        icon: DocsIcon,
+        name: "Шаблоны сертификатов",
+        path: "/certificates/templates",
       }
     ],
   },

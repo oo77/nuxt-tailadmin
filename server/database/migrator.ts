@@ -11,6 +11,8 @@ import type { PoolConnection } from 'mysql2/promise';
 
 import * as consolidatedSchema from './migrations/20251224_001_consolidated_schema';
 import * as attendanceGrades from './migrations/20251225_020_attendance_grades';
+import * as certificateTemplatesExtended from './migrations/20251226_021_certificate_templates_extended';
+import * as certificateVisualEditor from './migrations/20251226_022_certificate_visual_editor';
 
 /**
  * ============================================================================
@@ -64,6 +66,24 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: attendanceGrades.up,
     down: attendanceGrades.down,
     description: attendanceGrades.description,
+  },
+  // ============================================================
+  // Миграция 021: Расширение шаблонов сертификатов
+  // ============================================================
+  {
+    name: '20251226_021_certificate_templates_extended',
+    up: certificateTemplatesExtended.up,
+    down: certificateTemplatesExtended.down,
+    description: certificateTemplatesExtended.description,
+  },
+  // ============================================================
+  // Миграция 022: Визуальный редактор сертификатов
+  // ============================================================
+  {
+    name: '20251226_022_certificate_visual_editor',
+    up: certificateVisualEditor.up,
+    down: certificateVisualEditor.down,
+    description: certificateVisualEditor.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

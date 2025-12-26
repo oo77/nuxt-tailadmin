@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   
   // Настройка dev-сервера для доступа извне
   devServer: {
-    host: '0.0.0.0', // Слушает все сетевые интерфейсы
+    host: 'localhost', // Слушает все сетевые интерфейсы
     port: 3000,      // Порт можно изменить при необходимости
   },
   
@@ -60,6 +60,14 @@ export default defineNuxtConfig({
     // Исключаем xlsx и sharp из бандлинга через rollup external для избежания проблем с ESM на Windows
     externals: {
       external: ['xlsx', 'sharp']
-    }
+    },
+    // Раздача папки storage как статических файлов
+    publicAssets: [
+      {
+        dir: 'storage',
+        baseURL: '/storage',
+        maxAge: 60 * 60 * 24 * 7 // 7 дней кэширования
+      }
+    ],
   }
 })

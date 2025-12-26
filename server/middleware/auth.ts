@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/refresh',
   '/api/db/test',
   '/api/db/init',
+  '/api/certificates/download', // Скачивание сертификатов (защищено UUID)
 ]
 
 /**
