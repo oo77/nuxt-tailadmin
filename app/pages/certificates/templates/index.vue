@@ -49,17 +49,53 @@
         class="group rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden hover:shadow-lg transition-all duration-200"
       >
         <!-- Превью или плейсхолдер -->
-        <div class="relative h-40 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-          <div v-if="template.originalFileUrl" class="absolute inset-0 flex items-center justify-center">
-            <svg class="w-16 h-16 text-primary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+        <div class="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
+          <!-- Реальное превью шаблона (если есть backgroundUrl) -->
+          <div v-if="template.backgroundUrl" class="absolute inset-0">
+            <img 
+              :src="template.backgroundUrl" 
+              :alt="template.name"
+              class="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+            />
+            <!-- Затемнение для лучшей читаемости -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
           </div>
-          <div v-else class="text-center">
-            <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          <!-- Если есть только оригинальный файл (docx) но нет преью фона -->
+          <div v-else-if="template.originalFileUrl" class="absolute inset-0 flex flex-col items-center justify-center">
+            <!-- Стилизованный документ -->
+            <div class="w-24 h-28 bg-white dark:bg-gray-200 rounded-lg shadow-lg flex flex-col items-center justify-center transform -rotate-2 transition-transform duration-300 group-hover:rotate-0 group-hover:scale-105">
+              <svg class="w-10 h-10 text-primary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-xs font-semibold text-gray-600">.docx</span>
+            </div>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Word шаблон загружен</p>
+          </div>
+          <!-- Файл не загружен -->
+          <div v-else class="text-center px-4">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Загрузите шаблон</span>
+          </div>
+
+          <!-- Индикатор готовности (отображается поверх превью) -->
+          <div 
+            v-if="template.originalFileUrl || template.backgroundUrl"
+            class="absolute bottom-3 right-3 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm"
+            :class="template.variables && template.variables.length > 0 
+              ? 'bg-success/80 text-white' 
+              : 'bg-warning/80 text-white'"
+          >
+            <svg v-if="template.variables && template.variables.length > 0" class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
             </svg>
-            <span class="text-sm text-gray-400">Файл не загружен</span>
+            <svg v-else class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            {{ template.variables && template.variables.length > 0 ? 'Готов' : 'Настройте' }}
           </div>
 
           <!-- Badges -->
@@ -79,12 +115,22 @@
           <!-- Actions overlay -->
           <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
             <NuxtLink
+              :to="`/certificates/templates/${template.id}/editor`"
+              class="p-2 bg-white rounded-lg hover:bg-blue-50 transition-colors"
+              title="Открыть редактор"
+            >
+              <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+              </svg>
+            </NuxtLink>
+            <NuxtLink
               :to="`/certificates/templates/${template.id}`"
               class="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
-              title="Редактировать"
+              title="Настройки"
             >
               <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </NuxtLink>
             <button

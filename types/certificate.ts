@@ -51,6 +51,7 @@ export interface CertificateTemplate {
   description: string | null;
   templateFileUrl: string | null;
   originalFileUrl: string | null;
+  backgroundUrl: string | null;
   variables: VariableMapping[] | null;
   qrSettings: QRSettings | null;
   numberFormat: string;

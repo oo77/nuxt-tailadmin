@@ -233,7 +233,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { AVAILABLE_VARIABLES } from '~/composables/useCertificateEditor'
-import type { VariableSource, TemplateLayout, TemplateBackground, ShapeType } from '~/server/types/certificate'
+import { getPreset } from '~/utils/certificatePresets'
+import type { VariableSource, TemplateLayout, TemplateBackground, ShapeType, CertificateTemplateData } from '~/types/certificate'
 
 const props = defineProps<{
   currentLayout: TemplateLayout
@@ -247,6 +248,7 @@ const emit = defineEmits<{
   (e: 'add-shape', type: ShapeType): void
   (e: 'set-layout', layout: TemplateLayout): void
   (e: 'set-background', bg: TemplateBackground): void
+  (e: 'apply-preset', data: CertificateTemplateData): void
 }>()
 
 const showVariableMenu = ref(false)
@@ -337,10 +339,9 @@ function setBackgroundColor(color: string) {
   emit('set-background', { type: 'color', value: color })
 }
 
-function applyPreset(preset: string) {
-  // Пресеты будут применяться через emit, логика в родительском компоненте
-  console.log('Apply preset:', preset)
-  // TODO: Реализовать пресеты шаблонов
+function applyPreset(preset: 'classic' | 'modern' | 'minimal') {
+  const presetData = getPreset(preset)
+  emit('apply-preset', presetData)
 }
 
 // Закрытие меню при клике вне

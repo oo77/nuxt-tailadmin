@@ -80,7 +80,10 @@
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Предпросмотр шаблона
             </h3>
-            <div class="aspect-[1.414/1] bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative overflow-hidden">
+            <div 
+              class="bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center relative overflow-hidden"
+              :class="previewContainerClass"
+            >
               <div v-if="!template.templateData" class="text-center p-8">
                 <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
                   <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,10 +106,10 @@
                 </NuxtLink>
               </div>
               <!-- Preview шаблона если есть -->
-              <div v-else class="absolute inset-0 p-2 overflow-hidden">
+              <div v-else class="w-full h-full flex items-center justify-center p-4">
                 <div 
-                  class="w-full h-full bg-white shadow rounded relative"
-                  :style="getPreviewStyle()"
+                  class="bg-white shadow-lg rounded relative overflow-hidden"
+                  :style="previewWrapperStyle"
                 >
                   <!-- Рендеринг элементов шаблона (упрощённый preview) -->
                   <div
@@ -132,6 +135,12 @@
                       <div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
                         QR
                       </div>
+                    </template>
+                    <template v-else-if="element.type === 'shape'">
+                      <div 
+                        class="w-full h-full"
+                        :style="getShapePreviewStyle(element)"
+                      ></div>
                     </template>
                   </div>
                 </div>
@@ -287,7 +296,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CertificateTemplate, TemplateElement, VariableSource } from '~/server/types/certificate';
+import type { CertificateTemplate, TemplateElement, VariableSource } from '~/types/certificate';
 import { AVAILABLE_VARIABLES } from '~/composables/useCertificateEditor';
 
 definePageMeta({
@@ -324,6 +333,45 @@ const previewNumber = computed(() => {
     .replace('{YYYY}', now.getFullYear().toString())
     .replace('{CODE}', 'SAMPLE')
     .replace('{NUM}', '0001');
+});
+
+// Динамический класс для контейнера preview (соотношение сторон)
+const previewContainerClass = computed(() => {
+  const layout = template.value?.layout || template.value?.templateData?.layout;
+  
+  if (layout === 'A4_portrait' || layout === 'letter_portrait') {
+    // Книжная ориентация: высота > ширины
+    return 'aspect-[1/1.414]';
+  }
+  // Альбомная ориентация: ширина > высоты
+  return 'aspect-[1.414/1]';
+});
+
+// Стили для wrapper preview (внутренний контейнер с сертификатом)
+const previewWrapperStyle = computed(() => {
+  if (!template.value?.templateData) return {};
+  
+  const data = template.value.templateData;
+  const bg = data.background;
+  
+  const style: Record<string, string> = {
+    width: '100%',
+    maxWidth: '100%',
+    aspectRatio: `${data.width} / ${data.height}`,
+  };
+  
+  // Фон
+  if (bg?.type === 'color') {
+    style.background = bg.value;
+  } else if (bg?.type === 'image') {
+    style.backgroundImage = `url(${bg.value})`;
+    style.backgroundSize = 'cover';
+    style.backgroundPosition = 'center';
+  } else {
+    style.background = '#fff';
+  }
+  
+  return style;
 });
 
 // Title
@@ -463,21 +511,27 @@ function getPreviewStyle() {
 }
 
 function getElementPreviewStyle(element: TemplateElement) {
-  // Масштабируем для preview (примерно в 4 раза меньше)
-  const scale = 0.25;
+  // Используем процентные значения для адаптивности
+  const templateWidth = template.value?.templateData?.width || 1123;
+  const templateHeight = template.value?.templateData?.height || 794;
+  
   return {
-    left: `${element.x * scale}px`,
-    top: `${element.y * scale}px`,
-    width: `${element.width * scale}px`,
-    height: `${element.height * scale}px`,
+    left: `${(element.x / templateWidth) * 100}%`,
+    top: `${(element.y / templateHeight) * 100}%`,
+    width: `${(element.width / templateWidth) * 100}%`,
+    height: `${(element.height / templateHeight) * 100}%`,
+    transform: element.rotation ? `rotate(${element.rotation}deg)` : undefined,
   };
 }
 
 function getTextPreviewStyle(element: any) {
-  const scale = 0.25;
+  // Используем относительные единицы для шрифта
+  const templateWidth = template.value?.templateData?.width || 1123;
+  const baseFontSize = element.fontSize / templateWidth * 100; // vw-подобный
+  
   return {
     fontFamily: element.fontFamily,
-    fontSize: `${element.fontSize * scale}px`,
+    fontSize: `clamp(6px, ${baseFontSize}vw, ${element.fontSize * 0.5}px)`,
     fontWeight: element.fontWeight,
     fontStyle: element.fontStyle,
     color: element.color,
@@ -485,9 +539,35 @@ function getTextPreviewStyle(element: any) {
     textAlign: element.textAlign,
     display: 'flex',
     alignItems: 'center',
+    justifyContent: element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start',
     width: '100%',
     height: '100%',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap' as const,
+    textOverflow: 'ellipsis',
   };
+}
+
+function getShapePreviewStyle(element: any) {
+  const style: Record<string, string> = {};
+  
+  if (element.shapeType === 'circle') {
+    style.borderRadius = '50%';
+  } else if (element.shapeType === 'line') {
+    style.height = `${element.strokeWidth || 2}px`;
+    style.backgroundColor = element.strokeColor || '#000';
+    return style;
+  }
+  
+  if (element.fillColor && element.fillColor !== 'transparent') {
+    style.backgroundColor = element.fillColor;
+  }
+  
+  if (element.strokeWidth && element.strokeColor) {
+    style.border = `${element.strokeWidth}px solid ${element.strokeColor}`;
+  }
+  
+  return style;
 }
 
 // Load on mount

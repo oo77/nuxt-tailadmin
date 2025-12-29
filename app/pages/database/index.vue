@@ -52,10 +52,7 @@
 
         <!-- База сертификатов Tab -->
         <div v-show="activeTab === 'certificates'" class="p-6">
-          <div class="text-center py-12 text-gray-500 dark:text-gray-400">
-            <p class="text-lg font-medium">База сертификатов</p>
-            <p class="mt-2">Функционал в разработке</p>
-          </div>
+          <DatabaseCertificateManagementPanel />
         </div>
       </div>
     </div>
@@ -93,7 +90,7 @@ const tabs = [
   {
     id: 'certificates',
     label: 'База сертификатов',
-    disabled: true, // Пока отключено
+    disabled: false, // Активировано
   },
 ];
 </script>

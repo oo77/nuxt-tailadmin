@@ -2,18 +2,23 @@
  * Серверные типы для работы со студентами
  */
 
-// Информация о сертификате студента
+// Информация о сертификате студента (из issued_certificates)
 export interface StudentCertificate {
   id: string;
   studentId: string;
+  groupId: string;
+  templateId: string;
   courseName: string;
+  groupCode?: string;
   issueDate: Date;
   certificateNumber: string;
   fileUrl?: string | null;
   expiryDate?: Date | null;
+  status: 'draft' | 'issued' | 'revoked';
   created_at: Date;
   updated_at: Date;
 }
+
 
 // Полная информация о студенте
 export interface Student {

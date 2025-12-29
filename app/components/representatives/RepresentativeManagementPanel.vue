@@ -118,6 +118,7 @@
       @close="closeDetailModal"
       @approve="handleApprove"
       @block="handleBlock"
+      @updated="handleRepresentativeUpdated"
     />
 
     <RepresentativesApproveRepresentativeModal
@@ -373,6 +374,11 @@ const handleDelete = async (representative: Representative) => {
   } catch (error: any) {
     notification.error(error.data?.message || 'Ошибка при удалении');
   }
+};
+
+const handleRepresentativeUpdated = async () => {
+  // Перезагружаем данные после обновления разрешений
+  await loadRepresentatives();
 };
 
 // Инициализация

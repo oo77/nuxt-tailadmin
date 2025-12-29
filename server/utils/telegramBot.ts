@@ -36,6 +36,19 @@ export interface FormattedScheduleEvent {
   groupName: string;
 }
 
+export interface FormattedCertificate {
+  id: string;
+  studentName: string;
+  certificateNumber: string;
+  courseName: string;
+  groupCode: string;
+  issueDate: string;
+  status: 'issued' | 'revoked';
+  pdfFileUrl: string | null;
+  hasPassed: boolean;
+  attendancePercent: number | null;
+}
+
 // ============================================================================
 // КОНСТАНТЫ
 // ============================================================================
@@ -85,7 +98,8 @@ export const BOT_MESSAGES = {
 
 Ваша заявка одобрена! Вам доступны следующие команды:
 • /students — список слушателей вашей организации
-• /schedule — расписание занятий`,
+• /schedule — расписание занятий
+• /certificates — сертификаты слушателей`,
 
   STATUS_BLOCKED: (reason: string) => `🚫 *Статус: Заблокирован*
 
@@ -102,7 +116,8 @@ export const BOT_MESSAGES = {
 
 Теперь вам доступны команды:
 • /students — список слушателей вашей организации
-• /schedule — расписание занятий`,
+• /schedule — расписание занятий
+• /certificates — сертификаты слушателей`,
 
   NOTIFICATION_BLOCKED: (reason: string) => `❌ *Заявка отклонена*
 
@@ -146,9 +161,10 @@ export const BOT_MESSAGES = {
 /status — проверить статус заявки
 /students — список слушателей организации
 /schedule — расписание занятий
+/certificates — сертификаты слушателей
 /help — эта справка
 
-*Доступ к командам /students и /schedule* предоставляется после одобрения вашей заявки администратором.`,
+*Доступ к командам /students, /schedule и /certificates* предоставляется после одобрения вашей заявки администратором.`,
 
   // Пустые данные
   NO_STUDENTS: `📭 *Нет слушателей*
@@ -158,6 +174,28 @@ export const BOT_MESSAGES = {
   NO_SCHEDULE: `📭 *Нет занятий*
 
 В ближайшее время нет запланированных занятий для слушателей вашей организации.`,
+
+  NO_CERTIFICATES: `📭 *Нет сертификатов*
+
+В данный момент нет выданных сертификатов для слушателей вашей организации.`,
+
+  CERTIFICATES_HEADER: `📜 *Сертификаты слушателей вашей организации:*
+
+`,
+
+  CERTIFICATE_SENT: (studentName: string, certificateNumber: string) => 
+    `✅ Сертификат *${certificateNumber}* слушателя *${studentName}* отправлен.`,
+
+  CERTIFICATE_SEND_ERROR: (studentName: string) =>
+    `❌ Не удалось отправить сертификат слушателя *${studentName}*. Файл не найден.`,
+
+  CERTIFICATE_REQUEST_RECEIVED: `📥 *Запрос на сертификаты получен*
+
+Ваш запрос на получение сертификатов обрабатывается. Файлы будут отправлены в ближайшее время.`,
+
+  CERTIFICATE_SENDING_LIMIT: `⚠️ *Лимит отправки*
+
+Вы можете запросить отправку не более 10 сертификатов за раз. Для получения других сертификатов повторите команду.`,
 };
 
 // ============================================================================
@@ -317,6 +355,68 @@ export function formatSchedule(events: FormattedScheduleEvent[]): string {
       message += `👥 Группа: ${event.groupName}\n\n`;
     }
   }
+
+  return message;
+}
+
+/**
+ * Форматирование списка сертификатов
+ */
+export function formatCertificatesList(certificates: FormattedCertificate[]): string {
+  if (certificates.length === 0) {
+    return BOT_MESSAGES.NO_CERTIFICATES;
+  }
+
+  let message = BOT_MESSAGES.CERTIFICATES_HEADER;
+  let totalIssued = 0;
+  let totalRevoked = 0;
+
+  // Группируем по курсам
+  const byCourse = certificates.reduce((acc, cert) => {
+    const key = `${cert.courseName} (${cert.groupCode})`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(cert);
+    return acc;
+  }, {} as Record<string, FormattedCertificate[]>);
+
+  for (const [courseGroup, certs] of Object.entries(byCourse)) {
+    message += `📚 *${courseGroup}*\n`;
+    
+    for (const cert of certs) {
+      const statusIcon = cert.status === 'issued' ? '✅' : '❌';
+      const passedIcon = cert.hasPassed ? '🎓' : '⚠️';
+      const passedText = cert.hasPassed ? 'Прошёл обучение' : 'Не соответствует требованиям';
+      
+      message += `${statusIcon} *${cert.studentName}*\n`;
+      message += `   📜 № ${cert.certificateNumber}\n`;
+      message += `   📅 Выдан: ${cert.issueDate}\n`;
+      message += `   ${passedIcon} ${passedText}`;
+      
+      if (cert.attendancePercent !== null && cert.attendancePercent !== undefined) {
+        const percent = Number(cert.attendancePercent);
+        if (!isNaN(percent)) {
+          message += ` (посещ.: ${percent.toFixed(0)}%)`;
+        }
+      }
+      message += '\n';
+      
+      if (cert.status === 'revoked') {
+        message += `   ⛔ _Сертификат отозван_\n`;
+        totalRevoked++;
+      } else {
+        totalIssued++;
+      }
+      
+      message += '\n';
+    }
+  }
+
+  message += `━━━━━━━━━━━━━━━━━━\n`;
+  message += `*Итого:* ${certificates.length} сертификатов\n`;
+  message += `✅ Активных: ${totalIssued} | ❌ Отозвано: ${totalRevoked}\n\n`;
+  message += `_Для получения файла сертификата ответьте номером сертификата или используйте кнопки ниже._`;
 
   return message;
 }

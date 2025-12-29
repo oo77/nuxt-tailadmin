@@ -105,6 +105,7 @@
         @add-shape="handleAddShape"
         @set-layout="setLayout"
         @set-background="setBackground"
+        @apply-preset="handleApplyPreset"
         :current-layout="templateData.layout"
       />
       
@@ -131,6 +132,27 @@
         @toggle-lock="handleToggleLock"
       />
     </div>
+    
+    <!-- Модальное окно подтверждения применения пресета -->
+    <Teleport to="body">
+      <div v-if="showPresetConfirm" class="preset-confirm-overlay" @click.self="cancelPreset">
+        <div class="preset-confirm-modal">
+          <div class="modal-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 9v4"/>
+              <path d="M12 17h.01"/>
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            </svg>
+          </div>
+          <h3>Применить шаблон?</h3>
+          <p>Все текущие элементы будут заменены на элементы выбранного шаблона. Это действие нельзя отменить.</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" @click="cancelPreset">Отмена</button>
+            <button class="btn-confirm" @click="confirmPreset">Применить</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -144,6 +166,7 @@ import {
   createQRElement,
   createShapeElement,
 } from '~/composables/useCertificateEditor'
+import { preloadAllFonts } from '~/composables/useGoogleFonts'
 import type { 
   CertificateTemplateData, 
   TemplateElement,
@@ -151,7 +174,7 @@ import type {
   TemplateLayout,
   TemplateBackground,
   ShapeType,
-} from '~/server/types/certificate'
+} from '~/types/certificate'
 import EditorToolbar from './EditorToolbar.vue'
 import EditorCanvas from './EditorCanvas.vue'
 import EditorSidebar from './EditorSidebar.vue'
@@ -200,9 +223,16 @@ const {
   resetZoom,
 } = useCertificateEditor()
 
+// Состояние модального окна пресетов
+const showPresetConfirm = ref(false)
+const pendingPresetData = ref<CertificateTemplateData | null>(null)
+
 // Инициализация при монтировании
 onMounted(() => {
   initTemplate(props.initialData)
+  
+  // Предзагружаем все Google Fonts
+  preloadAllFonts()
   
   // Клавиатурные сочетания
   window.addEventListener('keydown', handleKeydown)
@@ -314,6 +344,31 @@ function handleToggleLock() {
   if (selectedElementId.value) {
     toggleLock(selectedElementId.value)
   }
+}
+
+function handleApplyPreset(presetData: CertificateTemplateData) {
+  // Если есть элементы — показываем модалку подтверждения
+  if (templateData.value.elements.length > 0) {
+    pendingPresetData.value = presetData
+    showPresetConfirm.value = true
+    return
+  }
+  
+  // Применяем пресет через initTemplate
+  initTemplate(presetData)
+}
+
+function confirmPreset() {
+  if (pendingPresetData.value) {
+    initTemplate(pendingPresetData.value)
+  }
+  showPresetConfirm.value = false
+  pendingPresetData.value = null
+}
+
+function cancelPreset() {
+  showPresetConfirm.value = false
+  pendingPresetData.value = null
 }
 </script>
 
@@ -556,5 +611,122 @@ function handleToggleLock() {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Модалка подтверждения пресета */
+.preset-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.preset-confirm-modal {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: modalSlideIn 0.2s ease;
+}
+
+:root.dark .preset-confirm-modal {
+  background: var(--color-gray-800);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.preset-confirm-modal .modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: #FEF3C7;
+  border-radius: 50%;
+  color: #D97706;
+  margin-bottom: 1rem;
+}
+
+:root.dark .preset-confirm-modal .modal-icon {
+  background: rgba(217, 119, 6, 0.2);
+}
+
+.preset-confirm-modal h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-gray-900);
+  margin: 0 0 0.5rem 0;
+}
+
+:root.dark .preset-confirm-modal h3 {
+  color: white;
+}
+
+.preset-confirm-modal p {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+:root.dark .preset-confirm-modal p {
+  color: var(--color-gray-400);
+}
+
+.preset-confirm-modal .modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.preset-confirm-modal .btn-cancel {
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 0.5rem;
+  color: var(--color-gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset-confirm-modal .btn-cancel:hover {
+  background: var(--color-gray-50);
+}
+
+:root.dark .preset-confirm-modal .btn-cancel {
+  border-color: var(--color-gray-600);
+  color: var(--color-gray-300);
+}
+
+.preset-confirm-modal .btn-confirm {
+  padding: 0.625rem 1.25rem;
+  background: #3B82F6;
+  border: none;
+  border-radius: 0.5rem;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset-confirm-modal .btn-confirm:hover {
+  background: #2563EB;
 }
 </style>

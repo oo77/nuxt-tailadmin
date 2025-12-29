@@ -6,6 +6,7 @@
 import { 
   getIssuedCertificatesByGroup,
   checkStudentEligibility,
+  getTemplateById,
 } from '../../../repositories/certificateTemplateRepository';
 import { getGroupById } from '../../../repositories/groupRepository';
 import type { CertificateJournalRow } from '../../../types/certificate';
@@ -29,6 +30,12 @@ export default defineEventHandler(async (event) => {
         statusCode: 404,
         message: 'Группа не найдена',
       });
+    }
+
+    // Получаем шаблон сертификата из курса
+    let template = null;
+    if (group.course?.certificateTemplateId) {
+      template = await getTemplateById(group.course.certificateTemplateId);
     }
 
     // Получаем выданные сертификаты
@@ -71,17 +78,22 @@ export default defineEventHandler(async (event) => {
     // Сортируем по ФИО
     journalRows.sort((a, b) => a.student.fullName.localeCompare(b.student.fullName, 'ru'));
 
-    console.log(`[GET /api/certificates/issue/${groupId}] Загружен журнал: ${journalRows.length} записей`);
+    console.log(`[GET /api/certificates/issue/${groupId}] Загружен журнал: ${journalRows.length} записей, шаблон: ${template?.name || 'не назначен'}`);
 
     return {
       success: true,
       group: {
         id: group.id,
         code: group.code,
-        course: group.course,
+        course: group.course ? {
+          ...group.course,
+          certificateTemplateId: group.course.certificateTemplateId,
+          certificateValidityMonths: group.course.certificateValidityMonths,
+        } : null,
         startDate: group.startDate,
         endDate: group.endDate,
       },
+      template,
       journal: journalRows,
       stats: {
         totalStudents: journalRows.length,

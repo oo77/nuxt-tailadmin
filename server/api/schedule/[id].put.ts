@@ -5,6 +5,7 @@
 
 import { updateScheduleEvent, checkScheduleConflicts, getScheduleEventById } from '../../repositories/scheduleRepository';
 import type { UpdateScheduleEventInput } from '../../repositories/scheduleRepository';
+import { checkInstructorHoursLimit } from '../../repositories/instructorRepository';
 import { executeQuery } from '../../utils/db';
 import { logActivity } from '../../utils/activityLogger';
 import { dateToLocalIso, dateToLocalIsoString, formatDateOnly, formatDateForDisplay } from '../../utils/timeUtils';
@@ -159,6 +160,43 @@ export default defineEventHandler(async (event) => {
             statusCode: 400,
             statusMessage: `Превышение лимита часов для ${typeNames[eventType]}! Осталось ${remainingHours} ч., запрашивается ${eventHours} ч.`,
           });
+        }
+      }
+    }
+
+    // ===============================
+    // ПРОВЕРКА ЛИМИТА ЧАСОВ ИНСТРУКТОРА
+    // ===============================
+
+    if (checkInstructor) {
+      // Вычисляем длительность занятия в минутах
+      const eventDurationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+      
+      // Если меняется инструктор или время — проверяем лимит
+      // При смене инструктора проверяем нового, иначе — только если изменилось время
+      const instructorChanged = body.instructorId !== undefined && body.instructorId !== existing.instructorId;
+      const timeChanged = body.startTime !== undefined || body.endTime !== undefined;
+      
+      if (instructorChanged || timeChanged) {
+        // Вычисляем старую длительность для учёта в лимите
+        const oldDurationMinutes = instructorChanged 
+          ? 0 // Новый инструктор не имел этих часов, проверяем полную длительность
+          : (existing.endTime.getTime() - existing.startTime.getTime()) / (1000 * 60);
+        
+        // При смене инструктора проверяем полную длительность, иначе только разницу (если увеличиваем)
+        const additionalMinutes = instructorChanged 
+          ? eventDurationMinutes 
+          : Math.max(0, eventDurationMinutes - oldDurationMinutes);
+        
+        if (additionalMinutes > 0) {
+          const hoursCheck = await checkInstructorHoursLimit(checkInstructor, additionalMinutes);
+          
+          if (!hoursCheck.canTake) {
+            throw createError({
+              statusCode: 400,
+              statusMessage: hoursCheck.message || 'Превышен лимит часов инструктора по договору',
+            });
+          }
         }
       }
     }

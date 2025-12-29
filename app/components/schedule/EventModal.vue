@@ -244,6 +244,23 @@
           </svg>
           <p class="text-xs text-warning">{{ hoursWarning }}</p>
         </div>
+        
+        <!-- Предупреждение о превышении лимита часов инструктора -->
+        <div v-if="instructorHoursWarning" class="mt-2 p-2 bg-danger/10 rounded-lg border border-danger/30 flex items-start gap-2">
+          <svg class="w-4 h-4 text-danger shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="text-xs text-danger font-medium">Лимит часов инструктора</p>
+            <p class="text-xs text-danger">{{ instructorHoursWarning }}</p>
+          </div>
+        </div>
+        
+        <!-- Индикатор проверки лимита часов -->
+        <div v-if="instructorHoursCheckLoading" class="mt-2 flex items-center gap-2 text-xs text-gray-500">
+          <div class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-solid border-primary border-r-transparent"></div>
+          <span>Проверка лимита часов инструктора...</span>
+        </div>
       </div>
 
       <!-- Описание (компактное) -->
@@ -278,7 +295,7 @@
           <UiButton variant="outline" @click="handleClose" :disabled="submitting">
             Отмена
           </UiButton>
-          <UiButton @click="handleSubmit" :disabled="submitting || !!hoursWarning">
+          <UiButton @click="handleSubmit" :disabled="submitting || !!hoursWarning || !!instructorHoursWarning">
             <span v-if="submitting" class="flex items-center gap-2">
               <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -440,6 +457,8 @@ const submitting = ref(false);
 const showDeleteConfirm = ref(false);
 const deleting = ref(false);
 const hoursWarning = ref<string | null>(null);
+const instructorHoursWarning = ref<string | null>(null);
+const instructorHoursCheckLoading = ref(false);
 
 // ===================
 // COMPUTED
@@ -716,6 +735,54 @@ const validateHours = () => {
       assessment: 'проверки знаний',
     };
     hoursWarning.value = `Превышение лимита часов! Для ${typeNames[eventType]} осталось ${remainingHours} ч., а запланировано ${plannedHours} ч.`;
+  }
+  
+  // Также проверяем лимит часов инструктора
+  validateInstructorHours();
+};
+
+// Проверка лимита часов инструктора по договору
+const validateInstructorHours = async () => {
+  instructorHoursWarning.value = null;
+  
+  // Если нет инструктора или продолжительности — пропускаем
+  if (!form.value.instructorId || computedDuration.value <= 0) {
+    return;
+  }
+  
+  // Вычисляем продолжительность в минутах (из академических часов)
+  // computedDuration возвращает академические часы (1 ак.ч = 45 мин)
+  const durationMinutes = computedDuration.value * 45;
+  
+  if (durationMinutes <= 0) return;
+  
+  instructorHoursCheckLoading.value = true;
+  
+  try {
+    const response = await authFetch<{
+      success: boolean;
+      canTake: boolean;
+      remainingHours: number;
+      requestedHours: number;
+      message?: string;
+      instructorName?: string;
+      maxHours?: number;
+    }>(`/api/instructors/${form.value.instructorId}/hours/check?minutes=${durationMinutes}`, {
+      method: 'GET',
+    });
+    
+    if (response.success && !response.canTake) {
+      // Если maxHours = 0, значит без ограничений
+      if (response.maxHours && response.maxHours > 0) {
+        instructorHoursWarning.value = response.message || 
+          `Превышен лимит часов инструктора! Доступно: ${response.remainingHours} ч., запрашивается: ${response.requestedHours} ч.`;
+      }
+    }
+  } catch (err: any) {
+    // Не блокируем на ошибку — просто пропускаем проверку
+    console.warn('Failed to check instructor hours limit:', err);
+  } finally {
+    instructorHoursCheckLoading.value = false;
   }
 };
 
@@ -1002,6 +1069,7 @@ const initForm = () => {
   timeMode.value = 'pairs';
   selectedPairs.value = [];
   hoursWarning.value = null;
+  instructorHoursWarning.value = null;
   errors.value = {};
 
   if (props.event) {

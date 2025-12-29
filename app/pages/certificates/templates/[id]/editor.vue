@@ -29,11 +29,15 @@
     
     <!-- Модальное окно предпросмотра -->
     <Teleport to="body">
-      <div v-if="showPreview" class="preview-modal" @click.self="showPreview = false">
+      <div v-if="showPreview" class="preview-modal" @click.self="closePreview">
         <div class="preview-content">
           <div class="preview-header">
             <h3>Предпросмотр сертификата</h3>
-            <button class="close-btn" @click="showPreview = false">
+            <div class="preview-info" v-if="previewData">
+              <span class="info-badge">{{ previewData.width }}×{{ previewData.height }}px</span>
+              <span class="info-badge">{{ previewData.elementsCount }} элементов</span>
+            </div>
+            <button class="close-btn" @click="closePreview">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6 6 18"/>
                 <path d="m6 6 12 12"/>
@@ -41,21 +45,71 @@
             </button>
           </div>
           <div class="preview-body">
-            <div ref="previewContainerRef" class="preview-certificate">
-              <!-- Здесь будет рендериться preview -->
-              <p class="preview-note">Предпросмотр генерируется...</p>
+            <div class="preview-loading" v-if="previewLoading">
+              <div class="loading-spinner"></div>
+              <p>Генерация предпросмотра...</p>
+            </div>
+            <div v-else-if="previewError" class="preview-error">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4"/>
+                <path d="M12 16h.01"/>
+              </svg>
+              <p>{{ previewError }}</p>
+            </div>
+            <div 
+              v-else-if="previewHtml" 
+              class="preview-certificate"
+              :style="{
+                width: `${(previewData?.width || 1123) * previewScale}px`,
+                height: `${(previewData?.height || 794) * previewScale}px`,
+              }"
+            >
+              <iframe
+                ref="previewIframeRef"
+                :srcdoc="previewHtml"
+                class="preview-iframe"
+                sandbox="allow-same-origin"
+              ></iframe>
+            </div>
+            <div v-else class="preview-empty">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+              </svg>
+              <p>Нажмите "Обновить" для генерации предпросмотра</p>
             </div>
           </div>
           <div class="preview-footer">
-            <button class="btn-secondary" @click="showPreview = false">Закрыть</button>
-            <button class="btn-primary" @click="generatePDF">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Скачать PDF
-            </button>
+            <div class="footer-left">
+              <span class="scale-label">Масштаб:</span>
+              <button 
+                class="scale-btn" 
+                :class="{ active: previewScale === 0.5 }"
+                @click="previewScale = 0.5"
+              >50%</button>
+              <button 
+                class="scale-btn" 
+                :class="{ active: previewScale === 0.75 }"
+                @click="previewScale = 0.75"
+              >75%</button>
+              <button 
+                class="scale-btn" 
+                :class="{ active: previewScale === 1 }"
+                @click="previewScale = 1"
+              >100%</button>
+            </div>
+            <div class="footer-right">
+              <button class="btn-refresh" @click="loadPreview" :disabled="previewLoading">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85.83 6.72 2.24"/>
+                  <path d="M21 3v6h-6"/>
+                </svg>
+                Обновить
+              </button>
+              <button class="btn-secondary" @click="closePreview">Закрыть</button>
+            </div>
           </div>
         </div>
       </div>
@@ -80,15 +134,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthFetch } from '~/composables/useAuthFetch'
-import type { CertificateTemplate, CertificateTemplateData } from '~/server/types/certificate'
+import type { CertificateTemplate, CertificateTemplateData } from '~/types/certificate'
 import CertificateEditor from '~/components/certificates/editor/CertificateEditor.vue'
 
 definePageMeta({
   layout: 'blank',
-  middleware: 'auth',
 })
 
 const route = useRoute()
@@ -100,9 +153,16 @@ const template = ref<CertificateTemplate | null>(null)
 const isLoading = ref(true)
 const isSaving = ref(false)
 const error = ref<string | null>(null)
-const showPreview = ref(false)
-const previewContainerRef = ref<HTMLElement | null>(null)
 const notification = ref<{ type: 'success' | 'error'; message: string } | null>(null)
+
+// Preview state
+const showPreview = ref(false)
+const previewLoading = ref(false)
+const previewError = ref<string | null>(null)
+const previewHtml = ref<string | null>(null)
+const previewData = ref<{ width: number; height: number; elementsCount: number } | null>(null)
+const previewScale = ref(0.75)
+const previewIframeRef = ref<HTMLIFrameElement | null>(null)
 
 // Загрузка шаблона
 async function loadTemplate() {
@@ -110,14 +170,14 @@ async function loadTemplate() {
   error.value = null
   
   try {
-    const response = await authFetch(`/api/certificates/templates/${templateId.value}`)
+    const response = await authFetch<{ success: boolean; template: CertificateTemplate }>(`/api/certificates/templates/${templateId.value}`)
     
-    if (!response.ok) {
+    if (response.success) {
+      template.value = response.template
+      console.log('[CertificateEditor] Шаблон загружен:', template.value?.name)
+    } else {
       throw new Error('Шаблон не найден')
     }
-    
-    template.value = await response.json()
-    console.log('[CertificateEditor] Шаблон загружен:', template.value?.name)
   } catch (e) {
     console.error('[CertificateEditor] Ошибка загрузки шаблона:', e)
     error.value = e instanceof Error ? e.message : 'Неизвестная ошибка'
@@ -131,26 +191,21 @@ async function handleSave(data: CertificateTemplateData) {
   isSaving.value = true
   
   try {
-    const response = await authFetch(`/api/certificates/templates/${templateId.value}`, {
+    const response = await authFetch<{ success: boolean; template: CertificateTemplate }>(`/api/certificates/templates/${templateId.value}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         templateData: data,
         layout: data.layout,
-      }),
+      },
     })
     
-    if (!response.ok) {
+    if (response.success) {
+      template.value = response.template
+      showNotification('success', 'Шаблон успешно сохранён')
+      console.log('[CertificateEditor] Шаблон сохранён')
+    } else {
       throw new Error('Ошибка сохранения')
     }
-    
-    const updated = await response.json()
-    template.value = updated
-    
-    showNotification('success', 'Шаблон успешно сохранён')
-    console.log('[CertificateEditor] Шаблон сохранён')
   } catch (e) {
     console.error('[CertificateEditor] Ошибка сохранения:', e)
     showNotification('error', 'Ошибка сохранения шаблона')
@@ -160,15 +215,54 @@ async function handleSave(data: CertificateTemplateData) {
 }
 
 // Предпросмотр
-function handlePreview() {
+async function handlePreview() {
   showPreview.value = true
-  // TODO: Рендеринг preview на сервере
+  await nextTick()
+  await loadPreview()
 }
 
-// Генерация PDF
-async function generatePDF() {
-  showNotification('success', 'Генерация PDF запущена...')
-  // TODO: Реализовать генерацию PDF
+// Загрузка preview с сервера
+async function loadPreview() {
+  previewLoading.value = true
+  previewError.value = null
+  
+  try {
+    const response = await authFetch<{
+      success: boolean;
+      hasTemplate: boolean;
+      preview?: {
+        html: string;
+        width: number;
+        height: number;
+        elementsCount: number;
+      };
+      message?: string;
+    }>(`/api/certificates/templates/${templateId.value}/preview`)
+    
+    if (response.success && response.hasTemplate && response.preview) {
+      previewHtml.value = response.preview.html
+      previewData.value = {
+        width: response.preview.width,
+        height: response.preview.height,
+        elementsCount: response.preview.elementsCount,
+      }
+    } else {
+      previewError.value = response.message || 'Шаблон не настроен'
+    }
+  } catch (e) {
+    console.error('[CertificateEditor] Ошибка загрузки preview:', e)
+    previewError.value = 'Ошибка генерации предпросмотра'
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+// Закрытие preview
+function closePreview() {
+  showPreview.value = false
+  previewHtml.value = null
+  previewData.value = null
+  previewError.value = null
 }
 
 // Показ уведомления
@@ -277,7 +371,7 @@ onMounted(() => {
 .preview-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -288,12 +382,12 @@ onMounted(() => {
 .preview-content {
   background: white;
   border-radius: 1rem;
-  width: 90vw;
-  max-width: 1000px;
-  max-height: 90vh;
+  width: 95vw;
+  max-width: 1200px;
+  max-height: 95vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
 }
 
 :root.dark .preview-content {
@@ -306,6 +400,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-gray-200);
+  gap: 1rem;
 }
 
 :root.dark .preview-header {
@@ -321,6 +416,26 @@ onMounted(() => {
 
 :root.dark .preview-header h3 {
   color: white;
+}
+
+.preview-info {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.info-badge {
+  padding: 0.25rem 0.75rem;
+  background: var(--color-gray-100);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-gray-600);
+}
+
+:root.dark .info-badge {
+  background: var(--color-gray-700);
+  color: var(--color-gray-400);
 }
 
 .close-btn {
@@ -355,37 +470,151 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 400px;
 }
 
 :root.dark .preview-body {
   background: var(--color-gray-900);
 }
 
-.preview-certificate {
-  background: white;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-  min-width: 400px;
-  min-height: 300px;
+.preview-loading,
+.preview-error,
+.preview-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  text-align: center;
 }
 
-.preview-note {
+.preview-loading p,
+.preview-error p,
+.preview-empty p {
   color: var(--color-gray-500);
   font-size: 0.875rem;
+  margin: 0;
+}
+
+.preview-error svg {
+  color: #F59E0B;
+}
+
+.preview-empty svg {
+  color: var(--color-gray-400);
+}
+
+.preview-certificate {
+  background: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  transform-origin: top left;
 }
 
 .preview-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--color-gray-200);
 }
 
 :root.dark .preview-footer {
   border-color: var(--color-gray-700);
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scale-label {
+  font-size: 0.8125rem;
+  color: var(--color-gray-500);
+  margin-right: 0.25rem;
+}
+
+.scale-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-200);
+  border-radius: 0.375rem;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.scale-btn:hover {
+  background: var(--color-gray-200);
+}
+
+.scale-btn.active {
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: white;
+}
+
+:root.dark .scale-btn {
+  background: var(--color-gray-700);
+  border-color: var(--color-gray-600);
+  color: var(--color-gray-400);
+}
+
+:root.dark .scale-btn:hover {
+  background: var(--color-gray-600);
+}
+
+:root.dark .scale-btn.active {
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: white;
+}
+
+.footer-right {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--color-gray-100);
+  border: 1px solid var(--color-gray-300);
+  border-radius: 0.5rem;
+  color: var(--color-gray-700);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: var(--color-gray-200);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:root.dark .btn-refresh {
+  background: var(--color-gray-700);
+  border-color: var(--color-gray-600);
+  color: var(--color-gray-300);
 }
 
 .btn-secondary {
@@ -410,24 +639,6 @@ onMounted(() => {
 
 :root.dark .btn-secondary:hover {
   background: var(--color-gray-700);
-}
-
-.btn-primary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
-  border: none;
-  border-radius: 0.5rem;
-  color: white;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #2563EB, #1D4ED8);
 }
 
 /* Уведомления */

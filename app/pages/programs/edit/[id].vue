@@ -118,6 +118,27 @@
             </select>
           </div>
 
+          <!-- Срок действия сертификата -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Срок действия сертификата
+            </label>
+            <div class="flex items-center gap-3">
+              <input
+                v-model.number="formData.certificateValidityMonths"
+                type="number"
+                min="1"
+                max="120"
+                placeholder="Не ограничен"
+                class="w-40 rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+              />
+              <span class="text-sm text-gray-500 dark:text-gray-400">месяцев</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Оставьте пустым для бессрочных сертификатов
+            </p>
+          </div>
+
           <!-- Статус -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -305,6 +326,7 @@ const formData = ref<{
   code: string;
   description?: string;
   certificateTemplateId?: string;
+  certificateValidityMonths?: number;
   isActive: boolean;
   disciplines: EditableDiscipline[];
 }>({
@@ -313,6 +335,7 @@ const formData = ref<{
   code: '',
   description: '',
   certificateTemplateId: undefined,
+  certificateValidityMonths: undefined,
   isActive: true,
   disciplines: [],
 });
@@ -360,6 +383,7 @@ const loadCourse = async () => {
         code: course.code,
         description: course.description || '',
         certificateTemplateId: course.certificateTemplateId,
+        certificateValidityMonths: course.certificateValidityMonths || undefined,
         isActive: course.isActive,
         disciplines: (course.disciplines || []).map((d: Discipline, index: number) => ({
           id: d.id,
@@ -500,6 +524,7 @@ const handleSubmit = async () => {
       code: formData.value.code,
       description: formData.value.description || null,
       certificateTemplateId: formData.value.certificateTemplateId || null,
+      certificateValidityMonths: formData.value.certificateValidityMonths || null,
       isActive: formData.value.isActive,
       disciplines: formData.value.disciplines.map((d, index) => ({
         id: d.id,

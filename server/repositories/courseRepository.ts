@@ -18,6 +18,7 @@ export interface Course {
   description?: string | null;
   totalHours: number;
   certificateTemplateId?: string | null;
+  certificateValidityMonths?: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -99,6 +100,7 @@ export interface CreateCourseInput {
   code: string;
   description?: string;
   certificateTemplateId?: string;
+  certificateValidityMonths?: number | null;
   isActive?: boolean;
   disciplines?: CreateDisciplineInput[];
 }
@@ -109,6 +111,7 @@ export interface UpdateCourseInput {
   code?: string;
   description?: string | null;
   certificateTemplateId?: string | null;
+  certificateValidityMonths?: number | null;
   isActive?: boolean;
 }
 
@@ -145,6 +148,7 @@ interface CourseRow extends RowDataPacket {
   description: string | null;
   total_hours: number;
   certificate_template_id: string | null;
+  certificate_validity_months: number | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -216,6 +220,7 @@ function mapRowToCourse(row: CourseRow): Course {
     description: row.description,
     totalHours: row.total_hours,
     certificateTemplateId: row.certificate_template_id,
+    certificateValidityMonths: row.certificate_validity_months,
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

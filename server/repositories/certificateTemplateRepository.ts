@@ -420,6 +420,7 @@ export async function createIssuedCertificate(
     templateId: string;
     certificateNumber: string;
     issueDate: Date;
+    expiryDate?: Date | null;
     variablesData?: Record<string, string>;
     warnings?: IssueWarning[];
     overrideWarnings?: boolean;
@@ -432,9 +433,9 @@ export async function createIssuedCertificate(
 
   await executeQuery<ResultSetHeader>(
     `INSERT INTO issued_certificates 
-     (id, group_id, student_id, template_id, certificate_number, issue_date,
+     (id, group_id, student_id, template_id, certificate_number, issue_date, expiry_date,
       status, variables_data, warnings, override_warnings, issued_by, issued_at, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.groupId,
@@ -442,6 +443,7 @@ export async function createIssuedCertificate(
       data.templateId,
       data.certificateNumber,
       data.issueDate,
+      data.expiryDate || null,
       data.variablesData ? JSON.stringify(data.variablesData) : null,
       data.warnings ? JSON.stringify(data.warnings) : null,
       data.overrideWarnings || false,
@@ -512,6 +514,63 @@ export async function deleteCertificate(id: string): Promise<boolean> {
   );
 
   return result.affectedRows > 0;
+}
+
+/**
+ * Переиздать сертификат (обновить существующий вместо создания нового)
+ * Используется для сертификатов со статусом 'draft' или 'revoked'
+ */
+export async function reissueCertificate(
+  existingCertId: string,
+  data: {
+    templateId: string;
+    certificateNumber: string;
+    issueDate: Date;
+    expiryDate?: Date | null;
+    variablesData?: Record<string, string>;
+    warnings?: IssueWarning[];
+    overrideWarnings?: boolean;
+    issuedBy?: string;
+    notes?: string;
+  }
+): Promise<IssuedCertificate> {
+  const now = new Date();
+
+  await executeQuery<ResultSetHeader>(
+    `UPDATE issued_certificates 
+     SET template_id = ?, 
+         certificate_number = ?, 
+         issue_date = ?, 
+         expiry_date = ?,
+         status = 'issued', 
+         variables_data = ?, 
+         warnings = ?, 
+         override_warnings = ?, 
+         issued_by = ?, 
+         issued_at = ?,
+         revoked_by = NULL,
+         revoked_at = NULL,
+         revoke_reason = NULL,
+         notes = ?, 
+         updated_at = ?
+     WHERE id = ?`,
+    [
+      data.templateId,
+      data.certificateNumber,
+      data.issueDate,
+      data.expiryDate || null,
+      data.variablesData ? JSON.stringify(data.variablesData) : null,
+      data.warnings ? JSON.stringify(data.warnings) : null,
+      data.overrideWarnings || false,
+      data.issuedBy || null,
+      now,
+      data.notes || null,
+      now,
+      existingCertId,
+    ]
+  );
+
+  return (await getIssuedCertificateById(existingCertId))!;
 }
 
 // ============================================================================

@@ -253,9 +253,26 @@
                       <span class="text-gray-500 dark:text-gray-400">Дата выдачи:</span>
                       <span class="ml-2 text-black dark:text-white">{{ formatDate(certificate.issueDate) }}</span>
                     </div>
+                    <!-- Срок действия с индикатором статуса -->
                     <div v-if="certificate.expiryDate">
                       <span class="text-gray-500 dark:text-gray-400">Срок действия:</span>
-                      <span class="ml-2 text-black dark:text-white">{{ formatDate(certificate.expiryDate) }}</span>
+                      <span 
+                        class="ml-2 font-medium"
+                        :class="getExpiryStatusClass(certificate.expiryDate)"
+                      >
+                        {{ formatDate(certificate.expiryDate) }}
+                        <span 
+                          v-if="getExpiryStatus(certificate.expiryDate) !== 'valid'" 
+                          class="ml-1 text-xs px-1.5 py-0.5 rounded-full"
+                          :class="getExpiryBadgeClass(certificate.expiryDate)"
+                        >
+                          {{ getExpiryLabel(certificate.expiryDate) }}
+                        </span>
+                      </span>
+                    </div>
+                    <div v-else>
+                      <span class="text-gray-500 dark:text-gray-400">Срок действия:</span>
+                      <span class="ml-2 text-success font-medium">Бессрочный</span>
                     </div>
                   </div>
                 </div>
@@ -474,6 +491,48 @@ const copyToClipboard = async (text: string) => {
     console.error('Ошибка копирования:', err);
   }
 };
+
+// Функции для срока годности сертификата
+const getExpiryStatus = (expiryDate: Date | string): 'expired' | 'expiring_soon' | 'valid' => {
+  const expiry = new Date(expiryDate);
+  const now = new Date();
+  const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (daysUntilExpiry < 0) return 'expired';
+  if (daysUntilExpiry <= 30) return 'expiring_soon';
+  return 'valid';
+};
+
+const getExpiryStatusClass = (expiryDate: Date | string): string => {
+  const status = getExpiryStatus(expiryDate);
+  switch (status) {
+    case 'expired': return 'text-danger';
+    case 'expiring_soon': return 'text-warning';
+    default: return 'text-black dark:text-white';
+  }
+};
+
+const getExpiryBadgeClass = (expiryDate: Date | string): string => {
+  const status = getExpiryStatus(expiryDate);
+  switch (status) {
+    case 'expired': return 'bg-danger/20 text-danger';
+    case 'expiring_soon': return 'bg-warning/20 text-warning';
+    default: return '';
+  }
+};
+
+const getExpiryLabel = (expiryDate: Date | string): string => {
+  const status = getExpiryStatus(expiryDate);
+  if (status === 'expired') return 'Истёк';
+  if (status === 'expiring_soon') {
+    const expiry = new Date(expiryDate);
+    const now = new Date();
+    const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `Истекает через ${daysUntilExpiry} дн.`;
+  }
+  return '';
+};
+
 
 // Загрузка данных при монтировании
 onMounted(() => {

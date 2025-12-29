@@ -13,6 +13,9 @@ import * as consolidatedSchema from './migrations/20251224_001_consolidated_sche
 import * as attendanceGrades from './migrations/20251225_020_attendance_grades';
 import * as certificateTemplatesExtended from './migrations/20251226_021_certificate_templates_extended';
 import * as certificateVisualEditor from './migrations/20251226_022_certificate_visual_editor';
+import * as certificateValidityAndPermissions from './migrations/20251229_023_certificate_validity_and_permissions';
+import * as telegramBotRequests from './migrations/20251229_024_telegram_bot_requests';
+import * as unifyCertificates from './migrations/20251229_025_unify_certificates';
 
 /**
  * ============================================================================
@@ -84,6 +87,33 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: certificateVisualEditor.up,
     down: certificateVisualEditor.down,
     description: certificateVisualEditor.description,
+  },
+  // ============================================================
+  // Миграция 023: Срок действия сертификатов и разрешения представителей
+  // ============================================================
+  {
+    name: '20251229_023_certificate_validity_and_permissions',
+    up: certificateValidityAndPermissions.up,
+    down: certificateValidityAndPermissions.down,
+    description: certificateValidityAndPermissions.description,
+  },
+  // ============================================================
+  // Миграция 024: Журнал запросов Telegram-бота
+  // ============================================================
+  {
+    name: '20251229_024_telegram_bot_requests',
+    up: telegramBotRequests.up,
+    down: telegramBotRequests.down,
+    description: telegramBotRequests.description,
+  },
+  // ============================================================
+  // Миграция 025: Объединение таблиц сертификатов
+  // ============================================================
+  {
+    name: '20251229_025_unify_certificates',
+    up: unifyCertificates.up,
+    down: unifyCertificates.down,
+    description: unifyCertificates.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

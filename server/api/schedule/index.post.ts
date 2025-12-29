@@ -5,6 +5,7 @@
 
 import { createScheduleEvent, checkScheduleConflicts } from '../../repositories/scheduleRepository';
 import type { CreateScheduleEventInput } from '../../repositories/scheduleRepository';
+import { checkInstructorHoursLimit } from '../../repositories/instructorRepository';
 import { executeQuery } from '../../utils/db';
 import { logActivity } from '../../utils/activityLogger';
 import { dateToLocalIso, formatDateOnly, formatDateForDisplay } from '../../utils/timeUtils';
@@ -155,6 +156,24 @@ export default defineEventHandler(async (event) => {
             statusMessage: `Превышение лимита часов для ${typeNames[eventType]}! Осталось ${remainingHours} ч., запрашивается ${newEventHours} ч.`,
           });
         }
+      }
+    }
+
+    // ===============================
+    // ПРОВЕРКА ЛИМИТА ЧАСОВ ИНСТРУКТОРА
+    // ===============================
+
+    if (body.instructorId) {
+      // Вычисляем длительность нового занятия в минутах
+      const eventDurationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+      
+      const hoursCheck = await checkInstructorHoursLimit(body.instructorId, eventDurationMinutes);
+      
+      if (!hoursCheck.canTake) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: hoursCheck.message || 'Превышен лимит часов инструктора по договору',
+        });
       }
     }
 

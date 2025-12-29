@@ -46,16 +46,24 @@ interface StudentRow extends RowDataPacket {
   updated_at: Date;
 }
 
+// Обновлённая структура для issued_certificates
 interface CertificateRow extends RowDataPacket {
   id: string;
   student_id: string;
-  course_name: string;
-  issue_date: Date;
+  group_id: string;
+  template_id: string;
   certificate_number: string;
-  file_url: string | null;
+  issue_date: Date;
   expiry_date: Date | null;
+  pdf_file_url: string | null;
+  docx_file_url: string | null;
+  status: 'draft' | 'issued' | 'revoked';
+  variables_data: string | null;
   created_at: Date;
   updated_at: Date;
+  // Joined fields
+  course_name?: string;
+  group_code?: string;
 }
 
 interface CountRow extends RowDataPacket {
@@ -81,14 +89,27 @@ function mapRowToStudent(row: StudentRow, certificates: StudentCertificate[] = [
 }
 
 function mapRowToCertificate(row: CertificateRow): StudentCertificate {
+  // Извлекаем название курса из variables_data или из JOIN
+  let courseName = row.course_name || '';
+  if (!courseName && row.variables_data) {
+    try {
+      const varsData = JSON.parse(row.variables_data);
+      courseName = varsData.courseName || varsData.course_name || '';
+    } catch {}
+  }
+  
   return {
     id: row.id,
     studentId: row.student_id,
-    courseName: row.course_name,
+    groupId: row.group_id,
+    templateId: row.template_id,
+    courseName,
+    groupCode: row.group_code || undefined,
     issueDate: row.issue_date,
     certificateNumber: row.certificate_number,
-    fileUrl: row.file_url,
+    fileUrl: row.pdf_file_url,
     expiryDate: row.expiry_date,
+    status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -99,11 +120,19 @@ function mapRowToCertificate(row: CertificateRow): StudentCertificate {
 // ============================================================================
 
 /**
- * Получить сертификаты студента
+ * Получить сертификаты студента из issued_certificates
+ * Включает только выданные (issued) сертификаты
  */
 async function getCertificatesByStudentId(studentId: string): Promise<StudentCertificate[]> {
   const rows = await executeQuery<CertificateRow[]>(
-    'SELECT * FROM certificates WHERE student_id = ? ORDER BY issue_date DESC',
+    `SELECT ic.*, 
+            c.name as course_name,
+            sg.code as group_code
+     FROM issued_certificates ic
+     LEFT JOIN study_groups sg ON ic.group_id = sg.id
+     LEFT JOIN courses c ON sg.course_id = c.id
+     WHERE ic.student_id = ? AND ic.status = 'issued'
+     ORDER BY ic.issue_date DESC`,
     [studentId]
   );
   return rows.map(mapRowToCertificate);
@@ -114,7 +143,13 @@ async function getCertificatesByStudentId(studentId: string): Promise<StudentCer
  */
 export async function getCertificateById(certificateId: string): Promise<StudentCertificate | null> {
   const rows = await executeQuery<CertificateRow[]>(
-    'SELECT * FROM certificates WHERE id = ? LIMIT 1',
+    `SELECT ic.*, 
+            c.name as course_name,
+            sg.code as group_code
+     FROM issued_certificates ic
+     LEFT JOIN study_groups sg ON ic.group_id = sg.id
+     LEFT JOIN courses c ON sg.course_id = c.id
+     WHERE ic.id = ? LIMIT 1`,
     [certificateId]
   );
   
@@ -127,6 +162,7 @@ export async function getCertificateById(certificateId: string): Promise<Student
 
 /**
  * Получить сертификаты для нескольких студентов
+ * Включает только выданные (issued) сертификаты
  */
 async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<string, StudentCertificate[]>> {
   if (studentIds.length === 0) {
@@ -135,7 +171,14 @@ async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<st
 
   const placeholders = studentIds.map(() => '?').join(', ');
   const rows = await executeQuery<CertificateRow[]>(
-    `SELECT * FROM certificates WHERE student_id IN (${placeholders}) ORDER BY issue_date DESC`,
+    `SELECT ic.*, 
+            c.name as course_name,
+            sg.code as group_code
+     FROM issued_certificates ic
+     LEFT JOIN study_groups sg ON ic.group_id = sg.id
+     LEFT JOIN courses c ON sg.course_id = c.id
+     WHERE ic.student_id IN (${placeholders}) AND ic.status = 'issued'
+     ORDER BY ic.issue_date DESC`,
     studentIds
   );
 
@@ -222,14 +265,14 @@ export async function getStudentsPaginated(params: PaginationParams = {}): Promi
     queryParams.push(`%${position}%`);
   }
 
-  // Фильтр по наличию сертификатов (подзапрос)
+  // Фильтр по наличию сертификатов (подзапрос) - используем issued_certificates
   if (hasCertificates) {
-    conditions.push('EXISTS (SELECT 1 FROM certificates c WHERE c.student_id = students.id)');
+    conditions.push(`EXISTS (SELECT 1 FROM issued_certificates ic WHERE ic.student_id = students.id AND ic.status = 'issued')`);
   }
 
   // Фильтр по отсутствию сертификатов (подзапрос)
   if (noCertificates) {
-    conditions.push('NOT EXISTS (SELECT 1 FROM certificates c WHERE c.student_id = students.id)');
+    conditions.push(`NOT EXISTS (SELECT 1 FROM issued_certificates ic WHERE ic.student_id = students.id AND ic.status = 'issued')`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -405,58 +448,21 @@ export async function deleteStudent(id: string): Promise<boolean> {
 // ============================================================================
 // СЕРТИФИКАТЫ - ПУБЛИЧНЫЕ ОПЕРАЦИИ
 // ============================================================================
+// 
+// ВАЖНО: Управление сертификатами теперь осуществляется через единую таблицу 
+// issued_certificates и функции из certificateTemplateRepository:
+//
+// - createIssuedCertificate() - создание сертификата
+// - reissueCertificate() - переиздание сертификата  
+// - revokeCertificate() - отзыв сертификата
+// - deleteCertificate() - удаление черновика
+// - getIssuedCertificatesByGroup() - сертификаты группы
+// - getStudentCertificateInGroup() - сертификат студента в группе
+//
+// Для получения сертификатов студента используйте getCertificatesByStudentId()
+// которая уже читает из issued_certificates.
+// ============================================================================
 
-/**
- * Добавить сертификат студенту
- */
-export async function addCertificateToStudent(
-  studentId: string,
-  data: {
-    courseName: string;
-    issueDate: Date | string;
-    certificateNumber: string;
-    fileUrl?: string | null;
-    expiryDate?: Date | string | null;
-  }
-): Promise<StudentCertificate | null> {
-  // Проверяем существование студента
-  const student = await getStudentById(studentId);
-  if (!student) {
-    return null;
-  }
-
-  const id = `cert-${uuidv4()}`;
-  const now = new Date();
-  const issueDate = data.issueDate instanceof Date ? data.issueDate : new Date(data.issueDate);
-  const expiryDate = data.expiryDate 
-    ? (data.expiryDate instanceof Date ? data.expiryDate : new Date(data.expiryDate))
-    : null;
-
-  await executeQuery(
-    `INSERT INTO certificates (id, student_id, course_name, issue_date, certificate_number, file_url, expiry_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, studentId, data.courseName, issueDate, data.certificateNumber, data.fileUrl || null, expiryDate, now, now]
-  );
-
-  const rows = await executeQuery<CertificateRow[]>(
-    'SELECT * FROM certificates WHERE id = ?',
-    [id]
-  );
-
-  return rows.length > 0 ? mapRowToCertificate(rows[0]) : null;
-}
-
-/**
- * Удалить сертификат
- */
-export async function deleteCertificate(certificateId: string): Promise<boolean> {
-  const result = await executeQuery<ResultSetHeader>(
-    'DELETE FROM certificates WHERE id = ?',
-    [certificateId]
-  );
-
-  return result.affectedRows > 0;
-}
 
 // ============================================================================
 // BATCH ОПЕРАЦИИ (для импорта)

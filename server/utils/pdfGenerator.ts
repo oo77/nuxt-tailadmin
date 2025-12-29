@@ -531,7 +531,6 @@ export async function generateCertificatePdfBuffer(
 
 export {
   getShortName,
-  formatDate,
   formatDateFormatted,
   generateCertificateHtml,
 };

@@ -32,27 +32,55 @@
             </p>
           </div>
 
-          <!-- Выбор шаблона и массовая выдача -->
-          <div class="flex items-center gap-3">
-            <select
-              v-model="selectedTemplateId"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-gray-900 dark:text-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">— Шаблон сертификата —</option>
-              <option v-for="tpl in templates" :key="tpl.id" :value="tpl.id">
-                {{ tpl.name }}
-              </option>
-            </select>
-            <UiButton 
-              @click="issueToSelected" 
-              :disabled="!selectedTemplateId || selectedStudentIds.length === 0"
-              :loading="isIssuing"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <!-- Настройки выдачи -->
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Информация о шаблоне -->
+            <div v-if="template" class="flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-lg">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Выдать ({{ selectedStudentIds.length }})
-            </UiButton>
+              <span class="text-sm font-medium">{{ template.name }}</span>
+            </div>
+            
+            <!-- Предупреждение если нет шаблона -->
+            <div v-else class="flex items-center gap-2 px-3 py-2 bg-warning/10 text-warning rounded-lg">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span class="text-sm font-medium">Шаблон не назначен для курса</span>
+              <NuxtLink 
+                :to="`/courses/${group.course?.id}`" 
+                class="text-xs underline hover:no-underline"
+              >
+                Настроить
+              </NuxtLink>
+            </div>
+
+            <!-- Дата выдачи -->
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Дата выдачи:</label>
+              <input
+                v-model="issueDate"
+                type="date"
+                class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <!-- Срок действия (показываем только информацию из курса) -->
+            <div v-if="group.course?.certificateValidityMonths" class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="text-sm text-gray-600 dark:text-gray-400">
+                Срок: {{ group.course.certificateValidityMonths }} мес.
+              </span>
+            </div>
+            <div v-else class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="text-sm text-gray-600 dark:text-gray-400">Бессрочный</span>
+            </div>
           </div>
         </div>
 
@@ -78,6 +106,33 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">Отозвано</p>
             <p class="text-2xl font-bold text-danger">{{ stats.revoked }}</p>
           </div>
+        </div>
+
+        <!-- Кнопки массовых действий -->
+        <div class="flex flex-wrap gap-3 mt-6">
+          <!-- Выдать всем допущенным -->
+          <UiButton 
+            @click="openBulkIssueModal('eligible')" 
+            :disabled="!template || eligibleWithoutCertificate === 0 || isIssuing"
+            variant="primary"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+            Выдать всем допущенным ({{ eligibleWithoutCertificate }})
+          </UiButton>
+          
+          <!-- Выдать выбранным -->
+          <UiButton 
+            @click="openBulkIssueModal('selected')" 
+            :disabled="!template || selectedStudentIds.length === 0 || isIssuing"
+            variant="outline"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Выдать выбранным ({{ selectedStudentIds.length }})
+          </UiButton>
         </div>
       </div>
 
@@ -240,11 +295,16 @@
                     <button
                       v-if="!row.certificate || row.certificate.status !== 'issued'"
                       @click="issueSingle(row)"
-                      :disabled="!selectedTemplateId"
+                      :disabled="!template || isIssuing || issuingStudentId === row.student.id"
                       class="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Выдать сертификат"
                     >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <!-- Спиннер при выдаче этому студенту -->
+                      <svg v-if="issuingStudentId === row.student.id" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
@@ -266,11 +326,22 @@
       @confirm="handleIssueWithWarnings"
     />
 
-    <!-- Модалка результатов -->
+    <!-- Модалка результатов (для одиночной выдачи) -->
     <CertificatesResultsModal
       :is-open="resultsModalOpen"
       :results="issueResults"
       @close="resultsModalOpen = false"
+    />
+
+    <!-- Модалка массовой выдачи с прогресс-баром -->
+    <CertificatesBulkIssueModal
+      ref="bulkIssueModalRef"
+      :is-open="bulkIssueModalOpen"
+      :students-count="bulkIssueStudentIds.length"
+      :template-name="template?.name || ''"
+      @close="bulkIssueModalOpen = false"
+      @confirm="executeBulkIssue"
+      @complete="handleBulkIssueComplete"
     />
   </div>
 </template>
@@ -307,17 +378,26 @@ const stats = ref({
   revoked: 0,
 });
 
-// Templates
-const templates = ref<CertificateTemplate[]>([]);
-const selectedTemplateId = ref('');
+// Template (теперь берётся из курса)
+const template = ref<CertificateTemplate | null>(null);
+
+// Issue settings
+const issueDate = ref(new Date().toISOString().split('T')[0]); // Сегодняшняя дата
 
 // Selection
 const selectedStudentIds = ref<string[]>([]);
 
 // Issue state
 const isIssuing = ref(false);
+const issuingStudentId = ref<string | null>(null);
 const issueResults = ref<IssueCertificatesResponse['results']>([]);
 const resultsModalOpen = ref(false);
+
+// Bulk issue modal
+const bulkIssueModalOpen = ref(false);
+const bulkIssueModalRef = ref<any>(null);
+const bulkIssueStudentIds = ref<string[]>([]);
+const bulkIssueMode = ref<'eligible' | 'selected'>('eligible');
 
 // Warnings modal
 const warningsModalOpen = ref(false);
@@ -343,6 +423,14 @@ const isPartialSelected = computed(() => {
   return selectedStudentIds.value.length > 0;
 });
 
+// Количество допущенных без сертификата
+const eligibleWithoutCertificate = computed(() => {
+  return journal.value.filter(r => 
+    r.eligibility.isEligible && 
+    r.certificate?.status !== 'issued'
+  ).length;
+});
+
 // Title
 useHead(() => ({
   title: group.value 
@@ -354,23 +442,13 @@ useHead(() => ({
 const loadData = async () => {
   loading.value = true;
   try {
-    const [journalRes, templatesRes] = await Promise.all([
-      authFetch<CertificateJournalResponse>(`/api/certificates/issue/${groupId.value}`),
-      authFetch<{ success: boolean; templates: CertificateTemplate[] }>('/api/certificates/templates?isActive=true'),
-    ]);
+    const journalRes = await authFetch<CertificateJournalResponse>(`/api/certificates/issue/${groupId.value}`);
 
     if (journalRes.success) {
       group.value = journalRes.group;
       journal.value = journalRes.journal;
       stats.value = journalRes.stats;
-    }
-
-    if (templatesRes.success) {
-      templates.value = templatesRes.templates;
-      // Автовыбор если один шаблон
-      if (templatesRes.templates.length === 1) {
-        selectedTemplateId.value = templatesRes.templates[0].id;
-      }
+      template.value = journalRes.template;
     }
   } catch (e: any) {
     console.error('Error loading data:', e);
@@ -416,8 +494,10 @@ const showWarnings = (row: CertificateJournalRow) => {
 
 // Issue single
 const issueSingle = (row: CertificateJournalRow) => {
-  if (!selectedTemplateId.value) {
-    showError('Выберите шаблон сертификата');
+  if (isIssuing.value || issuingStudentId.value) return;
+
+  if (!template.value) {
+    showError('Шаблон сертификата не назначен для курса');
     return;
   }
 
@@ -429,45 +509,150 @@ const issueSingle = (row: CertificateJournalRow) => {
     return;
   }
 
+  issuingStudentId.value = row.student.id;
   issueToStudents([row.student.id], false);
 };
 
 // Issue with warnings
 const handleIssueWithWarnings = () => {
+  if (isIssuing.value || issuingStudentId.value) return;
+
   if (pendingIssueStudentId.value) {
+    issuingStudentId.value = pendingIssueStudentId.value;
     issueToStudents([pendingIssueStudentId.value], true);
   }
   warningsModalOpen.value = false;
 };
 
-// Issue to selected
-const issueToSelected = () => {
-  if (!selectedTemplateId.value) {
-    showError('Выберите шаблон сертификата');
+// Открыть модалку массовой выдачи
+const openBulkIssueModal = (mode: 'eligible' | 'selected') => {
+  // Защита от открытия во время обработки
+  if (isIssuing.value) {
+    console.warn('[Certificates] Выдача уже выполняется');
     return;
   }
 
-  if (selectedStudentIds.value.length === 0) {
-    showError('Выберите слушателей');
+  if (!template.value) {
+    showError('Шаблон сертификата не назначен для курса');
     return;
   }
 
-  // Check for warnings
-  const withWarnings = journal.value
-    .filter(r => selectedStudentIds.value.includes(r.student.id) && !r.eligibility.isEligible);
+  bulkIssueMode.value = mode;
+  
+  if (mode === 'eligible') {
+    // Все допущенные без сертификата
+    bulkIssueStudentIds.value = journal.value
+      .filter(r => r.eligibility.isEligible && r.certificate?.status !== 'issued')
+      .map(r => r.student.id);
+  } else {
+    // Выбранные
+    bulkIssueStudentIds.value = [...selectedStudentIds.value];
+  }
 
-  if (withWarnings.length > 0) {
-    selectedStudent.value = null;
-    selectedWarnings.value = withWarnings.flatMap(r => r.eligibility.warnings);
-    pendingIssueStudentId.value = null;
-    warningsModalOpen.value = true;
+  if (bulkIssueStudentIds.value.length === 0) {
+    showError('Нет студентов для выдачи сертификатов');
     return;
   }
 
-  issueToStudents(selectedStudentIds.value, false);
+  bulkIssueModalOpen.value = true;
 };
 
-// Issue to students
+// Выполнить массовую выдачу с прогрессом
+const executeBulkIssue = async () => {
+  // Защита от двойного вызова
+  if (isIssuing.value) {
+    console.warn('[Certificates] executeBulkIssue уже выполняется, пропускаем');
+    return;
+  }
+  
+  if (!template.value || !bulkIssueModalRef.value) return;
+
+  isIssuing.value = true;
+  bulkIssueModalRef.value.startProcessing();
+
+  const results: IssueCertificatesResponse['results'] = [];
+  const processedStudentIds = new Set<string>(); // Защита от дублирования
+  
+  // Получаем данные студентов для отображения имён
+  const studentRows = journal.value.filter(r => 
+    bulkIssueStudentIds.value.includes(r.student.id)
+  );
+
+  console.log(`[Certificates] Начинаем массовую выдачу: ${studentRows.length} студентов`);
+
+  for (let i = 0; i < studentRows.length; i++) {
+    const row = studentRows[i];
+    
+    // Пропускаем если уже обработали этого студента
+    if (processedStudentIds.has(row.student.id)) {
+      console.warn(`[Certificates] Студент ${row.student.fullName} уже обработан, пропускаем`);
+      continue;
+    }
+    
+    processedStudentIds.add(row.student.id);
+    
+    // Обновляем прогресс
+    bulkIssueModalRef.value.updateProgress(row.student.fullName, i + 1);
+
+    try {
+      const response = await authFetch<IssueCertificatesResponse>(
+        `/api/certificates/issue/${groupId.value}`,
+        {
+          method: 'POST',
+          body: {
+            templateId: template.value.id,
+            studentIds: [row.student.id],
+            issueDate: issueDate.value,
+            expiryMode: group.value?.course?.certificateValidityMonths ? 'auto' : 'none',
+            overrideWarnings: !row.eligibility.isEligible,
+          },
+        }
+      );
+
+      if (response.success && response.results.length > 0) {
+        const result = response.results[0];
+        results.push(result);
+        bulkIssueModalRef.value.addResult(result);
+      }
+    } catch (e: any) {
+      console.error(`Error issuing certificate for ${row.student.fullName}:`, e);
+      const errorResult = {
+        studentId: row.student.id,
+        studentName: row.student.fullName,
+        success: false,
+        error: e.data?.message || e.message || 'Ошибка выдачи',
+      };
+      results.push(errorResult);
+      bulkIssueModalRef.value.addResult(errorResult);
+    }
+
+    // Небольшая задержка между запросами для снижения нагрузки
+    if (i < studentRows.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  // Завершаем обработку
+  bulkIssueModalRef.value.completeProcessing(results);
+  isIssuing.value = false;
+};
+
+// Обработка завершения массовой выдачи
+const handleBulkIssueComplete = async (results: IssueCertificatesResponse['results']) => {
+  const successCount = results.filter(r => r.success).length;
+  
+  // Clear selection
+  selectedStudentIds.value = [];
+  
+  // Reload data
+  await loadData();
+  
+  if (successCount > 0) {
+    showSuccess(`Выдано ${successCount} сертификатов`);
+  }
+};
+
+// Issue to students (для одиночной выдачи)
 const issueToStudents = async (studentIds: string[], overrideWarnings: boolean) => {
   isIssuing.value = true;
   try {
@@ -476,8 +661,10 @@ const issueToStudents = async (studentIds: string[], overrideWarnings: boolean) 
       {
         method: 'POST',
         body: {
-          templateId: selectedTemplateId.value,
+          templateId: template.value!.id,
           studentIds,
+          issueDate: issueDate.value,
+          expiryMode: group.value?.course?.certificateValidityMonths ? 'auto' : 'none',
           overrideWarnings,
         },
       }
@@ -486,9 +673,6 @@ const issueToStudents = async (studentIds: string[], overrideWarnings: boolean) 
     if (response.success) {
       issueResults.value = response.results;
       resultsModalOpen.value = true;
-      
-      // Clear selection
-      selectedStudentIds.value = [];
       
       // Reload data
       await loadData();
@@ -500,6 +684,7 @@ const issueToStudents = async (studentIds: string[], overrideWarnings: boolean) 
     showError(e.data?.message || e.message || 'Ошибка выдачи сертификатов');
   } finally {
     isIssuing.value = false;
+    issuingStudentId.value = null;
   }
 };
 

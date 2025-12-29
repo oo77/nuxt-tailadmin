@@ -1,11 +1,16 @@
 /**
  * GET /api/certificates/templates/[id]/preview
- * Получить предпросмотр шаблона (первую страницу)
+ * Получить предпросмотр шаблона с тестовыми данными
+ * 
+ * Возвращает HTML для отображения preview шаблона
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { getTemplateById } from '../../../../repositories/certificateTemplateRepository';
+import {
+  generateCertificateHtml,
+  type VariableContext,
+} from '../../../../utils/pdfGenerator';
+import type { CertificateTemplateData } from '../../../../types/certificate';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -27,34 +32,66 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    if (!template.originalFileUrl) {
-      throw createError({
-        statusCode: 404,
-        message: 'Файл шаблона не загружен',
-      });
+    // Проверяем наличие данных визуального редактора
+    if (!template.templateData) {
+      return {
+        success: false,
+        message: 'Шаблон не настроен. Откройте визуальный редактор.',
+        hasTemplate: false,
+      };
     }
 
-    // Формируем путь к файлу
-    const filePath = path.join(process.cwd(), template.originalFileUrl);
+    const templateData = template.templateData as CertificateTemplateData;
 
-    if (!fs.existsSync(filePath)) {
-      throw createError({
-        statusCode: 404,
-        message: 'Файл шаблона не найден на диске',
-      });
-    }
+    // Тестовые данные для preview
+    const testContext: VariableContext = {
+      student: {
+        id: 'test-student-id',
+        fullName: 'Иванов Иван Иванович',
+        organization: 'ООО "Тестовая компания"',
+        position: 'Инженер-программист',
+        department: 'IT-отдел',
+        pinfl: '12345678901234',
+      },
+      course: {
+        id: 'test-course-id',
+        name: 'Повышение квалификации в области информационных технологий',
+        shortName: 'ИТ-специалист',
+        code: 'IT-2024',
+        totalHours: 72,
+      },
+      group: {
+        id: 'test-group-id',
+        code: 'ПК-2024-001',
+        startDate: new Date('2024-12-01'),
+        endDate: new Date('2024-12-15'),
+        classroom: 'Аудитория 301',
+      },
+      certificate: {
+        number: 'ATC24_IT_0001',
+        issueDate: new Date(),
+        verificationUrl: 'https://atc.uz/verify/ATC24_IT_0001',
+      },
+    };
 
-    // Для предпросмотра возвращаем информацию о файле
-    const stats = fs.statSync(filePath);
+    // Генерируем HTML
+    const html = await generateCertificateHtml(templateData, testContext);
 
     return {
       success: true,
+      hasTemplate: true,
       preview: {
-        fileUrl: template.originalFileUrl,
-        fileName: path.basename(filePath),
-        fileSize: stats.size,
-        variables: template.variables || [],
-        qrSettings: template.qrSettings,
+        html,
+        width: templateData.width,
+        height: templateData.height,
+        layout: templateData.layout,
+        elementsCount: templateData.elements.length,
+      },
+      template: {
+        id: template.id,
+        name: template.name,
+        layout: template.layout,
+        lastNumber: template.lastNumber,
       },
     };
   } catch (error: any) {

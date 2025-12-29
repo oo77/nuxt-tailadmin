@@ -3,12 +3,14 @@
  * DELETE /api/certificates/:id
  * 
  * Удаляет сертификат и связанный файл (если есть)
+ * ВАЖНО: Можно удалять только черновики. Выданные сертификаты нужно отзывать.
  */
 
-import { deleteCertificate, getCertificateById } from '../../repositories/studentRepository';
+import { deleteCertificate, getIssuedCertificateById } from '../../repositories/certificateTemplateRepository';
 import { deleteFile, getFileByUuid } from '../../repositories/fileRepository';
 import { storage } from '../../utils/storage';
 import { logActivity } from '../../utils/activityLogger';
+
 
 export default defineEventHandler(async (event) => {
   try {
@@ -22,7 +24,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Получаем сертификат для получения file_url и названия
-    const certificate = await getCertificateById(id);
+    const certificate = await getIssuedCertificateById(id);
     
     if (!certificate) {
       return {
@@ -31,12 +33,15 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    // Извлекаем название курса из variablesData
+    const courseName = certificate.variablesData?.courseName || 'Неизвестный курс';
+
     // Если есть file_url, пытаемся удалить файл
-    if (certificate.fileUrl) {
+    if (certificate.pdfFileUrl) {
       try {
         // Извлекаем UUID файла из URL
         // URL может быть в формате: /api/files/{uuid} или просто {uuid}
-        const fileUrl = certificate.fileUrl;
+        const fileUrl = certificate.pdfFileUrl;
         let fileUuid: string | null = null;
 
         // Паттерн для извлечения UUID
@@ -82,9 +87,9 @@ export default defineEventHandler(async (event) => {
     await logActivity(
       event,
       'DELETE',
-      'CERTIFICATE',
+      'ISSUED_CERTIFICATE',
       id,
-      certificate.courseName,
+      courseName,
       {
         certificateNumber: certificate.certificateNumber,
         studentId: certificate.studentId,

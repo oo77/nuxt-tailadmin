@@ -12,6 +12,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 export type RepresentativeStatus = 'pending' | 'approved' | 'blocked';
 
+/**
+ * Разрешения представителя организации
+ */
+export interface RepresentativePermissions {
+  /** Может просматривать список слушателей */
+  can_view_students: boolean;
+  /** Может просматривать расписание */
+  can_view_schedule: boolean;
+  /** Может просматривать сертификаты */
+  can_view_certificates: boolean;
+  /** Может запрашивать файлы сертификатов */
+  can_request_certificates: boolean;
+}
+
 export interface Representative {
   id: string;
   organizationId: string;
@@ -22,7 +36,9 @@ export interface Representative {
   telegramUsername: string | null;
   status: RepresentativeStatus;
   accessGroups: string[] | null;
+  permissions: RepresentativePermissions;
   notificationsEnabled: boolean;
+  canReceiveNotifications: boolean;
   lastActivityAt: Date | null;
   approvedBy: string | null;
   approvedByName?: string;
@@ -45,6 +61,8 @@ export interface UpdateRepresentativeInput {
   phone?: string;
   accessGroups?: string[] | null;
   notificationsEnabled?: boolean;
+  canReceiveNotifications?: boolean;
+  permissions?: Partial<RepresentativePermissions>;
 }
 
 export interface RepresentativePaginationParams {
@@ -84,7 +102,9 @@ interface RepresentativeRow extends RowDataPacket {
   telegram_username: string | null;
   status: RepresentativeStatus;
   access_groups: string | null;
+  permissions: string | null;
   notifications_enabled: number;
+  can_receive_notifications: number;
   last_activity_at: Date | null;
   approved_by: string | null;
   approved_by_name?: string;
@@ -102,6 +122,13 @@ interface CountRow extends RowDataPacket {
 // МАППИНГ
 // ============================================================================
 
+const DEFAULT_PERMISSIONS: RepresentativePermissions = {
+  can_view_students: true,
+  can_view_schedule: true,
+  can_view_certificates: true,
+  can_request_certificates: true,
+};
+
 function mapRowToRepresentative(row: RepresentativeRow): Representative {
   let accessGroups: string[] | null = null;
   if (row.access_groups) {
@@ -109,6 +136,21 @@ function mapRowToRepresentative(row: RepresentativeRow): Representative {
       accessGroups = JSON.parse(row.access_groups);
     } catch {
       accessGroups = null;
+    }
+  }
+
+  let permissions: RepresentativePermissions = { ...DEFAULT_PERMISSIONS };
+  if (row.permissions) {
+    try {
+      const parsed = JSON.parse(row.permissions);
+      permissions = {
+        can_view_students: parsed.can_view_students ?? true,
+        can_view_schedule: parsed.can_view_schedule ?? true,
+        can_view_certificates: parsed.can_view_certificates ?? true,
+        can_request_certificates: parsed.can_request_certificates ?? true,
+      };
+    } catch {
+      permissions = { ...DEFAULT_PERMISSIONS };
     }
   }
 
@@ -122,7 +164,9 @@ function mapRowToRepresentative(row: RepresentativeRow): Representative {
     telegramUsername: row.telegram_username,
     status: row.status,
     accessGroups,
+    permissions,
     notificationsEnabled: Boolean(row.notifications_enabled),
+    canReceiveNotifications: Boolean(row.can_receive_notifications ?? true),
     lastActivityAt: row.last_activity_at,
     approvedBy: row.approved_by,
     approvedByName: row.approved_by_name,
@@ -348,6 +392,16 @@ export async function updateRepresentative(
   if (data.notificationsEnabled !== undefined) {
     updates.push('notifications_enabled = ?');
     params.push(data.notificationsEnabled ? 1 : 0);
+  }
+
+  if (data.canReceiveNotifications !== undefined) {
+    updates.push('can_receive_notifications = ?');
+    params.push(data.canReceiveNotifications ? 1 : 0);
+  }
+
+  if (data.permissions !== undefined) {
+    updates.push('permissions = ?');
+    params.push(JSON.stringify(data.permissions));
   }
 
   params.push(id);

@@ -90,6 +90,7 @@ export interface Course {
   totalHours: number;
   certificateTemplateId?: string;
   certificateTemplate?: CertificateTemplate;
+  certificateValidityMonths?: number; // Срок действия сертификата в месяцах
   isActive: boolean;
   disciplines?: Discipline[];
   disciplineCount?: number;
@@ -103,6 +104,7 @@ export interface CreateCourseData {
   code: string;
   description?: string;
   certificateTemplateId?: string;
+  certificateValidityMonths?: number; // Срок действия сертификата в месяцах
   isActive?: boolean;
   disciplines?: CreateDisciplineData[];
 }

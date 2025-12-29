@@ -96,8 +96,60 @@
         </NuxtLink>
       </div>
 
+      <!-- Панель массовых операций -->
+      <div v-if="columns.length > 0" class="rounded-xl bg-white dark:bg-boxdark shadow-md p-4 mb-4">
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex-1">
+            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Массовые операции</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Выберите занятие для массовой отметки посещаемости или оценки
+            </p>
+          </div>
+          
+          <!-- Выбор занятия -->
+          <select 
+            v-model="selectedEventId"
+            class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <option value="">— Выберите занятие —</option>
+            <option v-for="col in columns" :key="col.scheduleEvent.id" :value="col.scheduleEvent.id">
+              {{ formatColumnDate(col.scheduleEvent.date) }} {{ formatTimeRange(col.scheduleEvent.startTime, col.scheduleEvent.endTime) }}
+              {{ col.hasGrade ? '(с оценкой)' : '' }}
+            </option>
+          </select>
+          
+          <!-- Кнопки действий -->
+          <div class="flex gap-2">
+            <UiButton 
+              variant="primary" 
+              size="sm"
+              :disabled="!selectedEventId"
+              @click="openBulkAttendanceModal"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Отметить всех
+            </UiButton>
+            
+            <UiButton 
+              v-if="selectedEvent?.hasGrade"
+              variant="outline" 
+              size="sm"
+              :disabled="!selectedEventId"
+              @click="openBulkGradeModal"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Оценка всем
+            </UiButton>
+          </div>
+        </div>
+      </div>
+
       <!-- Таблица журнала -->
-      <div v-else class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
+      <div v-if="columns.length > 0" class="rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full min-w-max">
             <thead>
@@ -219,6 +271,138 @@
         </div>
       </div>
     </template>
+
+    <!-- Модальное окно массовой отметки посещаемости -->
+    <UiModal 
+      :is-open="showBulkAttendanceModal" 
+      title="Массовая отметка посещаемости" 
+      size="md"
+      @close="showBulkAttendanceModal = false"
+    >
+      <div class="space-y-4">
+        <div v-if="selectedEvent">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Занятие: {{ formatColumnDate(selectedEvent.scheduleEvent.date) }} 
+            {{ formatTimeRange(selectedEvent.scheduleEvent.startTime, selectedEvent.scheduleEvent.endTime) }}
+            ({{ selectedEvent.scheduleEvent.academicHours }} а-ч)
+          </p>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Часы посещения для всех (из {{ selectedEvent.scheduleEvent.academicHours }})
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model.number="bulkAttendanceHours"
+                type="number"
+                step="0.5"
+                min="0"
+                :max="selectedEvent.scheduleEvent.academicHours"
+                class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <span class="text-gray-500">а-ч</span>
+            </div>
+            
+            <!-- Быстрые кнопки -->
+            <div class="flex gap-2 mt-3">
+              <button
+                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                :class="bulkAttendanceHours === 0 
+                  ? 'bg-primary text-white border-primary' 
+                  : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                @click="bulkAttendanceHours = 0"
+              >
+                Никто (0)
+              </button>
+              <button
+                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                :class="bulkAttendanceHours === selectedEvent.scheduleEvent.academicHours 
+                  ? 'bg-primary text-white border-primary' 
+                  : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                @click="bulkAttendanceHours = selectedEvent.scheduleEvent.academicHours"
+              >
+                Все ({{ selectedEvent.scheduleEvent.academicHours }})
+              </button>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Будет отмечено {{ rows.length }} слушателей
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-4">
+          <UiButton variant="outline" @click="showBulkAttendanceModal = false">
+            Отмена
+          </UiButton>
+          <UiButton :loading="bulkSaving" @click="saveBulkAttendance">
+            Отметить всех
+          </UiButton>
+        </div>
+      </div>
+    </UiModal>
+
+    <!-- Модальное окно массового выставления оценок -->
+    <UiModal 
+      :is-open="showBulkGradeModal" 
+      title="Массовое выставление оценок" 
+      size="md"
+      @close="showBulkGradeModal = false"
+    >
+      <div class="space-y-4">
+        <div v-if="selectedEvent">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Занятие: {{ formatColumnDate(selectedEvent.scheduleEvent.date) }} 
+            {{ formatTimeRange(selectedEvent.scheduleEvent.startTime, selectedEvent.scheduleEvent.endTime) }}
+          </p>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Оценка для всех (0-100)
+            </label>
+            <input
+              v-model.number="bulkGradeValue"
+              type="number"
+              min="0"
+              max="100"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-boxdark px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            
+            <!-- Быстрые кнопки оценок -->
+            <div class="flex flex-wrap gap-2 mt-3">
+              <button
+                v-for="grade in [100, 90, 80, 70, 60]"
+                :key="grade"
+                class="px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+                :class="bulkGradeValue === grade 
+                  ? 'bg-primary text-white border-primary' 
+                  : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                @click="bulkGradeValue = grade"
+              >
+                {{ grade }}
+              </button>
+            </div>
+          </div>
+          
+          <div class="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Будет выставлено {{ rows.length }} оценок
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex justify-end gap-3 pt-4">
+          <UiButton variant="outline" @click="showBulkGradeModal = false">
+            Отмена
+          </UiButton>
+          <UiButton :loading="bulkSaving" @click="saveBulkGrade">
+            Выставить оценки
+          </UiButton>
+        </div>
+      </div>
+    </UiModal>
   </div>
 </template>
 
@@ -309,6 +493,20 @@ const summary = ref<JournalSummary | null>(null);
 const groupCode = ref('');
 const disciplineName = ref('');
 const instructorName = ref('');
+
+// Bulk operations state
+const selectedEventId = ref('');
+const showBulkAttendanceModal = ref(false);
+const showBulkGradeModal = ref(false);
+const bulkSaving = ref(false);
+const bulkAttendanceHours = ref(0);
+const bulkGradeValue = ref(0);
+
+// Computed - выбранное занятие
+const selectedEvent = computed(() => {
+  return columns.value.find(col => col.scheduleEvent.id === selectedEventId.value);
+});
+
 
 // Load journal data
 const loadJournal = async () => {
@@ -445,6 +643,97 @@ const handleCellUpdate = async (_data: { studentId: string; scheduleEventId: str
 
 const handleFinalGradeUpdate = async () => {
   await loadJournal();
+};
+
+// Bulk operations
+const openBulkAttendanceModal = () => {
+  if (!selectedEvent.value) return;
+  bulkAttendanceHours.value = selectedEvent.value.scheduleEvent.academicHours;
+  showBulkAttendanceModal.value = true;
+};
+
+const openBulkGradeModal = () => {
+  if (!selectedEvent.value) return;
+  bulkGradeValue.value = 100;
+  showBulkGradeModal.value = true;
+};
+
+const saveBulkAttendance = async () => {
+  if (!selectedEvent.value || bulkSaving.value) return;
+  
+  const maxHours = selectedEvent.value.scheduleEvent.academicHours;
+  if (bulkAttendanceHours.value < 0 || bulkAttendanceHours.value > maxHours) {
+    toast.error(`Часы должны быть от 0 до ${maxHours}`);
+    return;
+  }
+  
+  bulkSaving.value = true;
+  try {
+    const attendances = rows.value.map(row => ({
+      studentId: row.student.id,
+      hoursAttended: bulkAttendanceHours.value,
+    }));
+    
+    const response = await authFetch<{ success: boolean; message?: string; count?: number }>('/api/attendance', {
+      method: 'POST',
+      body: {
+        bulk: true,
+        scheduleEventId: selectedEventId.value,
+        maxHours: maxHours,
+        attendances,
+      },
+    });
+    
+    if (response.success) {
+      toast.success(`Отмечено ${response.count || attendances.length} записей`);
+      showBulkAttendanceModal.value = false;
+      await loadJournal();
+    } else {
+      toast.error(response.message || 'Ошибка сохранения');
+    }
+  } catch (error: any) {
+    toast.error(error.message || 'Ошибка сохранения');
+  } finally {
+    bulkSaving.value = false;
+  }
+};
+
+const saveBulkGrade = async () => {
+  if (!selectedEvent.value || bulkSaving.value) return;
+  
+  if (bulkGradeValue.value < 0 || bulkGradeValue.value > 100) {
+    toast.error('Оценка должна быть от 0 до 100');
+    return;
+  }
+  
+  bulkSaving.value = true;
+  try {
+    const grades = rows.value.map(row => ({
+      studentId: row.student.id,
+      grade: bulkGradeValue.value,
+    }));
+    
+    const response = await authFetch<{ success: boolean; message?: string; count?: number }>('/api/grades', {
+      method: 'POST',
+      body: {
+        bulk: true,
+        scheduleEventId: selectedEventId.value,
+        grades,
+      },
+    });
+    
+    if (response.success) {
+      toast.success(`Выставлено ${response.count || grades.length} оценок`);
+      showBulkGradeModal.value = false;
+      await loadJournal();
+    } else {
+      toast.error(response.message || 'Ошибка сохранения');
+    }
+  } catch (error: any) {
+    toast.error(error.message || 'Ошибка сохранения');
+  } finally {
+    bulkSaving.value = false;
+  }
 };
 
 // Initialize

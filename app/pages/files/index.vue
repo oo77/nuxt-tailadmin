@@ -334,7 +334,7 @@ const handleSync = async () => {
   }
 };
 
-const navigateToFolder = (folderId: number | null) => {
+const navigateToFolder = async (folderId: number | null) => {
   // Если открываем папку (не корень)
   if (folderId !== null) {
     const folder = folders.value.find(f => f.id === folderId);
@@ -354,9 +354,28 @@ const navigateToFolder = (folderId: number | null) => {
   if (folderId === null) {
     currentPath.value = '/';
   } else {
-    const folder = folders.value.find(f => f.id === folderId);
-    if (folder) {
-      currentPath.value = folder.path;
+    // Получаем путь из API
+    try {
+      const response = await authFetch<{ success: boolean; currentFolder?: { path: string } }>(
+        `/api/folders/${folderId}/path`
+      );
+      
+      if (response.success && response.currentFolder?.path) {
+        currentPath.value = response.currentFolder.path;
+      } else {
+        // Fallback: ищем в текущем списке папок
+        const folder = folders.value.find(f => f.id === folderId);
+        if (folder) {
+          currentPath.value = folder.path;
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка получения пути папки:', error);
+      // Fallback: ищем в текущем списке папок
+      const folder = folders.value.find(f => f.id === folderId);
+      if (folder) {
+        currentPath.value = folder.path;
+      }
     }
   }
 

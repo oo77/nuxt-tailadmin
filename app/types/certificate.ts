@@ -20,6 +20,7 @@ export type VariableSource =
   | 'course.shortName'
   | 'course.code'
   | 'course.totalHours'
+  | 'course.description'
   | 'group.code'
   | 'group.startDate'
   | 'group.endDate'
@@ -45,6 +46,175 @@ export interface QRSettings {
   backgroundColor?: string;
 }
 
+// ============================================================================
+// ВИЗУАЛЬНЫЙ РЕДАКТОР ШАБЛОНОВ
+// ============================================================================
+
+/**
+ * Макет сертификата
+ */
+export type TemplateLayout = 
+  | 'A4_portrait' 
+  | 'A4_landscape' 
+  | 'letter_portrait' 
+  | 'letter_landscape';
+
+/**
+ * Размеры макетов в пикселях (при 96 DPI)
+ */
+export const LAYOUT_DIMENSIONS: Record<TemplateLayout, { width: number; height: number }> = {
+  A4_portrait: { width: 794, height: 1123 },
+  A4_landscape: { width: 1123, height: 794 },
+  letter_portrait: { width: 816, height: 1056 },
+  letter_landscape: { width: 1056, height: 816 },
+};
+
+/**
+ * Тип фона
+ */
+export type BackgroundType = 'color' | 'image' | 'preset';
+
+/**
+ * Настройки фона
+ */
+export interface TemplateBackground {
+  type: BackgroundType;
+  /** HEX-цвет, URL изображения, или ID пресета */
+  value: string;
+}
+
+/**
+ * Базовый элемент на холсте
+ */
+export interface BaseElement {
+  id: string;
+  type: 'text' | 'variable' | 'image' | 'qr' | 'shape';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  zIndex: number;
+  locked: boolean;
+}
+
+/**
+ * Элемент статического текста
+ */
+export interface TextElement extends BaseElement {
+  type: 'text';
+  content: string;
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textAlign: 'left' | 'center' | 'right';
+  color: string;
+  lineHeight: number;
+  /** Цвет заливки фона (опционально, transparent по умолчанию) */
+  backgroundColor?: string;
+}
+
+/**
+ * Элемент переменной (динамические данные)
+ */
+export interface VariableElement extends BaseElement {
+  type: 'variable';
+  /** Ключ переменной, например 'student.fullName' */
+  variableKey: VariableSource;
+  /** Отображаемый текст в редакторе */
+  placeholder: string;
+  /** Стили текста */
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textAlign: 'left' | 'center' | 'right';
+  color: string;
+  lineHeight: number;
+  /** Цвет заливки фона (опционально, transparent по умолчанию) */
+  backgroundColor?: string;
+}
+
+/**
+ * Режим подгонки изображения
+ */
+export type ImageObjectFit = 'contain' | 'cover' | 'fill';
+
+/**
+ * Элемент изображения
+ */
+export interface ImageElement extends BaseElement {
+  type: 'image';
+  /** URL или base64 */
+  src: string;
+  objectFit: ImageObjectFit;
+  opacity: number; // 0-1
+}
+
+/**
+ * Источник данных для QR-кода
+ */
+export type QRDataSource = 'certificate_url' | 'certificate_number' | 'custom';
+
+/**
+ * Элемент QR-кода
+ */
+export interface QRElement extends BaseElement {
+  type: 'qr';
+  /** Источник данных для QR-кода */
+  dataSource: QRDataSource;
+  /** Кастомные данные (если dataSource = 'custom') */
+  customData?: string;
+  size: number;
+  color: string;
+  backgroundColor: string;
+}
+
+/**
+ * Тип фигуры
+ */
+export type ShapeType = 'rectangle' | 'circle' | 'line';
+
+/**
+ * Элемент фигуры
+ */
+export interface ShapeElement extends BaseElement {
+  type: 'shape';
+  shapeType: ShapeType;
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+}
+
+/**
+ * Объединённый тип элемента
+ */
+export type TemplateElement = 
+  | TextElement 
+  | VariableElement 
+  | ImageElement 
+  | QRElement 
+  | ShapeElement;
+
+/**
+ * JSON-структура шаблона редактора
+ */
+export interface CertificateTemplateData {
+  /** Версия формата (для будущей совместимости) */
+  version: string;
+  /** Макет */
+  layout: TemplateLayout;
+  /** Ширина в пикселях */
+  width: number;
+  /** Высота в пикселях */
+  height: number;
+  /** Настройки фона */
+  background: TemplateBackground;
+  /** Элементы на холсте */
+  elements: TemplateElement[];
+}
+
 export interface CertificateTemplate {
   id: string;
   name: string;
@@ -56,6 +226,10 @@ export interface CertificateTemplate {
   numberFormat: string;
   lastNumber: number;
   isActive: boolean;
+  // Поля визуального редактора
+  templateData: CertificateTemplateData | null;
+  layout: TemplateLayout | null;
+  backgroundUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -179,10 +353,14 @@ export interface CertificateJournalResponse {
       shortName: string;
       code: string;
       totalHours: number;
+      certificateTemplateId?: string | null;
+      certificateValidityMonths?: number | null;
     } | null;
     startDate: string;
     endDate: string;
   };
+  /** Шаблон сертификата, привязанный к курсу */
+  template: CertificateTemplate | null;
   journal: CertificateJournalRow[];
   stats: {
     totalStudents: number;

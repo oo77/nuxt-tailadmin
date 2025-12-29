@@ -299,3 +299,200 @@ export async function getInstructorsByIds(ids: string[]): Promise<Instructor[]> 
   
   return rows.map(mapRowToInstructor);
 }
+
+// ============================================================================
+// СТАТИСТИКА ЧАСОВ ИНСТРУКТОРА
+// ============================================================================
+
+interface InstructorHoursRow extends RowDataPacket {
+  year_month: string;
+  total_minutes: number;
+  event_count: number;
+}
+
+interface InstructorHoursTotalRow extends RowDataPacket {
+  total_minutes: number;
+  event_count: number;
+}
+
+export interface InstructorHoursStats {
+  maxHours: number;
+  totalUsedHours: number;
+  totalScheduledHours: number;
+  remainingHours: number;
+  usagePercentage: number;
+  byMonth: Array<{
+    yearMonth: string;
+    year: number;
+    month: number;
+    monthName: string;
+    usedHours: number;
+    scheduledHours: number;
+    eventCount: number;
+  }>;
+}
+
+/**
+ * Получить статистику часов инструктора
+ * Считает только фактически проведённые занятия (прошедшие события)
+ * и запланированные занятия (будущие события) отдельно
+ */
+export async function getInstructorHoursStats(instructorId: string): Promise<InstructorHoursStats | null> {
+  const instructor = await getInstructorById(instructorId);
+  if (!instructor) return null;
+  
+  const now = new Date();
+  const currentDatetime = now.toISOString().slice(0, 19).replace('T', ' ');
+  
+  // Получаем часы по месяцам (только прошедшие события = фактически отработанные)
+  const usedByMonthRows = await executeQuery<InstructorHoursRow[]>(
+    `SELECT 
+       DATE_FORMAT(start_time, '%Y-%m') as year_month,
+       SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as total_minutes,
+       COUNT(*) as event_count
+     FROM schedule_events
+     WHERE instructor_id = ? AND end_time <= ?
+     GROUP BY DATE_FORMAT(start_time, '%Y-%m')
+     ORDER BY year_month DESC`,
+    [instructorId, currentDatetime]
+  );
+  
+  // Получаем часы по месяцам (только будущие события = запланированные)
+  const scheduledByMonthRows = await executeQuery<InstructorHoursRow[]>(
+    `SELECT 
+       DATE_FORMAT(start_time, '%Y-%m') as year_month,
+       SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as total_minutes,
+       COUNT(*) as event_count
+     FROM schedule_events
+     WHERE instructor_id = ? AND start_time > ?
+     GROUP BY DATE_FORMAT(start_time, '%Y-%m')
+     ORDER BY year_month ASC`,
+    [instructorId, currentDatetime]
+  );
+  
+  // Получаем общие часы (прошедшие)
+  const totalUsedRows = await executeQuery<InstructorHoursTotalRow[]>(
+    `SELECT 
+       COALESCE(SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)), 0) as total_minutes,
+       COUNT(*) as event_count
+     FROM schedule_events
+     WHERE instructor_id = ? AND end_time <= ?`,
+    [instructorId, currentDatetime]
+  );
+  
+  // Получаем общие часы (будущие/запланированные)
+  const totalScheduledRows = await executeQuery<InstructorHoursTotalRow[]>(
+    `SELECT 
+       COALESCE(SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)), 0) as total_minutes,
+       COUNT(*) as event_count
+     FROM schedule_events
+     WHERE instructor_id = ? AND start_time > ?`,
+    [instructorId, currentDatetime]
+  );
+  
+  const monthNames = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ];
+  
+  // Объединяем данные по месяцам
+  const monthMap = new Map<string, {
+    usedMinutes: number;
+    scheduledMinutes: number;
+    usedEvents: number;
+    scheduledEvents: number;
+  }>();
+  
+  for (const row of usedByMonthRows) {
+    const existing = monthMap.get(row.year_month) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
+    existing.usedMinutes = Number(row.total_minutes);
+    existing.usedEvents = Number(row.event_count);
+    monthMap.set(row.year_month, existing);
+  }
+  
+  for (const row of scheduledByMonthRows) {
+    const existing = monthMap.get(row.year_month) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
+    existing.scheduledMinutes = Number(row.total_minutes);
+    existing.scheduledEvents = Number(row.event_count);
+    monthMap.set(row.year_month, existing);
+  }
+  
+  // Сортируем месяцы в хронологическом порядке
+  const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  
+  const byMonth = sortedMonths.map(([yearMonth, data]) => {
+    const [year, month] = yearMonth.split('-').map(Number);
+    return {
+      yearMonth,
+      year: year!,
+      month: month!,
+      monthName: monthNames[month! - 1] || '',
+      usedHours: Math.round(data.usedMinutes / 45 * 10) / 10, // Академические часы (45 мин)
+      scheduledHours: Math.round(data.scheduledMinutes / 45 * 10) / 10,
+      eventCount: data.usedEvents + data.scheduledEvents,
+    };
+  });
+  
+  const totalUsedMinutes = Number(totalUsedRows[0]?.total_minutes || 0);
+  const totalScheduledMinutes = Number(totalScheduledRows[0]?.total_minutes || 0);
+  
+  const totalUsedHours = Math.round(totalUsedMinutes / 45 * 10) / 10;
+  const totalScheduledHours = Math.round(totalScheduledMinutes / 45 * 10) / 10;
+  const totalHoursPlanned = totalUsedHours + totalScheduledHours;
+  const remainingHours = Math.max(0, instructor.maxHours - totalHoursPlanned);
+  const usagePercentage = instructor.maxHours > 0 
+    ? Math.round((totalHoursPlanned / instructor.maxHours) * 100) 
+    : 0;
+  
+  return {
+    maxHours: instructor.maxHours,
+    totalUsedHours,
+    totalScheduledHours,
+    remainingHours,
+    usagePercentage,
+    byMonth,
+  };
+}
+
+/**
+ * Проверить, может ли инструктор взять дополнительные часы
+ * @param instructorId - ID инструктора
+ * @param additionalMinutes - Дополнительные минуты (длительность нового занятия)
+ * @returns { canTake: boolean, remainingHours: number, requestedHours: number, message?: string }
+ */
+export async function checkInstructorHoursLimit(
+  instructorId: string,
+  additionalMinutes: number
+): Promise<{ canTake: boolean; remainingHours: number; requestedHours: number; message?: string }> {
+  const stats = await getInstructorHoursStats(instructorId);
+  
+  if (!stats) {
+    return {
+      canTake: false,
+      remainingHours: 0,
+      requestedHours: 0,
+      message: 'Инструктор не найден',
+    };
+  }
+  
+  // Если maxHours = 0, то без ограничений
+  if (stats.maxHours === 0) {
+    return {
+      canTake: true,
+      remainingHours: Infinity,
+      requestedHours: Math.round(additionalMinutes / 45 * 10) / 10,
+    };
+  }
+  
+  const requestedHours = Math.round(additionalMinutes / 45 * 10) / 10;
+  const canTake = requestedHours <= stats.remainingHours;
+  
+  return {
+    canTake,
+    remainingHours: stats.remainingHours,
+    requestedHours,
+    message: canTake 
+      ? undefined 
+      : `Превышен лимит часов инструктора! Доступно: ${stats.remainingHours} ч., запрашивается: ${requestedHours} ч.`,
+  };
+}

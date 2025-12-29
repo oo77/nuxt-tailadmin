@@ -2,17 +2,23 @@
  * Типы для работы со студентами
  */
 
-// Информация о сертификате студента
+// Информация о сертификате студента (из issued_certificates)
 export interface StudentCertificate {
   id: string;
+  studentId?: string;
+  groupId?: string;
+  templateId?: string;
   courseName: string; // Название курса
+  groupCode?: string; // Код группы
   issueDate: Date | string; // Дата получения
   certificateNumber: string; // Номер сертификата
-  fileUrl?: string | null; // Ссылка на файл сертификата
+  fileUrl?: string | null; // Ссылка на файл сертификата (PDF)
   expiryDate?: Date | string | null; // Срок годности
+  status?: 'draft' | 'issued' | 'revoked'; // Статус сертификата
   created_at?: Date | string;
   updated_at?: Date | string;
 }
+
 
 // Полная информация о студенте
 export interface Student {

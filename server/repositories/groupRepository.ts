@@ -42,6 +42,8 @@ export interface Course {
   shortName: string;
   code: string;
   totalHours: number;
+  certificateTemplateId?: string | null;
+  certificateValidityMonths?: number | null;
 }
 
 export interface GroupStudent {
@@ -133,6 +135,8 @@ interface StudyGroupRow extends RowDataPacket {
   course_short_name?: string;
   course_code?: string;
   course_total_hours?: number;
+  course_certificate_template_id?: string | null;
+  course_certificate_validity_months?: number | null;
   student_count?: number;
 }
 
@@ -188,6 +192,8 @@ function mapRowToGroup(row: StudyGroupRow): StudyGroup {
       shortName: row.course_short_name || '',
       code: row.course_code || '',
       totalHours: row.course_total_hours || 0,
+      certificateTemplateId: row.course_certificate_template_id || null,
+      certificateValidityMonths: row.course_certificate_validity_months || null,
     };
   }
 
@@ -285,6 +291,8 @@ export async function getGroups(params: PaginationParams = {}): Promise<Paginate
       c.short_name as course_short_name,
       c.code as course_code,
       c.total_hours as course_total_hours,
+      c.certificate_template_id as course_certificate_template_id,
+      c.certificate_validity_months as course_certificate_validity_months,
       (SELECT COUNT(*) FROM study_group_students sgs WHERE sgs.group_id = sg.id) as student_count
     FROM study_groups sg
     LEFT JOIN courses c ON sg.course_id = c.id
@@ -315,6 +323,8 @@ export async function getGroupById(id: string): Promise<StudyGroup | null> {
       c.short_name as course_short_name,
       c.code as course_code,
       c.total_hours as course_total_hours,
+      c.certificate_template_id as course_certificate_template_id,
+      c.certificate_validity_months as course_certificate_validity_months,
       (SELECT COUNT(*) FROM study_group_students sgs WHERE sgs.group_id = sg.id) as student_count
     FROM study_groups sg
     LEFT JOIN courses c ON sg.course_id = c.id

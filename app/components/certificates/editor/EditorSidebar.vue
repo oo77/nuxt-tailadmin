@@ -258,6 +258,36 @@
               >
             </div>
           </div>
+          
+          <div class="input-group full">
+            <label>Заливка фона</label>
+            <div class="color-picker">
+              <input 
+                type="color" 
+                :value="getBackgroundColor()"
+                @input="updateBackgroundColor($event)"
+                :disabled="selectedElement.locked || isTransparentBackground()"
+              >
+              <input 
+                type="text" 
+                :value="getBackgroundColor()"
+                @input="updateBackgroundColor($event)"
+                :disabled="selectedElement.locked || isTransparentBackground()"
+                class="color-text"
+              >
+            </div>
+            <div class="checkbox-group mt-1">
+              <label>
+                <input 
+                  type="checkbox"
+                  :checked="isTransparentBackground()"
+                  @change="toggleTransparentBackground"
+                  :disabled="selectedElement.locked"
+                >
+                Без заливки
+              </label>
+            </div>
+          </div>
         </div>
       </template>
       
@@ -474,7 +504,7 @@ import type {
   QRElement,
   ShapeElement,
   VariableSource,
-} from '~/server/types/certificate'
+} from '~/types/certificate'
 
 const props = defineProps<{
   selectedElement: TemplateElement | null
@@ -570,6 +600,30 @@ function toggleFontStyle() {
 
 function setTextAlign(align: 'left' | 'center' | 'right') {
   updateProp('textAlign', align)
+}
+
+// Функции для работы с заливкой фона текста
+function getBackgroundColor(): string {
+  if (!props.selectedElement) return '#ffffff'
+  const bg = (props.selectedElement as any).backgroundColor
+  // Если transparent или undefined, показываем белый в пикере
+  return (!bg || bg === 'transparent') ? '#ffffff' : bg
+}
+
+function isTransparentBackground(): boolean {
+  if (!props.selectedElement) return true
+  const bg = (props.selectedElement as any).backgroundColor
+  return !bg || bg === 'transparent'
+}
+
+function updateBackgroundColor(event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  updateProp('backgroundColor', value)
+}
+
+function toggleTransparentBackground() {
+  const current = (props.selectedElement as any).backgroundColor
+  updateProp('backgroundColor', (!current || current === 'transparent') ? '#ffffff' : 'transparent')
 }
 
 function toggleTransparentFill() {
@@ -1003,5 +1057,10 @@ function onImageSelected(e: Event) {
 
 .hidden-input {
   display: none;
+}
+
+/* Утилитарные классы */
+.mt-1 {
+  margin-top: 0.25rem;
 }
 </style>

@@ -203,20 +203,154 @@
         </div>
       </div>
 
-      <!-- Дополнительная информация -->
+      <!-- Отчётность по часам -->
       <div class="mt-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-6">
-        <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-          Дополнительная информация
-        </h3>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-            <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата создания записи</p>
-            <p class="font-medium text-gray-900 dark:text-white">{{ formatDateTime(instructor.createdAt) }}</p>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+            Отчётность по часам
+          </h3>
+          <button
+            v-if="!hoursStats && !hoursLoading"
+            @click="loadHoursStats"
+            class="text-sm text-primary hover:underline"
+          >
+            Загрузить статистику
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="hoursLoading" class="flex justify-center items-center py-8">
+          <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+        </div>
+
+        <!-- Hours Stats Content -->
+        <div v-else-if="hoursStats">
+          <!-- Progress Bar -->
+          <div class="mb-6">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Использование лимита часов</span>
+              <span class="text-sm font-medium" :class="getUsageColorClass(hoursStats.usagePercentage)">
+                {{ hoursStats.usagePercentage }}%
+              </span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                class="h-3 rounded-full transition-all duration-500"
+                :class="getProgressBarColorClass(hoursStats.usagePercentage)"
+                :style="{ width: `${Math.min(100, hoursStats.usagePercentage)}%` }"
+              ></div>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-xs text-gray-500 dark:text-gray-400">0 ч.</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ hoursStats.maxHours }} ч. (макс.)</span>
+            </div>
           </div>
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-            <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Последнее обновление</p>
-            <p class="font-medium text-gray-900 dark:text-white">{{ formatDateTime(instructor.updatedAt) }}</p>
+
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+            <div class="rounded-lg border border-success/30 bg-success/10 p-4">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/20">
+                  <CheckCircle class="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">Отработано</p>
+                  <p class="text-lg font-bold text-success">{{ hoursStats.totalUsedHours }} ч.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-primary/30 bg-primary/10 p-4">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20">
+                  <CalendarClock class="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">Запланировано</p>
+                  <p class="text-lg font-bold text-primary">{{ hoursStats.totalScheduledHours }} ч.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-warning/30 bg-warning/10 p-4">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
+                  <Clock class="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">Осталось</p>
+                  <p class="text-lg font-bold text-warning">{{ hoursStats.remainingHours }} ч.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700">
+                  <FileText class="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                </div>
+                <div>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">По договору</p>
+                  <p class="text-lg font-bold text-gray-900 dark:text-white">{{ hoursStats.maxHours }} ч.</p>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- Monthly Breakdown -->
+          <div v-if="hoursStats.byMonth.length > 0">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Разбивка по месяцам</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <th class="py-2 px-3 text-left font-medium text-gray-600 dark:text-gray-400">Месяц</th>
+                    <th class="py-2 px-3 text-right font-medium text-gray-600 dark:text-gray-400">Отработано</th>
+                    <th class="py-2 px-3 text-right font-medium text-gray-600 dark:text-gray-400">Запланировано</th>
+                    <th class="py-2 px-3 text-right font-medium text-gray-600 dark:text-gray-400">Всего занятий</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="month in hoursStats.byMonth"
+                    :key="month.yearMonth"
+                    class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
+                    <td class="py-2 px-3 font-medium text-gray-900 dark:text-white">
+                      {{ month.monthName }} {{ month.year }}
+                    </td>
+                    <td class="py-2 px-3 text-right">
+                      <span class="text-success font-medium">{{ month.usedHours }} ч.</span>
+                    </td>
+                    <td class="py-2 px-3 text-right">
+                      <span class="text-primary font-medium">{{ month.scheduledHours }} ч.</span>
+                    </td>
+                    <td class="py-2 px-3 text-right text-gray-600 dark:text-gray-400">
+                      {{ month.eventCount }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Empty State for Monthly Breakdown -->
+          <div v-else class="text-center py-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Нет данных о занятиях</p>
+          </div>
+        </div>
+
+        <!-- Initial State -->
+        <div v-else class="text-center py-8">
+          <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-100 dark:bg-meta-4 flex items-center justify-center">
+            <Clock class="w-8 h-8 text-gray-400" />
+          </div>
+          <p class="text-gray-600 dark:text-gray-400 mb-3">
+            Нажмите кнопку выше, чтобы загрузить статистику часов
+          </p>
+          <p class="text-sm text-gray-500 dark:text-gray-500">
+            Максимум по договору: <span class="font-medium">{{ instructor.maxHours }} ч.</span>
+          </p>
         </div>
       </div>
 
@@ -267,8 +401,29 @@ import {
   BookOpen, 
   Users, 
   Clock,
-  Trash2
+  Trash2,
+  CheckCircle,
+  CalendarClock,
+  FileText
 } from 'lucide-vue-next';
+
+// Интерфейс для статистики часов
+interface InstructorHoursStats {
+  maxHours: number;
+  totalUsedHours: number;
+  totalScheduledHours: number;
+  remainingHours: number;
+  usagePercentage: number;
+  byMonth: Array<{
+    yearMonth: string;
+    year: number;
+    month: number;
+    monthName: string;
+    usedHours: number;
+    scheduledHours: number;
+    eventCount: number;
+  }>;
+}
 
 const route = useRoute();
 const router = useRouter();
@@ -284,6 +439,10 @@ const error = ref<string | null>(null);
 const showEditModal = ref(false);
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
+
+// Hours Stats State
+const hoursStats = ref<InstructorHoursStats | null>(null);
+const hoursLoading = ref(false);
 
 // Meta
 definePageMeta({
@@ -403,5 +562,46 @@ const formatDateTime = (date: Date | string): string => {
 // Load data on mount
 onMounted(() => {
   loadInstructor();
+  // Автоматически загружаем статистику часов
+  loadHoursStats();
 });
+
+// Загрузка статистики часов
+const loadHoursStats = async () => {
+  if (hoursLoading.value) return;
+  
+  hoursLoading.value = true;
+  
+  try {
+    const response = await authFetch<{ success: boolean; stats: InstructorHoursStats }>(
+      `/api/instructors/${id}/hours`,
+      { method: 'GET' }
+    );
+    
+    if (response.success) {
+      hoursStats.value = response.stats;
+    }
+  } catch (err: any) {
+    console.error('Error loading hours stats:', err);
+    // Не показываем ошибку — просто оставляем пустую статистику
+  } finally {
+    hoursLoading.value = false;
+  }
+};
+
+// Определение класса цвета для процента использования
+const getUsageColorClass = (percentage: number): string => {
+  if (percentage >= 100) return 'text-danger';
+  if (percentage >= 80) return 'text-warning';
+  if (percentage >= 50) return 'text-primary';
+  return 'text-success';
+};
+
+// Определение класса для прогресс-бара
+const getProgressBarColorClass = (percentage: number): string => {
+  if (percentage >= 100) return 'bg-danger';
+  if (percentage >= 80) return 'bg-warning';
+  if (percentage >= 50) return 'bg-primary';
+  return 'bg-success';
+};
 </script>

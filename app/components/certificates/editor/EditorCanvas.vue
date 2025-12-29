@@ -173,7 +173,7 @@ import type {
   QRElement,
   ShapeElement,
   VariableSource,
-} from '~/server/types/certificate'
+} from '~/types/certificate'
 
 const props = defineProps<{
   templateData: CertificateTemplateData
@@ -238,14 +238,23 @@ function getElementStyle(element: TemplateElement) {
 
 // Получение стиля текста
 function getTextStyle(element: TextElement | VariableElement) {
+  // Маппинг textAlign на justify-content для flex-контейнера
+  const justifyMap: Record<string, string> = {
+    left: 'flex-start',
+    center: 'center',
+    right: 'flex-end',
+  }
+  
   return {
     fontFamily: element.fontFamily,
     fontSize: `${element.fontSize}px`,
     fontWeight: element.fontWeight,
     fontStyle: element.fontStyle,
     textAlign: element.textAlign,
+    justifyContent: justifyMap[element.textAlign] || 'flex-start',
     color: element.color,
     lineHeight: element.lineHeight,
+    backgroundColor: element.backgroundColor || 'transparent',
   }
 }
 
@@ -255,7 +264,8 @@ function getVariableLabel(key: VariableSource): string {
   if (!variable) return key
   
   const parts = key.split('.')
-  return parts[0].charAt(0).toUpperCase()
+  const firstPart = parts[0]
+  return firstPart ? firstPart.charAt(0).toUpperCase() : 'V'
 }
 
 // Обработка начала перетаскивания
@@ -483,7 +493,6 @@ function handleTextEnter() {
   display: flex;
   align-items: center;
   padding: 0.25rem;
-  background: rgba(238, 242, 255, 0.5);
   border-radius: 4px;
   position: relative;
 }

@@ -33,6 +33,10 @@ const updateTemplateSchema = z.object({
   qrSettings: qrSettingsSchema.optional(),
   numberFormat: z.string().max(100).optional(),
   isActive: z.boolean().optional(),
+  // Поля визуального редактора
+  templateData: z.any().optional(), // JSON структура шаблона
+  layout: z.string().optional(),
+  backgroundUrl: z.string().nullable().optional(),
 });
 
 export default defineEventHandler(async (event) => {

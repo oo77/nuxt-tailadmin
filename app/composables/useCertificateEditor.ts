@@ -15,8 +15,8 @@ import type {
   TemplateLayout,
   TemplateBackground,
   VariableSource
-} from '~/server/types/certificate'
-import { LAYOUT_DIMENSIONS } from '~/server/types/certificate'
+} from '~/types/certificate'
+import { LAYOUT_DIMENSIONS } from '~/types/certificate'
 
 // Доступные переменные для вставки
 export const AVAILABLE_VARIABLES: { key: VariableSource; label: string; placeholder: string }[] = [
@@ -47,21 +47,9 @@ export const AVAILABLE_VARIABLES: { key: VariableSource; label: string; placehol
   { key: 'certificate.issueDateFormatted', label: 'Дата выдачи (прописью)', placeholder: '26 декабря 2025 года' },
 ]
 
-// Доступные шрифты
-export const AVAILABLE_FONTS = [
-  'Inter',
-  'Roboto',
-  'PT Serif',
-  'PT Sans',
-  'Open Sans',
-  'Montserrat',
-  'Playfair Display',
-  'Lora',
-  'Merriweather',
-  'Times New Roman',
-  'Arial',
-  'Georgia',
-]
+// Доступные шрифты (реэкспорт из useGoogleFonts)
+import { ALL_FONTS } from './useGoogleFonts'
+export const AVAILABLE_FONTS = ALL_FONTS
 
 // Цвета по умолчанию для палитры
 export const DEFAULT_COLORS = [
@@ -117,6 +105,7 @@ export function createTextElement(options: Partial<TextElement> = {}): TextEleme
     textAlign: options.textAlign ?? 'center',
     color: options.color ?? '#000000',
     lineHeight: options.lineHeight ?? 1.2,
+    backgroundColor: options.backgroundColor ?? 'transparent',
   }
 }
 
@@ -147,6 +136,7 @@ export function createVariableElement(
     textAlign: options.textAlign ?? 'center',
     color: options.color ?? '#1E3A5F',
     lineHeight: options.lineHeight ?? 1.2,
+    backgroundColor: options.backgroundColor ?? 'transparent',
   }
 }
 
@@ -244,7 +234,7 @@ export function useCertificateEditor() {
   // Вычисляемые свойства
   const selectedElement = computed(() => {
     if (!selectedElementId.value) return null
-    return templateData.value.elements.find(el => el.id === selectedElementId.value) ?? null
+    return templateData.value.elements.find((el: TemplateElement) => el.id === selectedElementId.value) ?? null
   })
   
   const canUndo = computed(() => historyIndex.value > 0)
@@ -322,7 +312,7 @@ export function useCertificateEditor() {
   function addElement(element: TemplateElement) {
     saveToHistory()
     // Устанавливаем zIndex выше всех текущих
-    const maxZIndex = Math.max(0, ...templateData.value.elements.map(el => el.zIndex))
+    const maxZIndex = Math.max(0, ...templateData.value.elements.map((el: TemplateElement) => el.zIndex))
     element.zIndex = maxZIndex + 1
     templateData.value.elements.push(element)
     selectedElementId.value = element.id
@@ -330,7 +320,7 @@ export function useCertificateEditor() {
   
   // Обновление элемента
   function updateElement(id: string, updates: Partial<TemplateElement>) {
-    const index = templateData.value.elements.findIndex(el => el.id === id)
+    const index = templateData.value.elements.findIndex((el: TemplateElement) => el.id === id)
     if (index === -1) return
     
     saveToHistory()
@@ -343,7 +333,7 @@ export function useCertificateEditor() {
   // Удаление элемента
   function deleteElement(id: string) {
     saveToHistory()
-    templateData.value.elements = templateData.value.elements.filter(el => el.id !== id)
+    templateData.value.elements = templateData.value.elements.filter((el: TemplateElement) => el.id !== id)
     if (selectedElementId.value === id) {
       selectedElementId.value = null
     }
@@ -358,7 +348,7 @@ export function useCertificateEditor() {
   
   // Дублирование элемента
   function duplicateElement(id: string) {
-    const element = templateData.value.elements.find(el => el.id === id)
+    const element = templateData.value.elements.find((el: TemplateElement) => el.id === id)
     if (!element) return
     
     const newElement = {
@@ -373,19 +363,19 @@ export function useCertificateEditor() {
   
   // Перемещение элемента на передний план
   function bringToFront(id: string) {
-    const maxZIndex = Math.max(...templateData.value.elements.map(el => el.zIndex))
+    const maxZIndex = Math.max(...templateData.value.elements.map((el: TemplateElement) => el.zIndex))
     updateElement(id, { zIndex: maxZIndex + 1 })
   }
   
   // Перемещение элемента на задний план
   function sendToBack(id: string) {
-    const minZIndex = Math.min(...templateData.value.elements.map(el => el.zIndex))
+    const minZIndex = Math.min(...templateData.value.elements.map((el: TemplateElement) => el.zIndex))
     updateElement(id, { zIndex: minZIndex - 1 })
   }
   
   // Блокировка/разблокировка элемента
   function toggleLock(id: string) {
-    const element = templateData.value.elements.find(el => el.id === id)
+    const element = templateData.value.elements.find((el: TemplateElement) => el.id === id)
     if (element) {
       updateElement(id, { locked: !element.locked })
     }

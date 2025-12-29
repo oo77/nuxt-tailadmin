@@ -1,39 +1,42 @@
 /**
  * POST /api/certificates/issue/[groupId]
  * Выдать сертификат(ы) слушателям группы
+ * 
+ * Использует визуальный редактор шаблонов и Puppeteer для генерации PDF
  */
 
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import {
   getTemplateById,
   checkStudentEligibility,
   generateCertificateNumber,
   createIssuedCertificate,
+  reissueCertificate,
   updateCertificateFiles,
   getStudentCertificateInGroup,
 } from '../../../repositories/certificateTemplateRepository';
 import { getGroupById } from '../../../repositories/groupRepository';
 import { getStudentById } from '../../../repositories/studentRepository';
 import {
-  generateDocx,
-  convertDocxToPdf,
-  prepareTemplateVariables,
-} from '../../../utils/certificateGenerator';
+  generateCertificatePdf,
+  type VariableContext,
+} from '../../../utils/pdfGenerator';
 import { logActivity } from '../../../utils/activityLogger';
-import type { IssueWarning } from '../../../types/certificate';
+import type { IssueWarning, CertificateTemplateData } from '../../../types/certificate';
 
 const issueSchema = z.object({
   templateId: z.string().uuid('Некорректный ID шаблона'),
   studentIds: z.array(z.string().uuid()).min(1, 'Выберите хотя бы одного студента'),
   issueDate: z.string().optional(),
+  expiryMode: z.enum(['auto', 'custom', 'none']).optional().default('auto'),
+  expiryDate: z.string().nullable().optional(), // Конкретная дата истечения (при expiryMode = 'custom')
   overrideWarnings: z.boolean().optional(),
   notes: z.string().max(1000).optional(),
 });
 
-// Директории для файлов
+// Директория для генерируемых файлов
 const GENERATED_DIR = path.join(process.cwd(), 'storage', 'certificates', 'generated');
 
 export default defineEventHandler(async (event) => {
@@ -68,17 +71,20 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    if (!template.originalFileUrl) {
+    // Проверяем наличие данных визуального редактора
+    if (!template.templateData) {
       throw createError({
         statusCode: 400,
-        message: 'Файл шаблона не загружен',
+        message: 'Шаблон не настроен. Откройте визуальный редактор и создайте дизайн сертификата.',
       });
     }
 
-    if (!template.variables || template.variables.length === 0) {
+    const templateData = template.templateData as CertificateTemplateData;
+
+    if (!templateData.elements || templateData.elements.length === 0) {
       throw createError({
         statusCode: 400,
-        message: 'Переменные шаблона не настроены',
+        message: 'Шаблон пустой. Добавьте элементы в визуальном редакторе.',
       });
     }
 
@@ -94,6 +100,7 @@ export default defineEventHandler(async (event) => {
       success: boolean;
       certificateId?: string;
       certificateNumber?: string;
+      pdfUrl?: string;
       warnings?: IssueWarning[];
       error?: string;
     }[] = [];
@@ -105,14 +112,20 @@ export default defineEventHandler(async (event) => {
       try {
         // Проверяем, нет ли уже сертификата
         const existing = await getStudentCertificateInGroup(studentId, groupId);
-        if (existing && existing.status === 'issued') {
-          results.push({
-            studentId,
-            studentName: existing.student?.fullName || studentId,
-            success: false,
-            error: 'Сертификат уже выдан',
-          });
-          continue;
+        if (existing) {
+          // Если сертификат уже выдан - пропускаем
+          if (existing.status === 'issued') {
+            results.push({
+              studentId,
+              studentName: existing.student?.fullName || studentId,
+              success: false,
+              error: 'Сертификат уже выдан',
+            });
+            continue;
+          }
+          
+          // Если сертификат отозван или в черновике - будем переиздавать (обновлять)
+          // Для этого используем флаг, который обработаем ниже
         }
 
         // Получаем студента
@@ -149,8 +162,8 @@ export default defineEventHandler(async (event) => {
           courseCode
         );
 
-        // Подготавливаем данные для подстановки
-        const context = {
+        // Подготавливаем контекст для генерации PDF
+        const context: VariableContext = {
           student: {
             id: student.id,
             fullName: student.fullName,
@@ -176,60 +189,85 @@ export default defineEventHandler(async (event) => {
           certificate: {
             number: certificateNumber,
             issueDate,
+            verificationUrl: `${process.env.APP_URL || 'https://atc.uz'}/verify/${certificateNumber}`,
           },
         };
 
-        const variablesData = prepareTemplateVariables(template.variables, context);
-
-        // Генерируем DOCX
-        const docxFilename = `${certificateNumber.replace(/\//g, '_')}.docx`;
-        const docxPath = path.join(GENERATED_DIR, docxFilename);
-        const templatePath = path.join(process.cwd(), template.originalFileUrl);
-
-        await generateDocx({
-          templatePath,
-          outputPath: docxPath,
-          variables: variablesData,
-          qrSettings: template.qrSettings || undefined,
-        });
-
-        // Конвертируем в PDF
-        const pdfFilename = `${certificateNumber.replace(/\//g, '_')}.pdf`;
+        // Генерируем PDF
+        const pdfFilename = `${certificateNumber.replace(/[\/\\:*?"<>|]/g, '_')}.pdf`;
         const pdfPath = path.join(GENERATED_DIR, pdfFilename);
 
-        let pdfUrl: string | null = null;
-        try {
-          await convertDocxToPdf(docxPath, pdfPath);
-          pdfUrl = `/storage/certificates/generated/${pdfFilename}`;
-        } catch (pdfError: any) {
-          console.error('PDF conversion error:', pdfError);
-          // Продолжаем без PDF, если конвертация не удалась
+        await generateCertificatePdf({
+          templateData,
+          context,
+          outputPath: pdfPath,
+        });
+
+        const pdfUrl = `/storage/certificates/generated/${pdfFilename}`;
+
+        // Вычисляем срок действия сертификата
+        let expiryDate: Date | null = null;
+        
+        switch (validated.expiryMode) {
+          case 'custom':
+            // Пользователь указал конкретную дату
+            if (validated.expiryDate) {
+              expiryDate = new Date(validated.expiryDate);
+            }
+            break;
+          case 'none':
+            // Бессрочный сертификат
+            expiryDate = null;
+            break;
+          case 'auto':
+          default:
+            // Автоматический расчёт из настроек курса
+            if (group.course?.certificateValidityMonths) {
+              expiryDate = new Date(issueDate);
+              expiryDate.setMonth(expiryDate.getMonth() + group.course.certificateValidityMonths);
+            }
+            break;
         }
 
-        // Формируем URL-ы
-        const docxUrl = `/storage/certificates/generated/${docxFilename}`;
-
-        // Создаём запись о сертификате
-        const certificate = await createIssuedCertificate({
-          groupId,
-          studentId,
+        // Создаём или переиздаём сертификат
+        let certificate;
+        const certData = {
           templateId: template.id,
           certificateNumber,
           issueDate,
-          variablesData,
+          expiryDate,
+          variablesData: {
+            studentName: student.fullName,
+            courseName: group.course?.name || '',
+            certificateNumber,
+          },
           warnings: eligibility.warnings.length > 0 ? eligibility.warnings : undefined,
           overrideWarnings: validated.overrideWarnings,
           issuedBy: userId,
           notes: validated.notes,
-        });
+        };
 
-        // Обновляем файлы
-        await updateCertificateFiles(certificate.id, docxUrl, pdfUrl || docxUrl);
+        if (existing && (existing.status === 'draft' || existing.status === 'revoked')) {
+          // Переиздаём существующий сертификат
+          console.log(`[Certificates] Reissuing certificate for student ${studentId}, existing status: ${existing.status}`);
+          certificate = await reissueCertificate(existing.id, certData);
+        } else {
+          // Создаём новый сертификат
+          certificate = await createIssuedCertificate({
+            groupId,
+            studentId,
+            ...certData,
+          });
+        }
+
+        // Обновляем файлы (для нового подхода только PDF)
+        await updateCertificateFiles(certificate.id, pdfUrl, pdfUrl);
 
         // Логируем
+        const logAction = existing ? 'UPDATE' : 'CREATE';
         await logActivity(
           event,
-          'CREATE',
+          logAction,
           'ISSUED_CERTIFICATE',
           certificate.id,
           `${certificateNumber} — ${student.fullName}`,
@@ -239,6 +277,7 @@ export default defineEventHandler(async (event) => {
             certificateNumber,
             hasWarnings: eligibility.warnings.length > 0,
             overrideWarnings: validated.overrideWarnings,
+            reissued: !!existing,
           }
         );
 
@@ -248,6 +287,7 @@ export default defineEventHandler(async (event) => {
           success: true,
           certificateId: certificate.id,
           certificateNumber,
+          pdfUrl,
           warnings: eligibility.warnings.length > 0 ? eligibility.warnings : undefined,
         });
 
