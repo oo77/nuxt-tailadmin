@@ -101,6 +101,7 @@ export interface ScheduleFilters {
   instructorId?: string;
   classroomId?: string;
   eventType?: ScheduleEventType;
+  groupIds?: string[]; // Для фильтрации по конкретным группам (TEACHER/STUDENT)
 }
 
 // ============================================================================
@@ -265,6 +266,16 @@ export async function getScheduleEvents(filters: ScheduleFilters = {}): Promise<
   if (filters.eventType) {
     conditions.push('se.event_type = ?');
     params.push(filters.eventType);
+  }
+
+  // Фильтр по конкретным ID групп (для TEACHER/STUDENT)
+  if (filters.groupIds && filters.groupIds.length > 0) {
+    const placeholders = filters.groupIds.map(() => '?').join(', ');
+    conditions.push(`se.group_id IN (${placeholders})`);
+    params.push(...filters.groupIds);
+  } else if (filters.groupIds && filters.groupIds.length === 0) {
+    // Если передан пустой массив — возвращаем пустой результат
+    return [];
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

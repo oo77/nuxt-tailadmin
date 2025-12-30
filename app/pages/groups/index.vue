@@ -5,7 +5,7 @@
       <h2 class="text-title-md2 font-bold text-black dark:text-white">
         Учебные группы
       </h2>
-      <UiButton @click="showCreateModal = true" class="flex items-center gap-2">
+      <UiButton v-if="canCreateGroups" @click="showCreateModal = true" class="flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -302,6 +302,7 @@ definePageMeta({
 
 const { authFetch } = useAuthFetch();
 const router = useRouter();
+const { canCreateGroups } = usePermissions();
 
 // State
 const loading = ref(false);
@@ -419,9 +420,13 @@ const handleGroupCreated = () => {
 const formatDate = (date: string | Date): string => {
   // Если это строка в формате YYYY-MM-DD, парсим вручную
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
-    const [year, month, day] = date.split('T')[0].split('-').map(Number);
-    const d = new Date(year, month - 1, day);
-    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const datePart = date.split('T')[0];
+    const parts = datePart?.split('-').map(Number);
+    if (parts && parts.length >= 3) {
+      const [year, month, day] = parts as [number, number, number];
+      const d = new Date(year, month - 1, day);
+      return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
   }
   // Иначе используем обычное преобразование
   const d = new Date(date);

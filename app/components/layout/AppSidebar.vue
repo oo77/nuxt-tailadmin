@@ -44,7 +44,7 @@
             class="flex items-center justify-center mx-auto"
           >
             <div class="relative group">
-              <div class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+              <div class="absolute -inset-1 bg-linear-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
               <img
                 src="/android-chrome-192x192.png"
                 alt="АТЦ"
@@ -241,12 +241,24 @@ import BoxCubeIcon from "~/components/icons/BoxCubeIcon.vue";
 import DatabaseIcon from "~/components/icons/DatabaseIcon.vue";
 import AcademicCapIcon from "~/components/icons/AcademicCapIcon.vue";
 import FolderIcon from "~/components/icons/FolderIcon.vue";
+import CertificateIcon from "~/components/icons/CertificateIcon.vue";
 import SidebarWidget from "./SidebarWidget.vue";
 import { useSidebar } from "~/composables/useSidebar";
+import { usePermissions } from "~/composables/usePermissions";
+import { Permission } from "~/types/permissions";
 
 const route = useRoute();
 
 const { isExpanded, isMobileOpen, isHovered, openSubmenu, setIsHovered } = useSidebar();
+const { 
+  hasPermission, 
+  hasAnyPermission, 
+  isStudent,
+  isTeacher,
+  isAdmin,
+  isManager,
+  isStaff,
+} = usePermissions();
 
 // Обработчики hover эффекта для сайдбара
 const handleMouseEnter = () => {
@@ -259,55 +271,142 @@ const handleMouseLeave = () => {
   setIsHovered(false)
 }
 
-const menuGroups = [
+/**
+ * Определяем структуру меню с разрешениями для каждого пункта
+ */
+const allMenuGroups = [
   {
-    title: "Menu",
+    title: "Меню",
     items: [
-
-  
       {
         icon: AcademicCapIcon,
         name: "Учебные программы",
         path: "/programs",
+        permission: Permission.COURSES_VIEW,
       },
       {
         icon: UserGroupIcon,
-        name: "Учебные группы",
+        name: isTeacher.value ? "Мои группы" : "Учебные группы",
         path: "/groups",
+        anyPermissions: [Permission.GROUPS_VIEW_ALL, Permission.GROUPS_VIEW_OWN],
       },
       {
         icon: CalenderIcon,
-        name: "Расписание",
+        name: isStudent.value || isTeacher.value ? "Моё расписание" : "Расписание",
         path: "/schedule",
+        anyPermissions: [Permission.SCHEDULE_VIEW_ALL, Permission.SCHEDULE_VIEW_OWN],
       },
       {
         icon: DatabaseIcon,
         name: "База данных",
         path: "/database",
+        permission: Permission.STUDENTS_VIEW_ALL,
       },
       {
         icon: FolderIcon,
         name: "Файловый менеджер",
         path: "/files",
+        permission: Permission.FILES_VIEW,
+        // Скрываем для студентов и учителей, так как у них нет доступа
+        hideForRoles: ['STUDENT'],
       },
       {
         icon: DocsIcon,
         name: "Шаблоны сертификатов",
         path: "/certificates/templates",
-      }
+        permission: Permission.TEMPLATES_VIEW,
+      },
+      {
+        icon: CertificateIcon,
+        name: "Мои сертификаты",
+        path: "/my-certificates",
+        permission: Permission.CERTIFICATES_VIEW_OWN,
+        // Показываем только студентам
+        showOnlyForRoles: ['STUDENT'],
+      },
     ],
   },
   {
-    title: "Others",
+    title: "Управление",
     items: [
-         {
+      {
         icon: UserGroupIcon,
         name: "Управление пользователями",
         path: "/users",
+        permission: Permission.USERS_VIEW,
       },
     ],
   },
 ];
+
+/**
+ * Фильтруем меню на основе разрешений пользователя
+ */
+const menuGroups = computed(() => {
+  return allMenuGroups
+    .map(group => {
+      const filteredItems = group.items.filter(item => {
+        // Проверяем showOnlyForRoles
+        if (item.showOnlyForRoles) {
+          const currentRole = isAdmin.value ? 'ADMIN' 
+            : isManager.value ? 'MANAGER' 
+            : isTeacher.value ? 'TEACHER' 
+            : isStudent.value ? 'STUDENT' 
+            : null;
+          if (!currentRole || !item.showOnlyForRoles.includes(currentRole)) {
+            return false;
+          }
+        }
+
+        // Проверяем hideForRoles
+        if (item.hideForRoles) {
+          const currentRole = isAdmin.value ? 'ADMIN' 
+            : isManager.value ? 'MANAGER' 
+            : isTeacher.value ? 'TEACHER' 
+            : isStudent.value ? 'STUDENT' 
+            : null;
+          if (currentRole && item.hideForRoles.includes(currentRole)) {
+            return false;
+          }
+        }
+
+        // Проверяем одно обязательное разрешение
+        if (item.permission && !hasPermission(item.permission)) {
+          return false;
+        }
+
+        // Проверяем альтернативные разрешения (OR)
+        if (item.anyPermissions && !hasAnyPermission(item.anyPermissions)) {
+          return false;
+        }
+
+        // Если есть subItems, фильтруем их тоже
+        if (item.subItems) {
+          const filteredSubItems = item.subItems.filter(subItem => {
+            if (subItem.permission && !hasPermission(subItem.permission)) {
+              return false;
+            }
+            return true;
+          });
+          
+          // Если после фильтрации нет подпунктов — скрываем весь пункт
+          if (filteredSubItems.length === 0) {
+            return false;
+          }
+          
+          item.subItems = filteredSubItems;
+        }
+
+        return true;
+      });
+
+      return {
+        ...group,
+        items: filteredItems,
+      };
+    })
+    .filter(group => group.items.length > 0); // Убираем пустые группы
+});
 
 const isActive = (path) => route.path === path;
 
@@ -317,7 +416,7 @@ const toggleSubmenu = (groupIndex, itemIndex) => {
 };
 
 const isAnySubmenuRouteActive = computed(() => {
-  return menuGroups.some((group) =>
+  return menuGroups.value.some((group) =>
     group.items.some(
       (item) =>
         item.subItems && item.subItems.some((subItem) => isActive(subItem.path))
@@ -330,7 +429,7 @@ const isSubmenuOpen = (groupIndex, itemIndex) => {
   return (
     openSubmenu.value === key ||
     (isAnySubmenuRouteActive.value &&
-      menuGroups[groupIndex].items[itemIndex].subItems?.some((subItem) =>
+      menuGroups.value[groupIndex]?.items[itemIndex]?.subItems?.some((subItem) =>
         isActive(subItem.path)
       ))
   );

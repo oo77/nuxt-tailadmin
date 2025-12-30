@@ -5,7 +5,7 @@
       <h2 class="text-title-md2 font-bold text-black dark:text-white">
         Учебные программы
       </h2>
-      <UiButton @click="navigateTo('/programs/create')" class="flex items-center gap-2">
+      <UiButton v-if="canCreateCourses" @click="navigateTo('/programs/create')" class="flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -246,6 +246,7 @@ definePageMeta({
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
+const { canCreateCourses } = usePermissions();
 
 // Состояние
 const loading = ref(false);

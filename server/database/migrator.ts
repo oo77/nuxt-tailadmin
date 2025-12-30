@@ -16,6 +16,7 @@ import * as certificateVisualEditor from './migrations/20251226_022_certificate_
 import * as certificateValidityAndPermissions from './migrations/20251229_023_certificate_validity_and_permissions';
 import * as telegramBotRequests from './migrations/20251229_024_telegram_bot_requests';
 import * as unifyCertificates from './migrations/20251229_025_unify_certificates';
+import * as userEntityLinks from './migrations/20251230_026_user_entity_links';
 
 /**
  * ============================================================================
@@ -114,6 +115,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: unifyCertificates.up,
     down: unifyCertificates.down,
     description: unifyCertificates.description,
+  },
+  // ============================================================
+  // Миграция 026: Связь Users с Students/Instructors для системы разрешений
+  // ============================================================
+  {
+    name: '20251230_026_user_entity_links',
+    up: userEntityLinks.up,
+    down: userEntityLinks.down,
+    description: userEntityLinks.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

@@ -78,6 +78,7 @@ export interface GroupFilters {
   isActive?: boolean;
   startDateFrom?: string;
   startDateTo?: string;
+  groupIds?: string[]; // Для фильтрации по конкретным ID групп (TEACHER)
 }
 
 export interface PaginationParams {
@@ -268,6 +269,22 @@ export async function getGroups(params: PaginationParams = {}): Promise<Paginate
   if (filters.startDateTo) {
     conditions.push('sg.start_date <= ?');
     queryParams.push(filters.startDateTo);
+  }
+
+  // Фильтр по конкретным ID групп (для TEACHER)
+  if (filters.groupIds && filters.groupIds.length > 0) {
+    const placeholders = filters.groupIds.map(() => '?').join(', ');
+    conditions.push(`sg.id IN (${placeholders})`);
+    queryParams.push(...filters.groupIds);
+  } else if (filters.groupIds && filters.groupIds.length === 0) {
+    // Если передан пустой массив — возвращаем пустой результат
+    return {
+      data: [],
+      total: 0,
+      page,
+      limit,
+      totalPages: 0,
+    };
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -685,8 +702,9 @@ export async function getGroupsForSelect(excludeGroupId?: string): Promise<Array
 
 /**
  * Получить статистику по группам
+ * @param groupIds Опциональный список ID групп для фильтрации (для TEACHER)
  */
-export async function getGroupsStats(): Promise<{
+export async function getGroupsStats(groupIds?: string[]): Promise<{
   total: number;
   active: number;
   completed: number;
@@ -694,23 +712,45 @@ export async function getGroupsStats(): Promise<{
 }> {
   const today = new Date().toISOString().split('T')[0];
 
+  // Формируем условие фильтрации по groupIds
+  let groupCondition = '';
+  let groupParams: string[] = [];
+  
+  if (groupIds && groupIds.length > 0) {
+    const placeholders = groupIds.map(() => '?').join(', ');
+    groupCondition = `AND id IN (${placeholders})`;
+    groupParams = groupIds;
+  } else if (groupIds && groupIds.length === 0) {
+    // Пустой массив — нет доступных групп
+    return { total: 0, active: 0, completed: 0, totalStudents: 0 };
+  }
+
   const [totalResult] = await executeQuery<CountRow[]>(
-    'SELECT COUNT(*) as total FROM study_groups'
+    `SELECT COUNT(*) as total FROM study_groups WHERE 1=1 ${groupCondition}`,
+    groupParams
   );
 
   const [activeResult] = await executeQuery<CountRow[]>(
-    'SELECT COUNT(*) as total FROM study_groups WHERE is_active = true AND end_date >= ?',
-    [today]
+    `SELECT COUNT(*) as total FROM study_groups WHERE is_active = true AND end_date >= ? ${groupCondition}`,
+    [today, ...groupParams]
   );
 
   const [completedResult] = await executeQuery<CountRow[]>(
-    'SELECT COUNT(*) as total FROM study_groups WHERE end_date < ?',
-    [today]
+    `SELECT COUNT(*) as total FROM study_groups WHERE end_date < ? ${groupCondition}`,
+    [today, ...groupParams]
   );
 
-  const [studentsResult] = await executeQuery<CountRow[]>(
-    'SELECT COUNT(DISTINCT student_id) as total FROM study_group_students'
-  );
+  // Считаем студентов только в указанных группах
+  let studentsQuery = 'SELECT COUNT(DISTINCT student_id) as total FROM study_group_students';
+  let studentsParams: string[] = [];
+  
+  if (groupIds && groupIds.length > 0) {
+    const placeholders = groupIds.map(() => '?').join(', ');
+    studentsQuery += ` WHERE group_id IN (${placeholders})`;
+    studentsParams = groupIds;
+  }
+
+  const [studentsResult] = await executeQuery<CountRow[]>(studentsQuery, studentsParams);
 
   return {
     total: totalResult[0]?.total || 0,

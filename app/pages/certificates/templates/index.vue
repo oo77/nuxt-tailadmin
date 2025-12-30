@@ -10,7 +10,7 @@
           Управление шаблонами для генерации сертификатов
         </p>
       </div>
-      <UiButton @click="showCreateModal = true">
+      <UiButton v-if="canCreateTemplates" @click="showCreateModal = true">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
@@ -36,7 +36,7 @@
       <p class="text-gray-500 dark:text-gray-400 mb-6">
         Создайте первый шаблон сертификата для начала работы
       </p>
-      <UiButton @click="showCreateModal = true">
+      <UiButton v-if="canCreateTemplates" @click="showCreateModal = true">
         Создать шаблон
       </UiButton>
     </div>
@@ -49,7 +49,7 @@
         class="group rounded-xl bg-white dark:bg-boxdark shadow-md overflow-hidden hover:shadow-lg transition-all duration-200"
       >
         <!-- Превью или плейсхолдер -->
-        <div class="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
+        <div class="relative h-48 bg-linear-to-br from-primary/10 to-primary/5 flex items-center justify-center overflow-hidden">
           <!-- Реальное превью шаблона (если есть backgroundUrl) -->
           <div v-if="template.backgroundUrl" class="absolute inset-0">
             <img 
@@ -58,7 +58,7 @@
               class="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
             />
             <!-- Затемнение для лучшей читаемости -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+            <div class="absolute inset-0 bg-linear-to-t from-black/30 to-transparent"></div>
           </div>
           <!-- Если есть только оригинальный файл (docx) но нет преью фона -->
           <div v-else-if="template.originalFileUrl" class="absolute inset-0 flex flex-col items-center justify-center">
@@ -134,6 +134,7 @@
               </svg>
             </NuxtLink>
             <button
+              v-if="canDeleteTemplates"
               @click="confirmDelete(template)"
               class="p-2 bg-white rounded-lg hover:bg-red-50 transition-colors"
               title="Удалить"
@@ -216,6 +217,7 @@ useHead({
 
 const { authFetch } = useAuthFetch();
 const { success: showSuccess, error: showError } = useNotification();
+const { canCreateTemplates, canDeleteTemplates } = usePermissions();
 
 // State
 const loading = ref(true);

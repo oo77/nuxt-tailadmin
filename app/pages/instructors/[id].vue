@@ -223,6 +223,17 @@
           <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
         </div>
 
+        <!-- Error State -->
+        <div v-else-if="hoursError" class="text-center py-6">
+          <div class="mx-auto mb-4 h-12 w-12 rounded-full bg-danger/10 flex items-center justify-center">
+            <AlertCircle class="w-6 h-6 text-danger" />
+          </div>
+          <p class="text-danger mb-3">{{ hoursError }}</p>
+          <button @click="loadHoursStats" class="text-sm text-primary hover:underline">
+            Попробовать снова
+          </button>
+        </div>
+
         <!-- Hours Stats Content -->
         <div v-else-if="hoursStats">
           <!-- Progress Bar -->
@@ -443,6 +454,7 @@ const isDeleting = ref(false);
 // Hours Stats State
 const hoursStats = ref<InstructorHoursStats | null>(null);
 const hoursLoading = ref(false);
+const hoursError = ref<string | null>(null);
 
 // Meta
 definePageMeta({
@@ -571,19 +583,26 @@ const loadHoursStats = async () => {
   if (hoursLoading.value) return;
   
   hoursLoading.value = true;
+  hoursError.value = null;
   
   try {
+    console.log('[InstructorHours] Загрузка статистики для:', id);
+    
     const response = await authFetch<{ success: boolean; stats: InstructorHoursStats }>(
       `/api/instructors/${id}/hours`,
       { method: 'GET' }
     );
     
-    if (response.success) {
+    console.log('[InstructorHours] Ответ:', response);
+    
+    if (response.success && response.stats) {
       hoursStats.value = response.stats;
+    } else {
+      hoursError.value = 'Не удалось загрузить статистику';
     }
   } catch (err: any) {
-    console.error('Error loading hours stats:', err);
-    // Не показываем ошибку — просто оставляем пустую статистику
+    console.error('[InstructorHours] Ошибка:', err);
+    hoursError.value = err.data?.statusMessage || err.message || 'Ошибка загрузки статистики';
   } finally {
     hoursLoading.value = false;
   }

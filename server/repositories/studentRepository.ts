@@ -445,6 +445,33 @@ export async function deleteStudent(id: string): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+/**
+ * Связывает студента с пользователем (user) для авторизации
+ */
+export async function linkStudentToUser(studentId: string, userId: string): Promise<void> {
+  await executeQuery(
+    'UPDATE students SET user_id = ? WHERE id = ?',
+    [userId, studentId]
+  );
+}
+
+/**
+ * Получить студента по user_id
+ */
+export async function getStudentByUserId(userId: string): Promise<Student | null> {
+  const rows = await executeQuery<StudentRow[]>(
+    'SELECT * FROM students WHERE user_id = ? LIMIT 1',
+    [userId]
+  );
+  
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const certificates = await getCertificatesByStudentId(rows[0].id);
+  return mapRowToStudent(rows[0], certificates);
+}
+
 // ============================================================================
 // СЕРТИФИКАТЫ - ПУБЛИЧНЫЕ ОПЕРАЦИИ
 // ============================================================================

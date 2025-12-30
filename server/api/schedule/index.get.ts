@@ -1,18 +1,63 @@
 /**
  * GET /api/schedule
  * Получение событий расписания
+ * 
+ * Фильтрация по ролям:
+ * - ADMIN/MANAGER: все события
+ * - TEACHER: только события своих групп
+ * - STUDENT: только события своих групп
  */
 
 import { getScheduleEvents } from '../../repositories/scheduleRepository';
 import type { ScheduleEventType } from '../../repositories/scheduleRepository';
 import { dateToLocalIso } from '../../utils/timeUtils';
+import { 
+  getPermissionContext, 
+  roleHasPermission, 
+  getTeacherGroups,
+  getStudentGroups,
+} from '../../utils/permissions';
+import { Permission } from '../../types/permissions';
+import { UserRole } from '../../types/auth';
+import { logActivity } from '../../utils/activityLogger';
 
 
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event);
     
-    const filters = {
+    // Получаем контекст разрешений
+    const context = await getPermissionContext(event);
+    
+    if (!context) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized',
+        message: 'Требуется авторизация',
+      });
+    }
+
+    // Проверяем разрешение на просмотр расписания
+    const canViewAll = roleHasPermission(context.role, Permission.SCHEDULE_VIEW_ALL);
+    const canViewOwn = roleHasPermission(context.role, Permission.SCHEDULE_VIEW_OWN);
+
+    if (!canViewAll && !canViewOwn) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden',
+        message: 'Недостаточно прав для просмотра расписания',
+      });
+    }
+
+    const filters: {
+      startDate?: string;
+      endDate?: string;
+      groupId?: string;
+      instructorId?: string;
+      classroomId?: string;
+      eventType?: ScheduleEventType;
+      groupIds?: string[];
+    } = {
       startDate: query.startDate as string | undefined,
       endDate: query.endDate as string | undefined,
       groupId: query.groupId as string | undefined,
@@ -20,6 +65,30 @@ export default defineEventHandler(async (event) => {
       classroomId: query.classroomId as string | undefined,
       eventType: query.eventType as ScheduleEventType | undefined,
     };
+
+    // Фильтрация для TEACHER: только свои группы
+    if (context.role === UserRole.TEACHER && !canViewAll) {
+      if (context.instructorId) {
+        const teacherGroupIds = await getTeacherGroups(context.instructorId);
+        filters.groupIds = teacherGroupIds;
+        console.log(`[Schedule API] TEACHER ${context.userId} фильтрация по своим группам: ${teacherGroupIds.length} групп`);
+      } else {
+        console.warn(`[Schedule API] TEACHER ${context.userId} не имеет связанного instructorId`);
+        return { success: true, events: [] };
+      }
+    }
+
+    // Фильтрация для STUDENT: только свои группы
+    if (context.role === UserRole.STUDENT && !canViewAll) {
+      if (context.studentId) {
+        const studentGroupIds = await getStudentGroups(context.studentId);
+        filters.groupIds = studentGroupIds;
+        console.log(`[Schedule API] STUDENT ${context.userId} фильтрация по своим группам: ${studentGroupIds.length} групп`);
+      } else {
+        console.warn(`[Schedule API] STUDENT ${context.userId} не имеет связанного studentId`);
+        return { success: true, events: [] };
+      }
+    }
 
     console.log('[Schedule API] Фильтры запроса:', JSON.stringify(filters));
 
@@ -37,6 +106,14 @@ export default defineEventHandler(async (event) => {
       }));
     }
 
+    // Логируем действие
+    await logActivity({
+      userId: context.userId,
+      action: 'view',
+      entityType: 'schedule_event',
+      details: `Просмотр расписания (${events.length} событий)`,
+    });
+
     return {
       success: true,
       events: events.map((e) => ({
@@ -48,7 +125,12 @@ export default defineEventHandler(async (event) => {
         updatedAt: e.updatedAt.toISOString(),
       })),
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Пробрасываем HTTP ошибки
+    if (error.statusCode) {
+      throw error;
+    }
+
     console.error('Error fetching schedule events:', error);
     throw createError({
       statusCode: 500,
@@ -56,3 +138,4 @@ export default defineEventHandler(async (event) => {
     });
   }
 });
+

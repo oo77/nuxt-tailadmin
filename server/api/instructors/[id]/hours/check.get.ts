@@ -12,7 +12,7 @@
  * - message?: string
  */
 
-import { checkInstructorHoursLimit, getInstructorById } from '../../../repositories/instructorRepository';
+import { checkInstructorHoursLimit, getInstructorById } from '../../../../repositories/instructorRepository';
 
 export default defineEventHandler(async (event) => {
   try {

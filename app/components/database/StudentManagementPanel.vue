@@ -518,7 +518,12 @@ const handleSubmit = async (data: CreateStudentData | UpdateStudentData) => {
       }
     } else {
       // Создание нового студента
-      const response = await authFetch<{ success: boolean; student: Student }>('/api/students', {
+      const response = await authFetch<{ 
+        success: boolean; 
+        student: Student;
+        generatedPassword?: string;
+        accountEmail?: string;
+      }>('/api/students', {
         method: 'POST',
         body: data,
       });
@@ -529,7 +534,19 @@ const handleSubmit = async (data: CreateStudentData | UpdateStudentData) => {
         
         // Показываем уведомление об успехе
         const notification = useNotification();
-        notification.success('Студент успешно создан', 'Успех');
+        
+        // Показываем сгенерированный пароль, если он есть
+        if (response.generatedPassword && response.accountEmail) {
+          notification.success(
+            `Учётная запись создана!\nEmail: ${response.accountEmail}\nПароль: ${response.generatedPassword}`,
+            'Студент и аккаунт созданы',
+            10000 // Показываем дольше для копирования
+          );
+        } else if ((data as any).createAccount) {
+          notification.success('Студент и учётная запись успешно созданы', 'Успех');
+        } else {
+          notification.success('Студент успешно создан', 'Успех');
+        }
         
         closeFormModal();
       }

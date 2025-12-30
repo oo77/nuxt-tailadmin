@@ -1,11 +1,28 @@
 /**
  * API endpoint для создания нового инструктора
  * POST /api/instructors
+ * 
+ * Поддерживает опциональное создание учётной записи (user) для входа в систему.
+ * Если createAccount = true, создаётся user с ролью TEACHER и связывается с instructor.
  */
 
-import { createInstructor, instructorEmailExists, type CreateInstructorInput } from '../../repositories/instructorRepository';
+import { randomUUID } from 'crypto';
+import { createInstructor, instructorEmailExists, type CreateInstructorInput, linkInstructorToUser } from '../../repositories/instructorRepository';
+import { executeQuery } from '../../utils/db';
+import { hashPassword } from '../../utils/auth';
 import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
+import type { User } from '../../types/auth';
+
+// Генерация случайного пароля
+function generatePassword(length = 12): string {
+  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 const instructorSchema = z.object({
   fullName: z.string().min(1, 'ФИО обязательно'),
@@ -15,11 +32,22 @@ const instructorSchema = z.object({
   contractInfo: z.string().optional(),
   maxHours: z.number().min(0, 'Часы не могут быть отрицательными').optional(),
   isActive: z.boolean().optional(),
+  
+  // Поля для создания учётной записи
+  createAccount: z.boolean().optional().default(false),
+  accountEmail: z.string().email('Некорректный email для аккаунта').optional(),
+  accountPassword: z.string().min(8, 'Пароль должен быть минимум 8 символов').optional(),
+  autoGeneratePassword: z.boolean().optional().default(true),
 });
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
+
+    console.log('[Instructors API] Создание инструктора:', { 
+      fullName: body.fullName, 
+      createAccount: body.createAccount 
+    });
 
     // Валидация
     const validationResult = instructorSchema.safeParse(body);
@@ -36,7 +64,7 @@ export default defineEventHandler(async (event) => {
 
     const data = validationResult.data;
 
-    // Проверяем уникальность email если указан
+    // Проверяем уникальность email инструктора если указан
     if (data.email && data.email !== '') {
       const emailExists = await instructorEmailExists(data.email);
       if (emailExists) {
@@ -48,8 +76,75 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    let userId: string | null = null;
+    let generatedPassword: string | null = null;
+
+    // Если нужно создать учётную запись
+    if (data.createAccount) {
+      const accountEmail = data.accountEmail || data.email;
+      
+      if (!accountEmail) {
+        return {
+          success: false,
+          message: 'Email обязателен для создания учётной записи',
+          field: 'accountEmail',
+        };
+      }
+
+      // Проверяем уникальность email в таблице users
+      const existingUsers = await executeQuery<User[]>(
+        'SELECT id FROM users WHERE email = ? LIMIT 1',
+        [accountEmail]
+      );
+
+      if (existingUsers.length > 0) {
+        return {
+          success: false,
+          message: 'Пользователь с таким email уже существует в системе',
+          field: 'accountEmail',
+        };
+      }
+
+      // Генерируем или используем указанный пароль
+      const password = data.autoGeneratePassword 
+        ? generatePassword() 
+        : data.accountPassword;
+
+      if (!password) {
+        return {
+          success: false,
+          message: 'Пароль обязателен для создания учётной записи',
+          field: 'accountPassword',
+        };
+      }
+
+      // Если автогенерация — сохраняем для возврата
+      if (data.autoGeneratePassword) {
+        generatedPassword = password;
+      }
+
+      // Хешируем пароль
+      const passwordHash = await hashPassword(password);
+
+      // Создаём пользователя с ролью TEACHER
+      userId = randomUUID();
+      await executeQuery(
+        `INSERT INTO users (id, role, name, email, password_hash, phone, created_at, updated_at)
+         VALUES (?, 'TEACHER', ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [userId, data.fullName, accountEmail, passwordHash, data.phone || null]
+      );
+
+      console.log(`[Instructors API] Создан пользователь: ${accountEmail} (role=TEACHER)`);
+    }
+
     // Создаём инструктора
     const instructor = await createInstructor(data as CreateInstructorInput);
+
+    // Если создали пользователя, связываем с инструктором
+    if (userId) {
+      await linkInstructorToUser(instructor.id, userId);
+      console.log(`[Instructors API] Связан instructor.id=${instructor.id} с user.id=${userId}`);
+    }
 
     // Логируем действие
     await logActivity(
@@ -58,13 +153,24 @@ export default defineEventHandler(async (event) => {
       'INSTRUCTOR',
       String(instructor.id),
       instructor.fullName,
-      { email: instructor.email }
+      { 
+        email: instructor.email,
+        accountCreated: !!userId,
+        accountEmail: data.createAccount ? (data.accountEmail || data.email) : undefined
+      }
     );
 
     return {
       success: true,
-      message: 'Инструктор успешно создан',
+      message: data.createAccount 
+        ? 'Инструктор и учётная запись успешно созданы' 
+        : 'Инструктор успешно создан',
       instructor,
+      // Возвращаем сгенерированный пароль ТОЛЬКО при автогенерации
+      ...(generatedPassword && { 
+        generatedPassword,
+        accountEmail: data.accountEmail || data.email 
+      }),
     };
   } catch (error) {
     console.error('Ошибка создания инструктора:', error);

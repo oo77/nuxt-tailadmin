@@ -11,6 +11,7 @@ export interface Instructor {
   contractInfo?: string | null;
   maxHours: number;
   isActive: boolean;
+  userId?: string | null; // ID связанной учётной записи пользователя
   createdAt: Date | string;
   updatedAt: Date | string;
 }

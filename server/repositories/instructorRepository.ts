@@ -19,6 +19,7 @@ export interface Instructor {
   contractInfo?: string | null;
   maxHours: number;
   isActive: boolean;
+  userId?: string | null; // ID связанной учётной записи пользователя
   createdAt: Date;
   updatedAt: Date;
 }
@@ -75,6 +76,7 @@ interface InstructorRow extends RowDataPacket {
   contract_info: string | null;
   max_hours: number;
   is_active: boolean;
+  user_id: string | null; // ID связанной учётной записи пользователя
   created_at: Date;
   updated_at: Date;
   discipline_count?: number;
@@ -98,6 +100,7 @@ function mapRowToInstructor(row: InstructorRow): Instructor & { disciplineCount?
     contractInfo: row.contract_info,
     maxHours: row.max_hours || 0,
     isActive: Boolean(row.is_active),
+    userId: row.user_id, // ID связанной учётной записи
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     disciplineCount: row.discipline_count,
@@ -236,11 +239,11 @@ export async function updateInstructor(id: string, data: UpdateInstructorInput):
   }
   if (data.email !== undefined) {
     updates.push('email = ?');
-    params.push(data.email);
+    params.push(data.email ?? null); // Преобразуем undefined в null
   }
   if (data.phone !== undefined) {
     updates.push('phone = ?');
-    params.push(data.phone);
+    params.push(data.phone ?? null); // Преобразуем undefined в null
   }
   if (data.hireDate !== undefined) {
     updates.push('hire_date = ?');
@@ -251,11 +254,11 @@ export async function updateInstructor(id: string, data: UpdateInstructorInput):
   }
   if (data.contractInfo !== undefined) {
     updates.push('contract_info = ?');
-    params.push(data.contractInfo);
+    params.push(data.contractInfo ?? null); // Преобразуем undefined в null
   }
   if (data.maxHours !== undefined) {
     updates.push('max_hours = ?');
-    params.push(data.maxHours);
+    params.push(data.maxHours ?? 0); // По умолчанию 0
   }
   if (data.isActive !== undefined) {
     updates.push('is_active = ?');
@@ -279,6 +282,28 @@ export async function deleteInstructor(id: string): Promise<boolean> {
     [id]
   );
   return result.affectedRows > 0;
+}
+
+/**
+ * Связывает инструктора с пользователем (user) для авторизации
+ */
+export async function linkInstructorToUser(instructorId: string, userId: string): Promise<void> {
+  await executeQuery(
+    'UPDATE instructors SET user_id = ? WHERE id = ?',
+    [userId, instructorId]
+  );
+}
+
+/**
+ * Получить инструктора по user_id
+ */
+export async function getInstructorByUserId(userId: string): Promise<Instructor | null> {
+  const rows = await executeQuery<InstructorRow[]>(
+    'SELECT * FROM instructors WHERE user_id = ? LIMIT 1',
+    [userId]
+  );
+  
+  return rows.length > 0 ? mapRowToInstructor(rows[0]) : null;
 }
 
 // ============================================================================
@@ -305,7 +330,7 @@ export async function getInstructorsByIds(ids: string[]): Promise<Instructor[]> 
 // ============================================================================
 
 interface InstructorHoursRow extends RowDataPacket {
-  year_month: string;
+  ym: string;
   total_minutes: number;
   event_count: number;
 }
@@ -334,61 +359,90 @@ export interface InstructorHoursStats {
 
 /**
  * Получить статистику часов инструктора
- * Считает только фактически проведённые занятия (прошедшие события)
- * и запланированные занятия (будущие события) отдельно
+ * 
+ * НОВАЯ ЛОГИКА:
+ * - "Отработано" = занятия, для которых есть записи в журнале посещаемости (attendance)
+ * - "Запланировано" = занятия без записей в журнале посещаемости
  */
 export async function getInstructorHoursStats(instructorId: string): Promise<InstructorHoursStats | null> {
   const instructor = await getInstructorById(instructorId);
   if (!instructor) return null;
   
-  const now = new Date();
-  const currentDatetime = now.toISOString().slice(0, 19).replace('T', ' ');
+  console.log('[InstructorHours] Загрузка статистики для инструктора:', instructorId);
   
-  // Получаем часы по месяцам (только прошедшие события = фактически отработанные)
+  const dateFormat = '%Y-%m';
+  
+  // ============================================================
+  // ОТРАБОТАННЫЕ ЧАСЫ = занятия с записями в журнале посещаемости
+  // ============================================================
+  
+  // По месяцам (отработанные)
   const usedByMonthRows = await executeQuery<InstructorHoursRow[]>(
-    `SELECT 
-       DATE_FORMAT(start_time, '%Y-%m') as year_month,
-       SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as total_minutes,
-       COUNT(*) as event_count
-     FROM schedule_events
-     WHERE instructor_id = ? AND end_time <= ?
-     GROUP BY DATE_FORMAT(start_time, '%Y-%m')
-     ORDER BY year_month DESC`,
-    [instructorId, currentDatetime]
+    `SELECT DATE_FORMAT(se.start_time, ?) AS ym, 
+            SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time)) AS total_minutes, 
+            COUNT(DISTINCT se.id) AS event_count 
+     FROM schedule_events se 
+     WHERE se.instructor_id = ? 
+       AND EXISTS (SELECT 1 FROM attendance a WHERE a.schedule_event_id = se.id) 
+     GROUP BY ym 
+     ORDER BY ym DESC`,
+    [dateFormat, instructorId]
   );
   
-  // Получаем часы по месяцам (только будущие события = запланированные)
-  const scheduledByMonthRows = await executeQuery<InstructorHoursRow[]>(
-    `SELECT 
-       DATE_FORMAT(start_time, '%Y-%m') as year_month,
-       SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as total_minutes,
-       COUNT(*) as event_count
-     FROM schedule_events
-     WHERE instructor_id = ? AND start_time > ?
-     GROUP BY DATE_FORMAT(start_time, '%Y-%m')
-     ORDER BY year_month ASC`,
-    [instructorId, currentDatetime]
-  );
-  
-  // Получаем общие часы (прошедшие)
+  // Общие отработанные часы
   const totalUsedRows = await executeQuery<InstructorHoursTotalRow[]>(
-    `SELECT 
-       COALESCE(SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)), 0) as total_minutes,
-       COUNT(*) as event_count
-     FROM schedule_events
-     WHERE instructor_id = ? AND end_time <= ?`,
-    [instructorId, currentDatetime]
+    `SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time)), 0) AS total_minutes, 
+            COUNT(DISTINCT se.id) AS event_count 
+     FROM schedule_events se 
+     WHERE se.instructor_id = ? 
+       AND EXISTS (SELECT 1 FROM attendance a WHERE a.schedule_event_id = se.id)`,
+    [instructorId]
   );
   
-  // Получаем общие часы (будущие/запланированные)
-  const totalScheduledRows = await executeQuery<InstructorHoursTotalRow[]>(
-    `SELECT 
-       COALESCE(SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)), 0) as total_minutes,
-       COUNT(*) as event_count
-     FROM schedule_events
-     WHERE instructor_id = ? AND start_time > ?`,
-    [instructorId, currentDatetime]
+  console.log('[InstructorHours] Отработанных занятий:', totalUsedRows[0]?.event_count || 0);
+  console.log('[InstructorHours] Отработанных минут:', totalUsedRows[0]?.total_minutes || 0);
+  
+  // ============================================================
+  // ЗАПЛАНИРОВАННЫЕ ЧАСЫ = занятия БЕЗ записей в журнале
+  // ============================================================
+  
+  // По месяцам (запланированные)
+  const scheduledByMonthRows = await executeQuery<InstructorHoursRow[]>(
+    `SELECT DATE_FORMAT(se.start_time, ?) AS ym, 
+            SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time)) AS total_minutes, 
+            COUNT(DISTINCT se.id) AS event_count 
+     FROM schedule_events se 
+     WHERE se.instructor_id = ? 
+       AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.schedule_event_id = se.id) 
+     GROUP BY ym 
+     ORDER BY ym ASC`,
+    [dateFormat, instructorId]
   );
+  
+  // Общие запланированные часы
+  const totalScheduledRows = await executeQuery<InstructorHoursTotalRow[]>(
+    `SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time)), 0) AS total_minutes, 
+            COUNT(DISTINCT se.id) AS event_count 
+     FROM schedule_events se 
+     WHERE se.instructor_id = ? 
+       AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.schedule_event_id = se.id)`,
+    [instructorId]
+  );
+  
+  console.log('[InstructorHours] Запланированных занятий:', totalScheduledRows[0]?.event_count || 0);
+  console.log('[InstructorHours] Запланированных минут:', totalScheduledRows[0]?.total_minutes || 0);
+  
+  // ============================================================
+  // ОБЩАЯ СТАТИСТИКА
+  // ============================================================
+  
+  // Всего занятий (для контроля)
+  const totalAllRows = await executeQuery<InstructorHoursTotalRow[]>(
+    `SELECT COALESCE(SUM(TIMESTAMPDIFF(MINUTE, start_time, end_time)), 0) AS total_minutes, COUNT(*) AS event_count FROM schedule_events WHERE instructor_id = ?`,
+    [instructorId]
+  );
+  
+  console.log('[InstructorHours] Всего занятий:', totalAllRows[0]?.event_count || 0);
   
   const monthNames = [
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -404,17 +458,17 @@ export async function getInstructorHoursStats(instructorId: string): Promise<Ins
   }>();
   
   for (const row of usedByMonthRows) {
-    const existing = monthMap.get(row.year_month) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
+    const existing = monthMap.get(row.ym) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
     existing.usedMinutes = Number(row.total_minutes);
     existing.usedEvents = Number(row.event_count);
-    monthMap.set(row.year_month, existing);
+    monthMap.set(row.ym, existing);
   }
   
   for (const row of scheduledByMonthRows) {
-    const existing = monthMap.get(row.year_month) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
+    const existing = monthMap.get(row.ym) || { usedMinutes: 0, scheduledMinutes: 0, usedEvents: 0, scheduledEvents: 0 };
     existing.scheduledMinutes = Number(row.total_minutes);
     existing.scheduledEvents = Number(row.event_count);
-    monthMap.set(row.year_month, existing);
+    monthMap.set(row.ym, existing);
   }
   
   // Сортируем месяцы в хронологическом порядке
@@ -443,6 +497,16 @@ export async function getInstructorHoursStats(instructorId: string): Promise<Ins
   const usagePercentage = instructor.maxHours > 0 
     ? Math.round((totalHoursPlanned / instructor.maxHours) * 100) 
     : 0;
+  
+  console.log('[InstructorHours] Результат:', {
+    maxHours: instructor.maxHours,
+    totalUsedHours,
+    totalScheduledHours,
+    totalHoursPlanned,
+    remainingHours,
+    usagePercentage,
+    monthCount: byMonth.length
+  });
   
   return {
     maxHours: instructor.maxHours,

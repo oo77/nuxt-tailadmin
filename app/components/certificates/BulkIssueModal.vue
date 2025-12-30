@@ -3,7 +3,7 @@
     <Transition name="modal">
       <div
         v-if="isOpen"
-        class="fixed inset-0 z-[9999] flex items-center justify-center"
+        class="fixed inset-0 z-9999 flex items-center justify-center"
       >
         <!-- Backdrop -->
         <div 
@@ -71,13 +71,13 @@
                   </div>
                   <div class="relative w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
-                      class="absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-300 ease-out"
+                      class="absolute left-0 top-0 h-full bg-linear-to-r from-primary to-primary/80 rounded-full transition-all duration-300 ease-out"
                       :style="{ width: `${progressPercent}%` }"
                     ></div>
                     <!-- Анимация пульса -->
                     <div 
                       v-if="progressPercent < 100"
-                      class="absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-primary/30 to-transparent animate-pulse"
+                      class="absolute right-0 top-0 h-full w-12 bg-linear-to-l from-primary/30 to-transparent animate-pulse"
                       :style="{ left: `${Math.max(0, progressPercent - 5)}%` }"
                     ></div>
                   </div>

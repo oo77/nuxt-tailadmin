@@ -183,6 +183,108 @@
                     {{ errors.position[0] }}
                   </p>
                 </div>
+
+                <!-- Секция создания учётной записи (только при создании нового студента) -->
+                <div v-if="!props.student" class="sm:col-span-2 mt-6 pt-6 border-t-2 border-primary/30 dark:border-primary/20">
+                  <div class="flex items-center justify-between mb-4 bg-primary/5 dark:bg-primary/10 p-4 rounded-lg">
+                    <div>
+                      <h4 class="text-lg font-bold text-primary dark:text-primary">
+                        🔐 Учётная запись для входа
+                      </h4>
+                      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Создать логин и пароль для входа в систему с ролью STUDENT
+                      </p>
+                    </div>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                      <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ formData.createAccount ? 'Включено' : 'Отключено' }}
+                      </span>
+                      <input
+                        v-model="formData.createAccount"
+                        type="checkbox"
+                        class="sr-only"
+                      />
+                      <div
+                        :class="[
+                          'relative h-7 w-12 rounded-full transition-colors',
+                          formData.createAccount ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                        ]"
+                      >
+                        <div
+                          :class="[
+                            'absolute top-0.5 h-6 w-6 rounded-full bg-white transition-transform shadow-md',
+                            formData.createAccount ? 'translate-x-5' : 'translate-x-0.5'
+                          ]"
+                        ></div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <!-- Поля учётной записи -->
+                  <Transition
+                    enter-active-class="transition-all duration-300 ease-out"
+                    enter-from-class="opacity-0 max-h-0"
+                    enter-to-class="opacity-100 max-h-96"
+                    leave-active-class="transition-all duration-200 ease-in"
+                    leave-from-class="opacity-100 max-h-96"
+                    leave-to-class="opacity-0 max-h-0"
+                  >
+                    <div v-if="formData.createAccount" class="grid grid-cols-1 gap-4 sm:grid-cols-2 overflow-hidden mt-4">
+                      <!-- Email для аккаунта -->
+                      <div>
+                        <label class="mb-2 block text-sm font-medium text-black dark:text-white">
+                          📧 Email для входа
+                        </label>
+                        <input
+                          v-model="formData.accountEmail"
+                          type="email"
+                          :placeholder="`${formData.pinfl || 'ПИНФЛ'}@student.local`"
+                          class="w-full rounded-lg border-2 border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                          :class="{ 'border-danger': errors.accountEmail }"
+                        />
+                        <p v-if="errors.accountEmail" class="mt-1 text-sm text-danger">
+                          {{ errors.accountEmail[0] }}
+                        </p>
+                        <p v-else class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Если не указан — будет использован ПИНФЛ@student.local
+                        </p>
+                      </div>
+
+                      <!-- Пароль / Автогенерация -->
+                      <div>
+                        <label class="mb-2 block text-sm font-medium text-black dark:text-white">
+                          🔑 Пароль
+                        </label>
+                        
+                        <label class="flex items-center gap-2 mb-2 cursor-pointer bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                          <input
+                            v-model="formData.autoGeneratePassword"
+                            type="checkbox"
+                            class="w-4 h-4 rounded border-stroke dark:border-form-strokedark text-primary focus:ring-primary"
+                          />
+                          <span class="text-sm text-gray-600 dark:text-gray-400">
+                            Сгенерировать автоматически
+                          </span>
+                        </label>
+
+                        <input
+                          v-if="!formData.autoGeneratePassword"
+                          v-model="formData.accountPassword"
+                          type="password"
+                          placeholder="Минимум 8 символов"
+                          class="w-full rounded-lg border-2 border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                          :class="{ 'border-danger': errors.accountPassword }"
+                        />
+                        <p v-if="errors.accountPassword" class="mt-1 text-sm text-danger">
+                          {{ errors.accountPassword[0] }}
+                        </p>
+                        <p v-else-if="formData.autoGeneratePassword" class="text-xs text-success dark:text-success">
+                          ✓ Пароль будет сгенерирован и показан после создания
+                        </p>
+                      </div>
+                    </div>
+                  </Transition>
+                </div>
               </div>
 
               <!-- Кнопки -->
@@ -256,6 +358,11 @@ const formData = reactive({
   organization: '',
   department: '',
   position: '',
+  // Поля для создания учётной записи
+  createAccount: true, // По умолчанию включено для удобства
+  accountEmail: '',
+  accountPassword: '',
+  autoGeneratePassword: true,
 });
 
 // Вычисляемые свойства
@@ -380,13 +487,22 @@ const handleSubmit = async () => {
   isSubmitting.value = true;
 
   try {
-    const submitData: CreateStudentData | UpdateStudentData = {
+    // Базовые данные студента
+    const submitData: any = {
       fullName: formData.fullName.trim(),
       pinfl: formData.pinfl.trim(),
       organization: formData.organization.trim(),
       department: formData.department?.trim() || undefined,
       position: formData.position.trim(),
     };
+
+    // Добавляем поля учётной записи если нужно создать аккаунт
+    if (formData.createAccount && !props.student) {
+      submitData.createAccount = true;
+      submitData.accountEmail = formData.accountEmail || undefined;
+      submitData.accountPassword = !formData.autoGeneratePassword ? formData.accountPassword : undefined;
+      submitData.autoGeneratePassword = formData.autoGeneratePassword;
+    }
 
     emit('submit', submitData);
     
