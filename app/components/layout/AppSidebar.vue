@@ -242,6 +242,7 @@ import DatabaseIcon from "~/components/icons/DatabaseIcon.vue";
 import AcademicCapIcon from "~/components/icons/AcademicCapIcon.vue";
 import FolderIcon from "~/components/icons/FolderIcon.vue";
 import CertificateIcon from "~/components/icons/CertificateIcon.vue";
+import ClipboardCheckIcon from "~/components/icons/ClipboardCheckIcon.vue";
 import SidebarWidget from "./SidebarWidget.vue";
 import { useSidebar } from "~/composables/useSidebar";
 import { usePermissions } from "~/composables/usePermissions";
@@ -317,10 +318,24 @@ const allMenuGroups = [
         permission: Permission.TEMPLATES_VIEW,
       },
       {
+        icon: ClipboardCheckIcon,
+        name: "Банк тестов",
+        path: "/test-bank",
+        // Доступно для админов и менеджеров
+        hideForRoles: ['STUDENT', 'TEACHER'],
+      },
+      {
         icon: CertificateIcon,
         name: "Мои сертификаты",
         path: "/my-certificates",
         permission: Permission.CERTIFICATES_VIEW_OWN,
+        // Показываем только студентам
+        showOnlyForRoles: ['STUDENT'],
+      },
+      {
+        icon: ClipboardCheckIcon,
+        name: "Мои тесты",
+        path: "/tests/my",
         // Показываем только студентам
         showOnlyForRoles: ['STUDENT'],
       },

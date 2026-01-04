@@ -199,6 +199,19 @@ export function usePermissions() {
   // === LOGS ===
   const canViewLogs = computed(() => hasPermission(Permission.LOGS_VIEW))
 
+  // === TEST BANKS ===
+  const canViewTestBanks = computed(() => hasPermission(Permission.TEST_BANKS_VIEW))
+  const canManageTestBanks = computed(() => hasPermission(Permission.TEST_BANKS_MANAGE))
+
+  // === TEST TEMPLATES ===
+  const canViewTestTemplates = computed(() => hasPermission(Permission.TEST_TEMPLATES_VIEW))
+  const canManageTestTemplates = computed(() => hasPermission(Permission.TEST_TEMPLATES_MANAGE))
+
+  // === TESTS ===
+  const canAssignTests = computed(() => hasPermission(Permission.TESTS_ASSIGN))
+  const canTakeTests = computed(() => hasPermission(Permission.TESTS_TAKE))
+  const canViewTestResults = computed(() => hasPermission(Permission.TESTS_VIEW_RESULTS))
+
   return {
     // Основные данные
     currentRole,
@@ -310,6 +323,19 @@ export function usePermissions() {
 
     // Шорткаты для Logs
     canViewLogs,
+
+    // Шорткаты для Test Banks
+    canViewTestBanks,
+    canManageTestBanks,
+
+    // Шорткаты для Test Templates
+    canViewTestTemplates,
+    canManageTestTemplates,
+
+    // Шорткаты для Tests
+    canAssignTests,
+    canTakeTests,
+    canViewTestResults,
 
     // Экспорт enum для удобства
     Permission,

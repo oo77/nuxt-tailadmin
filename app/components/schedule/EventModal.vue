@@ -108,7 +108,7 @@
           <div class="relative">
             <select
               v-model="form.eventType"
-              @change="validateHours"
+              @change="handleEventTypeChange"
               class="w-full rounded-lg border border-stroke bg-transparent py-2.5 pl-3 pr-10 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary appearance-none text-sm"
             >
               <option value="theory">Теория</option>
@@ -134,6 +134,83 @@
               :class="[color.bg, form.color === color.value ? 'ring-2 ring-offset-2 ring-gray-400 dark:ring-offset-boxdark' : '']"
               :title="color.label"
             />
+          </div>
+        </div>
+      </div>
+
+      <!-- Секция выбора теста (при типе assessment) -->
+      <div v-if="form.eventType === 'assessment' && form.disciplineId" class="rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-medium text-gray-900 dark:text-white">Тест для контроля знаний</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Выберите тест для автоматической проверки</p>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="loadingTests" class="flex items-center gap-2 py-2">
+          <div class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+          <span class="text-sm text-gray-500">Загрузка тестов...</span>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="disciplineTests.length === 0" class="py-2">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            К этой дисциплине не привязаны тесты.
+            <NuxtLink to="/programs" class="text-primary hover:underline">Привязать тест →</NuxtLink>
+          </p>
+        </div>
+
+        <!-- Test select -->
+        <div v-else>
+          <div class="relative">
+            <select
+              v-model="selectedTestId"
+              class="w-full rounded-lg border border-stroke bg-white py-2.5 pl-3 pr-10 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary appearance-none text-sm"
+              :class="{ 'border-danger': errors.testId }"
+            >
+              <option value="">Выберите тест (опционально)</option>
+              <option v-for="test in disciplineTests" :key="test.id" :value="test.test_template_id">
+                {{ test.template_name }} ({{ test.template_code }})
+              </option>
+            </select>
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          <p v-if="errors.testId" class="mt-1 text-xs text-danger">{{ errors.testId }}</p>
+
+          <!-- Test info -->
+          <div v-if="selectedTestInfo" class="mt-3 flex flex-wrap gap-3 text-xs text-gray-600 dark:text-gray-400">
+            <span class="inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {{ selectedTestInfo.questions_count }} вопросов
+            </span>
+            <span v-if="selectedTestInfo.time_limit_minutes" class="inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {{ selectedTestInfo.time_limit_minutes }} мин.
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Проходной: {{ selectedTestInfo.passing_score }}%
+            </span>
+            <span v-if="selectedTestInfo.is_required" class="inline-flex items-center gap-1 text-danger">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Обязательный
+            </span>
           </div>
         </div>
       </div>
@@ -420,6 +497,25 @@ const selectedGroupInfo = ref<GroupInfo | null>(null);
 const loadingDisciplines = ref(false);
 
 // ===================
+// ТЕСТЫ ДЛЯ ASSESSMENT
+// ===================
+
+interface DisciplineTest {
+  id: string;
+  test_template_id: string;
+  template_name: string;
+  template_code: string;
+  questions_count: number;
+  time_limit_minutes: number | null;
+  passing_score: number;
+  is_required: boolean;
+}
+
+const disciplineTests = ref<DisciplineTest[]>([]);
+const loadingTests = ref(false);
+const selectedTestId = ref<string>('');
+
+// ===================
 // ПАРЫ (LESSON PAIRS) - вычисляемое свойство из настроек
 // ===================
 
@@ -473,6 +569,12 @@ const selectedDiscipline = computed(() => {
 
 const disciplineInstructors = computed(() => {
   return selectedDiscipline.value?.instructors || [];
+});
+
+// Информация о выбранном тесте
+const selectedTestInfo = computed(() => {
+  if (!selectedTestId.value) return null;
+  return disciplineTests.value.find(t => t.test_template_id === selectedTestId.value) || null;
 });
 
 const computedTimeRange = computed(() => {
@@ -693,6 +795,8 @@ const handleGroupChange = () => {
 // Обработчик смены дисциплины
 const handleDisciplineChange = () => {
   form.value.instructorId = '';
+  selectedTestId.value = '';
+  disciplineTests.value = [];
   
   // Автовыбор основного инструктора
   if (selectedDiscipline.value?.instructors.length) {
@@ -700,6 +804,48 @@ const handleDisciplineChange = () => {
     if (primary) {
       form.value.instructorId = primary.id;
     }
+  }
+  
+  // Загружаем тесты если тип = assessment
+  if (form.value.eventType === 'assessment' && form.value.disciplineId) {
+    loadDisciplineTests(form.value.disciplineId);
+  }
+  
+  validateHours();
+};
+
+// Загрузка тестов дисциплины
+const loadDisciplineTests = async (disciplineId: string) => {
+  if (!disciplineId) {
+    disciplineTests.value = [];
+    return;
+  }
+  
+  loadingTests.value = true;
+  try {
+    const response = await authFetch<{ success: boolean; tests: DisciplineTest[] }>(
+      `/api/discipline-tests?discipline_id=${disciplineId}`
+    );
+    if (response.success) {
+      disciplineTests.value = response.tests || [];
+    }
+  } catch (err) {
+    console.error('Error loading discipline tests:', err);
+    disciplineTests.value = [];
+  } finally {
+    loadingTests.value = false;
+  }
+};
+
+// Обработчик смены типа события
+const handleEventTypeChange = () => {
+  selectedTestId.value = '';
+  
+  // Загружаем тесты если тип = assessment и выбрана дисциплина
+  if (form.value.eventType === 'assessment' && form.value.disciplineId) {
+    loadDisciplineTests(form.value.disciplineId);
+  } else {
+    disciplineTests.value = [];
   }
   
   validateHours();
@@ -949,6 +1095,11 @@ const handleSubmit = async () => {
         
         if (response.success) {
           createdEvents.push(response.event);
+          
+          // Если выбран тест для assessment — создаём test_assignment для каждого занятия
+          if (form.value.eventType === 'assessment' && selectedTestId.value && response.event.id) {
+            await createTestAssignment(response.event.id);
+          }
         }
       }
       
@@ -976,6 +1127,11 @@ const handleSubmit = async () => {
       );
 
       if (response.success) {
+        // Если выбран тест для assessment — создаём test_assignment
+        if (form.value.eventType === 'assessment' && selectedTestId.value && response.event.id) {
+          await createTestAssignment(response.event.id);
+        }
+        
         notification.show({
           type: 'success',
           title: 'Занятие создано',
@@ -993,6 +1149,44 @@ const handleSubmit = async () => {
     });
   } finally {
     submitting.value = false;
+  }
+};
+
+// Создание назначения теста
+const createTestAssignment = async (eventId: string) => {
+  try {
+    const assignmentData = {
+      schedule_event_id: eventId,
+      test_template_id: selectedTestId.value,
+      group_id: form.value.groupId,
+      // Дата и время берутся из занятия
+      start_date: form.value.date ? new Date(form.value.date).toISOString() : undefined,
+    };
+    
+    console.log('[Schedule] Создание назначения теста:', assignmentData);
+    
+    const response = await authFetch<{ success: boolean; message?: string }>('/api/tests/assignments', {
+      method: 'POST',
+      body: assignmentData,
+    });
+    
+    if (response.success) {
+      notification.show({
+        type: 'success',
+        title: 'Тест назначен',
+        message: 'Тест успешно привязан к занятию',
+      });
+    } else {
+      console.warn('Failed to create test assignment:', response.message);
+    }
+  } catch (err) {
+    console.error('Error creating test assignment:', err);
+    // Не блокируем основное сохранение — просто предупреждаем
+    notification.show({
+      type: 'warning',
+      title: 'Предупреждение',
+      message: 'Занятие создано, но не удалось назначить тест',
+    });
   }
 };
 
@@ -1071,6 +1265,10 @@ const initForm = () => {
   hoursWarning.value = null;
   instructorHoursWarning.value = null;
   errors.value = {};
+  
+  // Сброс данных о тестах
+  selectedTestId.value = '';
+  disciplineTests.value = [];
 
   if (props.event) {
     // Редактирование существующего

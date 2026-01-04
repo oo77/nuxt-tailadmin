@@ -190,7 +190,19 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
         <p class="mt-4 text-lg font-medium">Банки вопросов не найдены</p>
-        <p class="mt-2">Создайте первый банк вопросов, нажав кнопку "Создать банк вопросов"</p>
+        <template v-if="canManageTestBanks">
+          <p class="mt-2">Создайте первый банк вопросов для хранения вопросов тестов</p>
+          <UiButton 
+            @click="openCreateModal"
+            class="mt-4 inline-flex items-center gap-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Создать банк вопросов
+          </UiButton>
+        </template>
+        <p v-else class="mt-2">Банки вопросов пока не созданы</p>
       </div>
 
       <div v-else>
@@ -558,10 +570,7 @@ definePageMeta({
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
-const { hasPermission } = usePermissions();
-
-// Права доступа
-const canManageTestBanks = computed(() => hasPermission('test_banks:manage') || hasPermission('admin'));
+const { canManageTestBanks } = usePermissions();
 
 // Состояние
 const loading = ref(false);

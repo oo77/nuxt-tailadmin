@@ -6,7 +6,7 @@
 import {
     getTestTemplateById,
     setTemplateQuestions
-} from '../../../repositories/testTemplateRepository';
+} from '../../../../repositories/testTemplateRepository';
 
 export default defineEventHandler(async (event) => {
     try {

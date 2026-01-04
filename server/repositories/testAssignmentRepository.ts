@@ -392,15 +392,40 @@ export async function getStudentAssignments(
         status?: TestAssignmentStatus;
         upcoming?: boolean;
     } = {}
-): Promise<Array<TestAssignmentWithDetails & {
-    my_sessions_count: number;
-    can_start: boolean;
+): Promise<Array<{
+    id: string;
+    schedule_event_id: string;
+    test_template_id: string;
+    group_id: string;
+    template_name: string;
+    template_code: string;
+    group_name: string;
+    discipline_name: string | null;
+    event_date: Date | null;
+    event_time: string | null;
+    status: TestAssignmentStatus;
+    start_date: Date | null;
+    end_date: Date | null;
+    time_limit: number | null;
+    passing_score: number;
     max_attempts: number;
+    questions_count: number;
+    attempts_used: number;
+    best_score: number | null;
+    passed: boolean;
+    has_active_session: boolean;
+    active_session_id: string | null;
 }>> {
     const { status, upcoming } = filters;
 
     const conditions: string[] = [];
     const queryParams: any[] = [];
+
+    // Студент ID для подзапросов
+    queryParams.push(studentId);
+    queryParams.push(studentId);
+    queryParams.push(studentId);
+    queryParams.push(studentId);
 
     // Получаем группы студента
     conditions.push(`
@@ -426,40 +451,69 @@ export async function getStudentAssignments(
 
     const query = `
     SELECT 
-      ta.*,
+      ta.id,
+      ta.schedule_event_id,
+      ta.test_template_id,
+      ta.group_id,
+      ta.status,
+      ta.start_date,
+      ta.end_date,
       tt.name as template_name,
       tt.code as template_code,
       tt.max_attempts,
+      COALESCE(ta.time_limit_override, tt.time_limit_minutes) as time_limit,
+      COALESCE(ta.passing_score_override, tt.passing_score) as passing_score,
       sg.name as group_name,
+      d.name as discipline_name,
       se.event_date,
-      se.start_time as event_start_time,
-      (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id) as sessions_count,
-      (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.status = 'completed') as completed_count,
-      (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ?) as my_sessions_count
+      se.start_time as event_time,
+      (SELECT COUNT(*) FROM questions q WHERE q.bank_id = tt.bank_id AND q.is_active = 1) as questions_count,
+      (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ?) as attempts_used,
+      (SELECT MAX(ts.score_percent) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ? AND ts.status = 'completed') as best_score,
+      (SELECT MAX(ts.passed) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ? AND ts.status = 'completed') as passed,
+      (SELECT ts.id FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ? AND ts.status = 'in_progress' LIMIT 1) as active_session_id
     FROM test_assignments ta
     LEFT JOIN test_templates tt ON ta.test_template_id = tt.id
     LEFT JOIN study_groups sg ON ta.group_id = sg.id
     LEFT JOIN schedule_events se ON ta.schedule_event_id = se.id
+    LEFT JOIN disciplines d ON se.discipline_id = d.id
     ${whereClause}
-    ORDER BY se.event_date ASC, se.start_time ASC
+    ORDER BY 
+      CASE 
+        WHEN ta.status = 'in_progress' THEN 0
+        WHEN ta.status = 'scheduled' THEN 1
+        ELSE 2
+      END,
+      se.event_date DESC, 
+      se.start_time DESC
   `;
 
-    const rows = await executeQuery<TestAssignmentRow[]>(query, [studentId, ...queryParams]);
+    const rows = await executeQuery<RowDataPacket[]>(query, queryParams);
 
-    return rows.map(row => {
-        const assignment = mapRowToTestAssignmentWithDetails(row);
-        const mySessionsCount = (row as any).my_sessions_count || 0;
-        const maxAttempts = (row as any).max_attempts || 1;
-
-        return {
-            ...assignment,
-            my_sessions_count: mySessionsCount,
-            max_attempts: maxAttempts,
-            can_start: mySessionsCount < maxAttempts &&
-                row.status !== 'completed' &&
-                row.status !== 'cancelled',
-        };
-    });
+    return rows.map((row: any) => ({
+        id: row.id,
+        schedule_event_id: row.schedule_event_id,
+        test_template_id: row.test_template_id,
+        group_id: row.group_id,
+        template_name: row.template_name || '',
+        template_code: row.template_code || '',
+        group_name: row.group_name || '',
+        discipline_name: row.discipline_name || null,
+        event_date: row.event_date || null,
+        event_time: row.event_time || null,
+        status: row.status,
+        start_date: row.start_date || null,
+        end_date: row.end_date || null,
+        time_limit: row.time_limit || null,
+        passing_score: row.passing_score || 60,
+        max_attempts: row.max_attempts || 1,
+        questions_count: row.questions_count || 0,
+        attempts_used: row.attempts_used || 0,
+        best_score: row.best_score !== null ? parseFloat(row.best_score) : null,
+        passed: Boolean(row.passed),
+        has_active_session: !!row.active_session_id,
+        active_session_id: row.active_session_id || null,
+    }));
 }
 
 /**

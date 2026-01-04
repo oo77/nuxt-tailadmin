@@ -115,6 +115,19 @@ export enum Permission {
 
   // ========== ACTIVITY LOGS ==========
   LOGS_VIEW = 'logs:view',
+
+  // ========== TEST BANKS ==========
+  TEST_BANKS_VIEW = 'test_banks:view',
+  TEST_BANKS_MANAGE = 'test_banks:manage',
+
+  // ========== TEST TEMPLATES ==========
+  TEST_TEMPLATES_VIEW = 'test_templates:view',
+  TEST_TEMPLATES_MANAGE = 'test_templates:manage',
+
+  // ========== TESTS ==========
+  TESTS_ASSIGN = 'tests:assign',
+  TESTS_TAKE = 'tests:take',
+  TESTS_VIEW_RESULTS = 'tests:view_results',
 }
 
 // ========================================
@@ -215,6 +228,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     // Logs
     Permission.LOGS_VIEW,
+
+    // Test Banks (полный доступ)
+    Permission.TEST_BANKS_VIEW,
+    Permission.TEST_BANKS_MANAGE,
+
+    // Test Templates (полный доступ)
+    Permission.TEST_TEMPLATES_VIEW,
+    Permission.TEST_TEMPLATES_MANAGE,
+
+    // Tests (назначение и просмотр результатов)
+    Permission.TESTS_ASSIGN,
+    Permission.TESTS_VIEW_RESULTS,
   ],
 
   // =========================================================
@@ -250,6 +275,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Courses (только просмотр)
     Permission.COURSES_VIEW,
     Permission.DISCIPLINES_VIEW,
+
+    // Test Banks (только просмотр)
+    Permission.TEST_BANKS_VIEW,
+
+    // Test Templates (только просмотр)
+    Permission.TEST_TEMPLATES_VIEW,
+
+    // Tests (назначение и просмотр результатов)
+    Permission.TESTS_ASSIGN,
+    Permission.TESTS_VIEW_RESULTS,
   ],
 
   // =========================================================
@@ -276,6 +311,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CERTIFICATES_VIEW,
     Permission.CERTIFICATES_VIEW_OWN,
     Permission.CERTIFICATES_DOWNLOAD,
+
+    // Tests (прохождение тестов)
+    Permission.TESTS_TAKE,
   ],
 }
 
@@ -334,7 +372,7 @@ export const PAGE_PERMISSIONS: RoutePermissionConfig[] = [
   // Users
   { path: '/users', requiredPermissions: [Permission.USERS_VIEW] },
   { path: '/users/create', requiredPermissions: [Permission.USERS_CREATE] },
-  
+
   // Programs (Courses)
   { path: '/programs', requiredPermissions: [Permission.COURSES_VIEW] },
   { path: '/programs/create', requiredPermissions: [Permission.COURSES_CREATE] },
@@ -368,6 +406,16 @@ export const PAGE_PERMISSIONS: RoutePermissionConfig[] = [
 
   // Settings
   { path: '/settings', requiredPermissions: [Permission.SETTINGS_VIEW] },
+
+  // Test Banks
+  { path: '/test-bank', anyPermissions: [Permission.TEST_BANKS_VIEW, Permission.TEST_BANKS_MANAGE] },
+  { path: '/test-bank/[id]', anyPermissions: [Permission.TEST_BANKS_VIEW, Permission.TEST_BANKS_MANAGE] },
+  { path: '/test-bank/templates', anyPermissions: [Permission.TEST_TEMPLATES_VIEW, Permission.TEST_TEMPLATES_MANAGE] },
+  { path: '/test-bank/templates/[id]', anyPermissions: [Permission.TEST_TEMPLATES_VIEW, Permission.TEST_TEMPLATES_MANAGE] },
+
+  // Tests (Student)
+  { path: '/tests/my', requiredPermissions: [Permission.TESTS_TAKE] },
+  { path: '/tests/take/[id]', requiredPermissions: [Permission.TESTS_TAKE] },
 ]
 
 // ========================================

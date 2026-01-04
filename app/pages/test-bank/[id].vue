@@ -398,7 +398,7 @@
       size="lg"
       @close="closeQuestionModal"
     >
-      <form @submit.prevent="saveQuestion" class="space-y-5">
+      <form @submit.prevent class="space-y-5">
         <!-- Тип вопроса -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -593,7 +593,7 @@
     </UiModal>
 
     <!-- Модальное окно импорта -->
-    <ImportQuestionsModal
+    <TestBankImportQuestionsModal
       v-if="showImportModal"
       :bank-id="route.params.id"
       @close="showImportModal = false"
@@ -636,10 +636,7 @@ definePageMeta({
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
-const { hasPermission } = usePermissions();
-
-// Права доступа
-const canManageTestBanks = computed(() => hasPermission('test_banks:manage') || hasPermission('admin'));
+const { canManageTestBanks } = usePermissions();
 
 // Состояние
 const loading = ref(true);
@@ -936,6 +933,9 @@ const validateQuestionForm = () => {
 
 // Сохранение вопроса
 const saveQuestion = async () => {
+  // Защита от двойного клика
+  if (savingQuestion.value) return;
+  
   if (!validateQuestionForm()) return;
 
   savingQuestion.value = true;

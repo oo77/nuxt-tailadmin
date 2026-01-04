@@ -311,6 +311,13 @@
                     </span>
                   </div>
                 </div>
+
+                <!-- Tests Section -->
+                <ProgramsDisciplineTestsSection
+                  :discipline-id="discipline.id"
+                  :can-manage="canManageDisciplines"
+                  @updated="loadCourse"
+                />
               </div>
               
               <!-- Кнопки действий -->

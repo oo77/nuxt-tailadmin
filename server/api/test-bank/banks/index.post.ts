@@ -4,8 +4,7 @@
  */
 
 import { createQuestionBank, questionBankCodeExists } from '../../../repositories/questionBankRepository';
-import { logActivity } from '../../../repositories/activityLogRepository';
-import { ActionType, EntityType } from '../../../types/activityLog';
+import { createActivityLog } from '../../../repositories/activityLogRepository';
 import type { CreateQuestionBankDTO } from '../../../types/testing';
 
 export default defineEventHandler(async (event) => {
@@ -50,10 +49,10 @@ export default defineEventHandler(async (event) => {
 
         // Логируем действие
         if (userId) {
-            await logActivity({
+            await createActivityLog({
                 userId,
-                actionType: ActionType.CREATE,
-                entityType: EntityType.COURSE, // Используем существующий тип
+                actionType: 'CREATE',
+                entityType: 'COURSE', // Используем существующий тип
                 entityId: bank.id,
                 entityName: bank.name,
                 details: { code: bank.code, category: bank.category },
