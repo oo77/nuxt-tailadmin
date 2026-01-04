@@ -7,9 +7,9 @@ import {
     getTestSessionById,
     finishSession,
     calculateSessionResults
-} from '../../repositories/testSessionRepository';
-import { getTestAssignmentById } from '../../repositories/testAssignmentRepository';
-import { executeQuery } from '../../utils/db';
+} from '../../../../repositories/testSessionRepository';
+import { getTestAssignmentById } from '../../../../repositories/testAssignmentRepository';
+import { executeQuery } from '../../../../utils/db';
 import { v4 as uuidv4 } from 'uuid';
 
 export default defineEventHandler(async (event) => {

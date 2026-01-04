@@ -3,10 +3,10 @@
  * POST /api/tests/sessions/:id/violation
  */
 
-import { getTestSessionById, addViolation, updateSessionStatus } from '../../repositories/testSessionRepository';
-import { getTestAssignmentById } from '../../repositories/testAssignmentRepository';
-import { getTestTemplateById } from '../../repositories/testTemplateRepository';
-import type { ViolationRecord } from '../../types/testing';
+import { getTestSessionById, addViolation, updateSessionStatus } from '../../../../repositories/testSessionRepository';
+import { getTestAssignmentById } from '../../../../repositories/testAssignmentRepository';
+import { getTestTemplateById } from '../../../../repositories/testTemplateRepository';
+import { TestSessionStatus, type ViolationRecord } from '../../../../types/testing';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
                 if (settings.maxViolations && currentViolations >= settings.maxViolations) {
                     if (settings.autoSubmitOnViolation) {
                         // Автоматически завершаем тест с нарушением
-                        await updateSessionStatus(id, 'violation');
+                        await updateSessionStatus(id, TestSessionStatus.VIOLATION);
 
                         return {
                             success: true,

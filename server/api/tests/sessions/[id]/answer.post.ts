@@ -7,9 +7,9 @@ import {
     getTestSessionById,
     saveAnswer,
     updateCurrentQuestionIndex
-} from '../../repositories/testSessionRepository';
-import { getQuestionById } from '../../repositories/questionRepository';
-import type { AnswerData } from '../../types/testing';
+} from '../../../../repositories/testSessionRepository';
+import { getQuestionById } from '../../../../repositories/questionRepository';
+import type { AnswerData } from '../../../../types/testing';
 
 export default defineEventHandler(async (event) => {
     try {
