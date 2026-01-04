@@ -102,6 +102,7 @@ export interface ScheduleFilters {
   classroomId?: string;
   eventType?: ScheduleEventType;
   groupIds?: string[]; // Для фильтрации по конкретным группам (TEACHER/STUDENT)
+  orInstructorId?: string; // Дополнительно показывать события, где этот инструктор назначен (для TEACHER: группы ИЛИ назначенные события)
 }
 
 // ============================================================================
@@ -231,7 +232,7 @@ export async function getScheduleEvents(filters: ScheduleFilters = {}): Promise<
     // Если даты без времени (YYYY-MM-DD), расширяем endDate до конца дня
     const startDateStr = filters.startDate.includes('T') ? filters.startDate : `${filters.startDate} 00:00:00`;
     const endDateStr = filters.endDate.includes('T') ? filters.endDate : `${filters.endDate} 23:59:59`;
-    
+
     conditions.push('((se.start_time >= ? AND se.start_time <= ?) OR (se.end_time >= ? AND se.end_time <= ?) OR (se.start_time <= ? AND se.end_time >= ?))');
     params.push(startDateStr, endDateStr, startDateStr, endDateStr, startDateStr, endDateStr);
   } else if (filters.startDate) {
@@ -268,14 +269,27 @@ export async function getScheduleEvents(filters: ScheduleFilters = {}): Promise<
     params.push(filters.eventType);
   }
 
-  // Фильтр по конкретным ID групп (для TEACHER/STUDENT)
+  // Фильтр по конкретным ID групп (для TEACHER/STUDENT) с опциональным orInstructorId
   if (filters.groupIds && filters.groupIds.length > 0) {
     const placeholders = filters.groupIds.map(() => '?').join(', ');
-    conditions.push(`se.group_id IN (${placeholders})`);
-    params.push(...filters.groupIds);
+
+    if (filters.orInstructorId) {
+      // Для TEACHER: показываем события по его группам ИЛИ где он назначен инструктором
+      conditions.push(`(se.group_id IN (${placeholders}) OR se.instructor_id = ?)`);
+      params.push(...filters.groupIds, filters.orInstructorId);
+    } else {
+      conditions.push(`se.group_id IN (${placeholders})`);
+      params.push(...filters.groupIds);
+    }
   } else if (filters.groupIds && filters.groupIds.length === 0) {
-    // Если передан пустой массив — возвращаем пустой результат
-    return [];
+    // Если передан пустой массив групп, но есть orInstructorId — показывать только события инструктора
+    if (filters.orInstructorId) {
+      conditions.push('se.instructor_id = ?');
+      params.push(filters.orInstructorId);
+    } else {
+      // Нет ни групп, ни инструктора — пустой результат
+      return [];
+    }
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -491,17 +505,17 @@ export async function checkScheduleConflicts(
   const params: any[] = [endTimeMysql, startTimeMysql, startTimeMysql, endTimeMysql, startTimeMysql, endTimeMysql];
 
   const orConditions: string[] = [];
-  
+
   if (options.classroomId) {
     orConditions.push('se.classroom_id = ?');
     params.push(options.classroomId);
   }
-  
+
   if (options.instructorId) {
     orConditions.push('se.instructor_id = ?');
     params.push(options.instructorId);
   }
-  
+
   if (options.groupId) {
     orConditions.push('se.group_id = ?');
     params.push(options.groupId);
@@ -911,7 +925,7 @@ export async function getScheduleSettingsAsObject(): Promise<Record<string, stri
  */
 export async function findNearestPeriod(time: string): Promise<SchedulePeriod | null> {
   const periods = await getSchedulePeriods();
-  
+
   if (periods.length === 0) {
     return null;
   }
@@ -943,7 +957,7 @@ export async function findNearestPeriod(time: string): Promise<SchedulePeriod | 
  */
 export async function getPeriodByTime(time: string): Promise<SchedulePeriod | null> {
   const periods = await getSchedulePeriods();
-  
+
   // Преобразуем время в минуты для сравнения
   const [hours, minutes] = time.split(':').map(Number);
   const timeInMinutes = hours * 60 + minutes;

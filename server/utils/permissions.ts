@@ -116,11 +116,25 @@ export async function getPermissionContext(event: H3Event): Promise<PermissionCo
  */
 export async function getInstructorByUserId(userId: string): Promise<{ id: string; fullName: string } | null> {
   try {
-    const [rows] = await executeQuery<any[]>(
+    console.log(`[Permissions] getInstructorByUserId called with userId: ${userId}`)
+
+    const rows = await executeQuery<any[]>(
       'SELECT id, full_name as fullName FROM instructors WHERE user_id = ? LIMIT 1',
       [userId]
     )
-    return rows[0] || null
+
+    console.log(`[Permissions] Query result type:`, typeof rows)
+    console.log(`[Permissions] Query result is array:`, Array.isArray(rows))
+    console.log(`[Permissions] Query result:`, rows)
+    console.log(`[Permissions] Query result length:`, rows?.length)
+
+    if (rows && rows.length > 0) {
+      console.log(`[Permissions] Found instructor: ${rows[0].fullName} (ID: ${rows[0].id})`)
+      return rows[0]
+    } else {
+      console.log(`[Permissions] No instructor found for user_id: ${userId}`)
+      return null
+    }
   } catch (error) {
     console.error('[Permissions] Error getting instructor by user_id:', error)
     return null
@@ -132,7 +146,7 @@ export async function getInstructorByUserId(userId: string): Promise<{ id: strin
  */
 export async function getStudentByUserId(userId: string): Promise<{ id: string; fullName: string } | null> {
   try {
-    const [rows] = await executeQuery<any[]>(
+    const rows = await executeQuery<any[]>(
       'SELECT id, full_name as fullName FROM students WHERE user_id = ? LIMIT 1',
       [userId]
     )
@@ -148,15 +162,34 @@ export async function getStudentByUserId(userId: string): Promise<{ id: string; 
 // ========================================
 
 /**
- * Получает группы преподавателя через schedule_events
+ * Получает группы преподавателя через:
+ * 1. schedule_events - события расписания, где инструктор назначен
+ * 2. discipline_instructors -> disciplines -> study_groups - группы через учебные программы
  */
 export async function getTeacherGroups(instructorId: string): Promise<string[]> {
   try {
-    const [rows] = await executeQuery<any[]>(
-      'SELECT DISTINCT group_id FROM schedule_events WHERE instructor_id = ?',
-      [instructorId]
+    // Получаем группы из двух источников:
+    // 1. Напрямую из расписания (schedule_events)
+    // 2. Через привязку к дисциплинам учебных программ групп
+    const rows = await executeQuery<any[]>(
+      `SELECT DISTINCT group_id FROM (
+        -- Группы из расписания
+        SELECT group_id FROM schedule_events WHERE instructor_id = ? AND group_id IS NOT NULL
+        UNION
+        -- Группы через дисциплины программ
+        SELECT sg.id as group_id
+        FROM study_groups sg
+        JOIN disciplines d ON d.course_id = sg.course_id
+        JOIN discipline_instructors di ON di.discipline_id = d.id
+        WHERE di.instructor_id = ?
+      ) AS teacher_groups`,
+      [instructorId, instructorId]
     )
-    return rows.map(r => r.group_id)
+
+    const groupIds = rows.map((r: { group_id: string }) => r.group_id).filter(Boolean)
+    console.log(`[Permissions] getTeacherGroups for ${instructorId}: found ${groupIds.length} groups`)
+
+    return groupIds
   } catch (error) {
     console.error('[Permissions] Error getting teacher groups:', error)
     return []
@@ -168,11 +201,11 @@ export async function getTeacherGroups(instructorId: string): Promise<string[]> 
  */
 export async function getStudentGroups(studentId: string): Promise<string[]> {
   try {
-    const [rows] = await executeQuery<any[]>(
+    const rows = await executeQuery<any[]>(
       'SELECT group_id FROM study_group_students WHERE student_id = ?',
       [studentId]
     )
-    return rows.map(r => r.group_id)
+    return rows.map((r: { group_id: string }) => r.group_id)
   } catch (error) {
     console.error('[Permissions] Error getting student groups:', error)
     return []
@@ -240,11 +273,28 @@ export async function canAccessStudent(context: PermissionContext, studentId: st
 // ========================================
 
 /**
+ * Требует только авторизацию (без проверки разрешений)
+ */
+export async function requireAuth(event: H3Event): Promise<PermissionContext> {
+  const context = await getPermissionContext(event)
+
+  if (!context) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: 'Требуется авторизация',
+    })
+  }
+
+  return context
+}
+
+/**
  * Требует указанное разрешение (бросает ошибку если нет доступа)
  */
 export async function requirePermission(event: H3Event, permission: Permission): Promise<PermissionContext> {
   const context = await getPermissionContext(event)
-  
+
   if (!context) {
     throw createError({
       statusCode: 401,
@@ -270,7 +320,7 @@ export async function requirePermission(event: H3Event, permission: Permission):
  */
 export async function requireAnyPermission(event: H3Event, permissions: Permission[]): Promise<PermissionContext> {
   const context = await getPermissionContext(event)
-  
+
   if (!context) {
     throw createError({
       statusCode: 401,
@@ -296,7 +346,7 @@ export async function requireAnyPermission(event: H3Event, permissions: Permissi
  */
 export async function requireAllPermissions(event: H3Event, permissions: Permission[]): Promise<PermissionContext> {
   const context = await getPermissionContext(event)
-  
+
   if (!context) {
     throw createError({
       statusCode: 401,
@@ -323,7 +373,7 @@ export async function requireAllPermissions(event: H3Event, permissions: Permiss
  */
 export async function requireGroupAccess(event: H3Event, groupId: string): Promise<PermissionContext> {
   const context = await getPermissionContext(event)
-  
+
   if (!context) {
     throw createError({
       statusCode: 401,
@@ -350,7 +400,7 @@ export async function requireGroupAccess(event: H3Event, groupId: string): Promi
  */
 export async function requireStudentAccess(event: H3Event, studentId: string): Promise<PermissionContext> {
   const context = await getPermissionContext(event)
-  
+
   if (!context) {
     throw createError({
       statusCode: 401,
@@ -426,7 +476,7 @@ export async function checkApiAccess(event: H3Event): Promise<AccessCheckResult>
 
   // Находим конфигурацию для этого endpoint
   const config = findApiPermissionConfig(url, method)
-  
+
   // Если конфигурация не найдена — разрешаем доступ (может быть публичный endpoint)
   if (!config) {
     return { allowed: true }
@@ -441,25 +491,25 @@ export async function checkApiAccess(event: H3Event): Promise<AccessCheckResult>
   // Проверяем разрешения
   if (config.requiredPermissions && config.requiredPermissions.length > 0) {
     if (!roleHasAllPermissions(context.role, config.requiredPermissions)) {
-      return { 
-        allowed: false, 
-        reason: `Недостаточно прав. Требуется: ${config.requiredPermissions.join(', ')}` 
+      return {
+        allowed: false,
+        reason: `Недостаточно прав. Требуется: ${config.requiredPermissions.join(', ')}`
       }
     }
   }
 
   if (config.anyPermissions && config.anyPermissions.length > 0) {
     if (!roleHasAnyPermission(context.role, config.anyPermissions)) {
-      return { 
-        allowed: false, 
-        reason: `Недостаточно прав. Требуется одно из: ${config.anyPermissions.join(', ')}` 
+      return {
+        allowed: false,
+        reason: `Недостаточно прав. Требуется одно из: ${config.anyPermissions.join(', ')}`
       }
     }
   }
 
-  return { 
-    allowed: true, 
-    requiresOwnerFilter: config.requiresOwnerCheck 
+  return {
+    allowed: true,
+    requiresOwnerFilter: config.requiresOwnerCheck
   }
 }
 

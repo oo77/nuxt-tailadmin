@@ -7,407 +7,381 @@
       </h2>
     </div>
 
-    <!-- Профиль Header -->
-    <div class="mb-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-      <!-- Cover Image -->
-      <div class="relative h-48 overflow-hidden rounded-t-sm bg-linear-to-r from-primary to-primary-600">
-        <div class="absolute inset-0 bg-black/10"></div>
-      </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center items-center py-20">
+      <div class="h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+    </div>
 
-      <!-- Profile Info -->
-      <div class="px-6 pb-6">
-        <div class="relative -mt-16 mb-6 flex flex-col items-center gap-4 sm:flex-row sm:items-end">
-          <!-- Avatar -->
-          <div class="relative">
-            <div class="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg dark:border-gray-900">
-              <img 
-                src="https://ui-avatars.com/api/?name=Admin+User&size=128&background=465fff&color=fff&bold=true" 
-                alt="Profile" 
-                class="h-full w-full object-cover"
-              />
-            </div>
-            <button class="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-primary text-white shadow-lg transition-all hover:bg-primary-600 dark:border-gray-900">
-              <Camera class="h-5 w-5" />
-            </button>
-          </div>
-
-          <!-- User Info -->
-          <div class="flex-1 text-center sm:text-left">
-            <h3 class="mb-1 text-2xl font-bold text-white dark:text-gray-900">
-              Администратор
-            </h3>
-            <p class="mb-2 text-gray-600 dark:text-gray-400">
-              admin@example.com
-            </p>
-            <div class="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-sm font-medium text-success">
-                <span class="h-2 w-2 rounded-full bg-success"></span>
-                Активен
-              </span>
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                <ShieldCheck class="h-4 w-4" />
-                Администратор
-              </span>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex gap-3">
-            <UiButton variant="outline" size="md">
-              <Mail class="h-4 w-4" />
-              Написать
-            </UiButton>
-            <UiButton variant="primary" size="md">
-              <Settings class="h-4 w-4" />
-              Настройки
-            </UiButton>
-          </div>
-        </div>
-
-        <!-- Stats -->
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Users class="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Всего пользователей</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">1,234</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-success/50 dark:border-gray-700 dark:bg-gray-800/50">
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                <CheckCircle class="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Активных сессий</p>
-                <p class="text-2xl font-bold text-gray-900 dark:text-white">3</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-warning/50 dark:border-gray-700 dark:bg-gray-800/50">
-            <div class="flex items-center gap-3">
-              <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
-                <Clock class="h-6 w-6 text-warning" />
-              </div>
-              <div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Последний вход</p>
-                <p class="text-lg font-bold text-gray-900 dark:text-white">2 часа назад</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <!-- Error State -->
+    <div v-else-if="error" class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-8">
+      <div class="text-center">
+        <AlertCircle class="h-16 w-16 text-danger mx-auto mb-4" />
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Ошибка загрузки</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">{{ error }}</p>
+        <UiButton variant="primary" @click="loadProfile">
+          Попробовать снова
+        </UiButton>
       </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="flex flex-col gap-6">
-      <!-- Tabs Navigation -->
-      <div class="rounded-lg bg-gray-50 p-1 dark:bg-gray-800">
-        <nav class="flex gap-1" aria-label="Tabs">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            @click="activeTab = tab.id"
-            :class="[
-              'flex-1 rounded-md px-4 py-3 text-sm font-medium transition-all duration-200',
-              activeTab === tab.id
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white',
-            ]"
-          >
-            <span class="flex items-center justify-center gap-2">
-              <component :is="tab.icon" class="h-5 w-5" />
-              {{ tab.label }}
-            </span>
-          </button>
-        </nav>
-      </div>
+    <!-- Profile Content -->
+    <div v-else-if="profile">
+      <!-- Профиль Header -->
+      <div class="mb-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+        <!-- Cover Image -->
+        <div class="relative h-48 overflow-hidden rounded-t-sm bg-linear-to-r from-primary to-primary-600">
+          <div class="absolute inset-0 bg-black/10"></div>
+        </div>
 
-      <!-- Tab Content -->
-      <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        <!-- Обзор -->
-        <div v-show="activeTab === 'overview'" class="p-6">
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <!-- Личная информация -->
-            <div>
-              <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-                Личная информация
+        <!-- Profile Info -->
+        <div class="px-6 pb-6">
+          <div class="relative -mt-16 mb-6 flex flex-col items-center gap-4 sm:flex-row sm:items-end">
+            <!-- Avatar -->
+            <div class="relative">
+              <div class="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg dark:border-gray-900">
+                <img 
+                  :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&size=128&background=465fff&color=fff&bold=true`" 
+                  :alt="profile.name" 
+                  class="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+
+            <!-- User Info -->
+            <div class="flex-1 text-center sm:text-left">
+              <h3 class="mb-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {{ profile.name }}
               </h3>
-              <div class="space-y-3">
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Полное имя</p>
-                  <p class="font-medium text-gray-900 dark:text-white">Администратор Системы</p>
+              <p class="mb-2 text-gray-600 dark:text-gray-400">
+                {{ profile.email }}
+              </p>
+              <div class="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-sm font-medium text-success">
+                  <span class="h-2 w-2 rounded-full bg-success"></span>
+                  Активен
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                  <ShieldCheck class="h-4 w-4" />
+                  {{ getRoleLabel(profile.role) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats - только для администратора -->
+          <div v-if="isAdmin && stats" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <Users class="h-6 w-6 text-primary" />
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Email</p>
-                  <p class="font-medium text-gray-900 dark:text-white">admin@example.com</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Телефон</p>
-                  <p class="font-medium text-gray-900 dark:text-white">+998 (90) 123-45-67</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Роль</p>
-                  <p class="font-medium text-gray-900 dark:text-white">Администратор</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата регистрации</p>
-                  <p class="font-medium text-gray-900 dark:text-white">15 января 2024</p>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Всего пользователей</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.totalUsers }}</p>
                 </div>
               </div>
             </div>
 
-            <!-- Последняя активность -->
-            <div>
-              <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-                Последняя активность
-              </h3>
-              <div class="space-y-3">
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <UserPlus class="h-5 w-5 text-primary" />
-                    </div>
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900 dark:text-white">Добавлен новый пользователь</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">2 часа назад</p>
-                    </div>
-                  </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-success/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
+                  <GraduationCap class="h-6 w-6 text-success" />
                 </div>
-
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-success/50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                      <FileText class="h-5 w-5 text-success" />
-                    </div>
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900 dark:text-white">Импортированы данные студентов</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">5 часов назад</p>
-                    </div>
-                  </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Всего студентов</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.totalStudents }}</p>
                 </div>
+              </div>
+            </div>
 
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-warning/50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
-                      <Settings class="h-5 w-5 text-warning" />
-                    </div>
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900 dark:text-white">Изменены настройки системы</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">1 день назад</p>
-                    </div>
-                  </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-warning/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
+                  <BookOpen class="h-6 w-6 text-warning" />
                 </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Активных групп</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.activeGroups }}</p>
+                </div>
+              </div>
+            </div>
 
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-danger/50 dark:border-gray-700 dark:bg-gray-800/50">
-                  <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-danger/10">
-                      <AlertCircle class="h-5 w-5 text-danger" />
-                    </div>
-                    <div class="flex-1">
-                      <p class="font-medium text-gray-900 dark:text-white">Неудачная попытка входа</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">2 дня назад</p>
-                    </div>
-                  </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-info/50 dark:border-gray-700 dark:bg-gray-800/50">
+              <div class="flex items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-info/10">
+                  <Activity class="h-6 w-6 text-info" />
+                </div>
+                <div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Активность сегодня</p>
+                  <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.todayActivities }}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Редактировать профиль -->
-        <div v-show="activeTab === 'edit'" class="p-6">
-          <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
-            Редактировать профиль
-          </h3>
-          <form class="space-y-5">
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <!-- Имя -->
-              <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Имя
-                </label>
-                <input 
-                  type="text" 
-                  value="Администратор"
-                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-                />
-              </div>
-
-              <!-- Фамилия -->
-              <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Фамилия
-                </label>
-                <input 
-                  type="text" 
-                  value="Системы"
-                  class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-                />
-              </div>
-            </div>
-
-            <!-- Email -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
-              </label>
-              <input 
-                type="email" 
-                value="admin@example.com"
-                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-              />
-            </div>
-
-            <!-- Телефон -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Телефон
-              </label>
-              <input 
-                type="tel" 
-                value="+998 (90) 123-45-67"
-                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-              />
-            </div>
-
-            <!-- О себе -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                О себе
-              </label>
-              <textarea 
-                rows="4"
-                placeholder="Расскажите о себе..."
-                class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              ></textarea>
-            </div>
-
-            <div class="flex justify-end gap-3 pt-4">
-              <UiButton variant="outline" size="md" type="button">
-                Отмена
-              </UiButton>
-              <UiButton variant="primary" size="md" type="submit">
-                Сохранить изменения
-              </UiButton>
-            </div>
-          </form>
+      <!-- Tabs -->
+      <div class="flex flex-col gap-6">
+        <!-- Tabs Navigation -->
+        <div class="rounded-lg bg-gray-50 p-1 dark:bg-gray-800">
+          <nav class="flex gap-1" aria-label="Tabs">
+            <button
+              v-for="tab in visibleTabs"
+              :key="tab.id"
+              @click="activeTab = tab.id"
+              :class="[
+                'flex-1 rounded-md px-4 py-3 text-sm font-medium transition-all duration-200',
+                activeTab === tab.id
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-white hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white',
+              ]"
+            >
+              <span class="flex items-center justify-center gap-2">
+                <component :is="tab.icon" class="h-5 w-5" />
+                {{ tab.label }}
+              </span>
+            </button>
+          </nav>
         </div>
 
-        <!-- Безопасность -->
-        <div v-show="activeTab === 'security'" class="p-6">
-          <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
-            Настройки безопасности
-          </h3>
-          <div class="space-y-6">
-            <!-- Изменить пароль -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-              <h4 class="mb-4 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
-                <Lock class="h-5 w-5" />
-                Изменить пароль
-              </h4>
-              <div class="space-y-4">
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Текущий пароль
-                  </label>
-                  <input 
-                    type="password" 
-                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-                  />
+        <!-- Tab Content -->
+        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+          <!-- Обзор -->
+          <div v-show="activeTab === 'overview'" class="p-6">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <!-- Личная информация -->
+              <div>
+                <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+                  Личная информация
+                </h3>
+                <div class="space-y-3">
+                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Полное имя</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.name }}</p>
+                  </div>
+                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Email</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.email }}</p>
+                  </div>
+                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Телефон</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.phone || 'Не указан' }}</p>
+                  </div>
+                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Роль</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ getRoleLabel(profile.role) }}</p>
+                  </div>
+                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата регистрации</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ formatDate(profile.created_at) }}</p>
+                  </div>
                 </div>
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Новый пароль
-                  </label>
-                  <input 
-                    type="password" 
-                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-                  />
+              </div>
+
+              <!-- Последняя активность -->
+              <div>
+                <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+                  Последняя активность
+                </h3>
+                <div v-if="loadingActivity" class="flex justify-center py-8">
+                  <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
                 </div>
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Подтвердите новый пароль
-                  </label>
-                  <input 
-                    type="password" 
-                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
-                  />
+                <div v-else-if="activities.length > 0" class="space-y-3">
+                  <div 
+                    v-for="activity in activities.slice(0, 5)" 
+                    :key="activity.id"
+                    class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50"
+                  >
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <component :is="getActivityIcon(activity.action_type)" class="h-5 w-5 text-primary" />
+                      </div>
+                      <div class="flex-1">
+                        <p class="font-medium text-gray-900 dark:text-white">{{ activity.entity_name || getActivityLabel(activity) }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ formatDate(activity.created_at) }}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="flex justify-end pt-2">
-                  <UiButton variant="primary" size="md">
-                    Обновить пароль
-                  </UiButton>
+                <div v-else class="text-center py-8 text-gray-600 dark:text-gray-400">
+                  Нет записей об активности
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Активные сессии -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-              <h4 class="mb-4 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
-                <Monitor class="h-5 w-5" />
-                Активные сессии
-              </h4>
-              <div class="space-y-3">
-                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                  <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                      <Monitor class="h-5 w-5 text-success" />
-                    </div>
-                    <div>
-                      <p class="font-medium text-gray-900 dark:text-white">Windows 11 - Chrome</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">192.168.1.1 • Активна сейчас</p>
-                    </div>
-                  </div>
-                  <span class="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                    Текущая
-                  </span>
+          <!-- Редактировать профиль -->
+          <div v-show="activeTab === 'edit'" class="p-6">
+            <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
+              Редактировать профиль
+            </h3>
+            <form @submit.prevent="updateProfile" class="space-y-5">
+              <div class="grid grid-cols-1 gap-5">
+                <!-- Имя -->
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Полное имя *
+                  </label>
+                  <input 
+                    v-model="editForm.name"
+                    type="text" 
+                    required
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                  />
                 </div>
 
-                <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-600 dark:bg-gray-900">
-                  <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-                      <Smartphone class="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                    </div>
-                    <div>
-                      <p class="font-medium text-gray-900 dark:text-white">iPhone 14 - Safari</p>
-                      <p class="text-sm text-gray-600 dark:text-gray-400">192.168.1.105 • 2 часа назад</p>
-                    </div>
-                  </div>
-                  <UiButton variant="danger" size="sm">
-                    Завершить
-                  </UiButton>
+                <!-- Телефон -->
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Телефон
+                  </label>
+                  <input 
+                    v-model="editForm.phone"
+                    type="tel" 
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                  />
+                </div>
+
+                <!-- Место работы -->
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Место работы
+                  </label>
+                  <input 
+                    v-model="editForm.workplace"
+                    type="text" 
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                  />
+                </div>
+
+                <!-- Должность -->
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Должность
+                  </label>
+                  <input 
+                    v-model="editForm.position"
+                    type="text" 
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                  />
+                </div>
+
+                <!-- ПИНФЛ -->
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    ПИНФЛ
+                  </label>
+                  <input 
+                    v-model="editForm.pinfl"
+                    type="text" 
+                    maxlength="14"
+                    pattern="[0-9]{14}"
+                    class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                  />
                 </div>
               </div>
-            </div>
 
-            <!-- Двухфакторная аутентификация -->
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-              <div class="flex items-start justify-between">
-                <div class="flex items-start gap-3">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <ShieldCheck class="h-5 w-5 text-primary" />
+              <div class="flex justify-end gap-3 pt-4">
+                <UiButton variant="outline" size="md" type="button" @click="cancelEdit">
+                  Отмена
+                </UiButton>
+                <UiButton variant="primary" size="md" type="submit" :disabled="updatingProfile">
+                  {{ updatingProfile ? 'Сохранение...' : 'Сохранить изменения' }}
+                </UiButton>
+              </div>
+            </form>
+          </div>
+
+          <!-- Безопасность -->
+          <div v-show="activeTab === 'security'" class="p-6">
+            <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
+              Настройки безопасности
+            </h3>
+            <div class="space-y-6">
+              <!-- Изменить пароль -->
+              <div class="rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800/50">
+                <h4 class="mb-4 flex items-center gap-2 text-lg font-medium text-gray-900 dark:text-white">
+                  <Lock class="h-5 w-5" />
+                  Изменить пароль
+                </h4>
+                <form @submit.prevent="changePassword" class="space-y-4">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Текущий пароль *
+                    </label>
+                    <input 
+                      v-model="passwordForm.currentPassword"
+                      type="password" 
+                      required
+                      autocomplete="current-password"
+                      class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                    />
                   </div>
                   <div>
-                    <h4 class="mb-1 text-lg font-medium text-gray-900 dark:text-white">
-                      Двухфакторная аутентификация
-                    </h4>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Новый пароль *
+                    </label>
+                    <input 
+                      v-model="passwordForm.newPassword"
+                      type="password" 
+                      required
+                      minlength="6"
+                      autocomplete="new-password"
+                      class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Подтвердите новый пароль *
+                    </label>
+                    <input 
+                      v-model="passwordForm.confirmPassword"
+                      type="password" 
+                      required
+                      autocomplete="new-password"
+                      class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
+                    />
+                  </div>
+                  <div class="flex justify-end pt-2">
+                    <UiButton variant="primary" size="md" type="submit" :disabled="changingPassword">
+                      {{ changingPassword ? 'Обновление...' : 'Обновить пароль' }}
+                    </UiButton>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Системная активность (только для админа) -->
+          <div v-show="activeTab === 'activity' && isAdmin" class="p-6">
+            <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
+              Системная активность
+            </h3>
+            <div v-if="loadingActivity" class="flex justify-center py-8">
+              <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+            </div>
+            <div v-else-if="activities.length > 0" class="space-y-3">
+              <div 
+                v-for="activity in activities" 
+                :key="activity.id"
+                class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50"
+              >
+                <div class="flex items-start gap-3">
+                  <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <component :is="getActivityIcon(activity.action_type)" class="h-5 w-5 text-primary" />
+                  </div>
+                  <div class="flex-1">
+                    <p class="font-medium text-gray-900 dark:text-white">{{ activity.entity_name || getActivityLabel(activity) }}</p>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
-                      Дополнительный уровень защиты вашего аккаунта
+                      {{ activity.entity_type }} • {{ formatDate(activity.created_at) }}
                     </p>
                   </div>
                 </div>
-                <label class="relative inline-flex cursor-pointer items-center">
-                  <input type="checkbox" class="peer sr-only" />
-                  <div class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-700"></div>
-                </label>
               </div>
+            </div>
+            <div v-else class="text-center py-8 text-gray-600 dark:text-gray-400">
+              Нет записей об активности
             </div>
           </div>
         </div>
@@ -416,54 +390,276 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
 import { 
   User, 
   Edit, 
   Lock,
-  Camera,
-  Mail,
-  Settings,
   Users,
-  CheckCircle,
-  Clock,
+  ShieldCheck,
+  AlertCircle,
   UserPlus,
   FileText,
-  AlertCircle,
-  ShieldCheck,
-  Monitor,
-  Smartphone
-} from 'lucide-vue-next';
+  Settings,
+  Trash2,
+  GraduationCap,
+  BookOpen,
+  Activity,
+} from 'lucide-vue-next'
 
 // Определяем мета-данные страницы
 definePageMeta({
   layout: 'default',
-});
+})
 
 useHead({
-  title: 'Профиль пользователя | TailAdmin - Nuxt Tailwind CSS Dashboard',
-});
+  title: 'Профиль пользователя | TailAdmin',
+})
+
+const toast = useNotification()
+const { user } = useAuth()
+const { authFetch } = useAuthFetch()
+
+// Состояния
+const loading = ref(true)
+const error = ref(null)
+const profile = ref(null)
+const stats = ref(null)
+const activities = ref([])
+const loadingActivity = ref(false)
+const updatingProfile = ref(false)
+const changingPassword = ref(false)
 
 // Активная вкладка
-const activeTab = ref('overview');
+const activeTab = ref('overview')
 
-// Конфигурация вкладок
-const tabs = [
-  {
-    id: 'overview',
-    label: 'Обзор',
-    icon: User,
-  },
-  {
-    id: 'edit',
-    label: 'Редактировать',
-    icon: Edit,
-  },
-  {
-    id: 'security',
-    label: 'Безопасность',
-    icon: Lock,
-  },
-];
+// Формы
+const editForm = ref({
+  name: '',
+  phone: '',
+  workplace: '',
+  position: '',
+  pinfl: '',
+})
+
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+// Вычисляемые свойства
+const isAdmin = computed(() => profile.value?.role === 'ADMIN')
+
+const visibleTabs = computed(() => {
+  const baseTabs = [
+    {
+      id: 'overview',
+      label: 'Обзор',
+      icon: User,
+    },
+    {
+      id: 'edit',
+      label: 'Редактировать',
+      icon: Edit,
+    },
+    {
+      id: 'security',
+      label: 'Безопасность',
+      icon: Lock,
+    },
+  ]
+
+  if (isAdmin.value) {
+    baseTabs.push({
+      id: 'activity',
+      label: 'Системная активность',
+      icon: Activity,
+    })
+  }
+
+  return baseTabs
+})
+
+// Методы
+const getRoleLabel = (role) => {
+  const labels = {
+    ADMIN: 'Администратор',
+    MANAGER: 'Менеджер',
+    TEACHER: 'Инструктор',
+    STUDENT: 'Студент',
+  }
+  return labels[role] || role
+}
+
+const formatDate = (date) => {
+  if (!date) return 'Не указано'
+  return new Date(date).toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const getActivityIcon = (actionType) => {
+  const icons = {
+    CREATE: UserPlus,
+    UPDATE: Edit,
+    DELETE: Trash2,
+    VIEW: FileText,
+  }
+  return icons[actionType] || Activity
+}
+
+const getActivityLabel = (activity) => {
+  const actionLabels = {
+    CREATE: 'Создание',
+    UPDATE: 'Обновление',
+    DELETE: 'Удаление',
+    VIEW: 'Просмотр',
+    LOGIN: 'Вход в систему',
+    LOGOUT: 'Выход из системы',
+    IMPORT: 'Импорт',
+    EXPORT: 'Экспорт',
+  }
+  const entityLabels = {
+    USER: 'пользователя',
+    STUDENT: 'студента',
+    INSTRUCTOR: 'инструктора',
+    COURSE: 'курса',
+    GROUP: 'группы',
+    CERTIFICATE: 'сертификата',
+    ORGANIZATION: 'организации',
+    SCHEDULE: 'расписания',
+    ATTENDANCE: 'посещаемости',
+    GRADE: 'оценки',
+  }
+  const action = actionLabels[activity.action_type] || activity.action_type
+  const entity = entityLabels[activity.entity_type] || activity.entity_type
+  return `${action} ${entity}`
+}
+
+const loadProfile = async () => {
+  try {
+    loading.value = true
+    error.value = null
+
+    // Загружаем профиль
+    const profileData = await authFetch('/api/profile')
+    if (profileData?.success) {
+      profile.value = profileData.user
+      
+      // Заполняем форму редактирования
+      editForm.value = {
+        name: profile.value.name,
+        phone: profile.value.phone || '',
+        workplace: profile.value.workplace || '',
+        position: profile.value.position || '',
+        pinfl: profile.value.pinfl || '',
+      }
+    }
+
+    // Если админ, загружаем статистику
+    if (profile.value?.role === 'ADMIN') {
+      const statsData = await authFetch('/api/profile/stats/admin')
+      if (statsData?.success) {
+        stats.value = statsData.stats
+      }
+    }
+
+    // Загружаем активность
+    loadActivity()
+  } catch (err) {
+    console.error('Error loading profile:', err)
+    error.value = err.message || 'Ошибка при загрузке профиля'
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadActivity = async () => {
+  try {
+    loadingActivity.value = true
+    const data = await authFetch('/api/profile/activity?limit=10')
+    if (data?.success) {
+      activities.value = data.activities
+    }
+  } catch (err) {
+    console.error('Error loading activity:', err)
+  } finally {
+    loadingActivity.value = false
+  }
+}
+
+const updateProfile = async () => {
+  try {
+    updatingProfile.value = true
+
+    const data = await authFetch('/api/profile', {
+      method: 'PUT',
+      body: editForm.value,
+    })
+
+    if (data?.success) {
+      profile.value = data.user
+      toast.success('Профиль успешно обновлен')
+      activeTab.value = 'overview'
+    }
+  } catch (err) {
+    console.error('Error updating profile:', err)
+    toast.error(err.data?.message || 'Ошибка при обновлении профиля')
+  } finally {
+    updatingProfile.value = false
+  }
+}
+
+const cancelEdit = () => {
+  // Восстанавливаем данные из профиля
+  editForm.value = {
+    name: profile.value.name,
+    phone: profile.value.phone || '',
+    workplace: profile.value.workplace || '',
+    position: profile.value.position || '',
+    pinfl: profile.value.pinfl || '',
+  }
+  activeTab.value = 'overview'
+}
+
+const changePassword = async () => {
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    toast.error('Пароли не совпадают')
+    return
+  }
+
+  try {
+    changingPassword.value = true
+
+    const data = await authFetch('/api/profile/password', {
+      method: 'PUT',
+      body: passwordForm.value,
+    })
+
+    if (data?.success) {
+      toast.success('Пароль успешно изменен')
+      passwordForm.value = {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }
+    }
+  } catch (err) {
+    console.error('Error changing password:', err)
+    toast.error(err.data?.message || 'Ошибка при изменении пароля')
+  } finally {
+    changingPassword.value = false
+  }
+}
+
+// Загружаем данные при монтировании
+onMounted(() => {
+  loadProfile()
+})
 </script>

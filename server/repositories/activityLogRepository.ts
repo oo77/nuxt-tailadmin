@@ -4,13 +4,13 @@
 
 import { executeQuery } from '../utils/db';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2/promise';
-import type { 
-  ActivityLog, 
-  CreateActivityLogInput, 
+import type {
+  ActivityLog,
+  CreateActivityLogInput,
   ActivityLogPaginationParams,
   PaginatedActivityLogs,
   ActionType,
-  EntityType 
+  EntityType
 } from '../types/activityLog';
 
 // ============================================================================
@@ -40,7 +40,7 @@ interface CountRow extends RowDataPacket {
 
 function mapRowToActivityLog(row: ActivityLogRow): ActivityLog {
   let details: Record<string, any> | null = null;
-  
+
   if (row.details) {
     try {
       details = typeof row.details === 'string' ? JSON.parse(row.details) : row.details;
@@ -72,6 +72,15 @@ function mapRowToActivityLog(row: ActivityLogRow): ActivityLog {
  */
 export async function createActivityLog(data: CreateActivityLogInput): Promise<ActivityLog> {
   const detailsJson = data.details ? JSON.stringify(data.details) : null;
+
+  // Отладка: логируем что именно пытаемся записать
+  console.log('[createActivityLog] Attempting to insert:', {
+    userId: data.userId,
+    actionType: data.actionType,
+    entityType: data.entityType,
+    entityId: data.entityId,
+    entityName: data.entityName,
+  });
 
   const result = await executeQuery<ResultSetHeader>(
     `INSERT INTO activity_logs (user_id, action_type, entity_type, entity_id, entity_name, details, ip_address, user_agent)

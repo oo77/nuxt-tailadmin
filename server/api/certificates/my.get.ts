@@ -68,12 +68,14 @@ export default defineEventHandler(async (event: H3Event) => {
     }))
 
     // Логируем действие
-    await logActivity({
-      userId: context.userId,
-      action: 'view',
-      entityType: 'certificate',
-      details: `Просмотр своих сертификатов (${result.length} шт.)`,
-    })
+    await logActivity(
+      event,
+      'VIEW',
+      'CERTIFICATE',
+      undefined,
+      undefined,
+      { message: `Просмотр своих сертификатов (${result.length} шт.)` }
+    )
 
     console.log(`[API] Найдено ${result.length} сертификатов для студента ${student.id}`)
 

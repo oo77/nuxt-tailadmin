@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
   '/api/db/test',
   '/api/db/init',
   '/api/certificates/download', // Скачивание сертификатов (защищено UUID)
+  '/api/debug', // Debug endpoints (только для разработки!)
 ]
 
 /**
@@ -75,7 +76,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   // Извлекаем токен из заголовка Authorization
   const authHeader = getHeader(event, 'authorization')
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw createError({
       statusCode: 401,
@@ -88,7 +89,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   // Верифицируем токен
   const payload = verifyToken(token)
-  
+
   if (!payload) {
     throw createError({
       statusCode: 401,
@@ -99,7 +100,7 @@ export default defineEventHandler(async (event: H3Event) => {
 
   // Проверяем роли для маршрутов с ограничениями
   const requiredRoles = getRequiredRoles(path)
-  
+
   if (requiredRoles && !hasRequiredRole(payload.role, requiredRoles)) {
     throw createError({
       statusCode: 403,

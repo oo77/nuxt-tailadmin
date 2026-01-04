@@ -83,6 +83,7 @@
               <!-- Кнопки действий -->
               <div class="flex gap-3 pb-2">
                 <UiButton
+                  v-if="canEditStudents"
                   variant="primary"
                   @click="openEditModal"
                   class="flex items-center gap-2"
@@ -93,6 +94,7 @@
                   Редактировать
                 </UiButton>
                 <UiButton
+                  v-if="canDeleteStudents"
                   variant="danger"
                   @click="handleDelete"
                   class="flex items-center gap-2"
@@ -351,6 +353,9 @@ const studentId = route.params.id as string;
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
+
+// Проверка прав доступа
+const { canEditStudents, canDeleteStudents } = usePermissions();
 
 // Состояние
 const student = ref<Student | null>(null);

@@ -9,10 +9,10 @@
  */
 
 import { getGroups, getGroupsStats, type GroupFilters } from '../../repositories/groupRepository';
-import { 
-  getPermissionContext, 
-  roleHasPermission, 
-  getTeacherGroups 
+import {
+  getPermissionContext,
+  roleHasPermission,
+  getTeacherGroups
 } from '../../utils/permissions';
 import { Permission } from '../../types/permissions';
 import { UserRole } from '../../types/auth';
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
     // Получаем контекст разрешений
     const context = await getPermissionContext(event);
-    
+
     if (!context) {
       throw createError({
         statusCode: 401,
@@ -47,23 +47,23 @@ export default defineEventHandler(async (event) => {
 
     // Парсим фильтры
     const filters: GroupFilters = {};
-    
+
     if (query.search) {
       filters.search = query.search as string;
     }
-    
+
     if (query.courseId) {
       filters.courseId = query.courseId as string;
     }
-    
+
     if (query.isActive !== undefined) {
       filters.isActive = query.isActive === 'true';
     }
-    
+
     if (query.startDateFrom) {
       filters.startDateFrom = query.startDateFrom as string;
     }
-    
+
     if (query.startDateTo) {
       filters.startDateTo = query.startDateTo as string;
     }
@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
       if (context.instructorId) {
         const teacherGroupIds = await getTeacherGroups(context.instructorId);
         filters.groupIds = teacherGroupIds;
-        
+
         console.log(`[API Groups] TEACHER ${context.userId} фильтрация по своим группам: ${teacherGroupIds.length} групп`);
       } else {
         // Если инструктор не связан — возвращаем пустой список
@@ -95,19 +95,21 @@ export default defineEventHandler(async (event) => {
     const limit = query.limit ? Math.min(parseInt(query.limit as string, 10), 100) : 10;
 
     const result = await getGroups({ page, limit, filters });
-    
+
     // Получаем статистику (для TEACHER — только по своим группам)
     const stats = context.role === UserRole.TEACHER && filters.groupIds
       ? await getGroupsStats(filters.groupIds)
       : await getGroupsStats();
 
     // Логируем действие
-    await logActivity({
-      userId: context.userId,
-      action: 'view',
-      entityType: 'study_group',
-      details: `Просмотр списка групп (${result.total} результатов)`,
-    });
+    await logActivity(
+      event,
+      'VIEW',
+      'GROUP',
+      undefined,
+      undefined,
+      { message: `Просмотр списка групп (${result.total} результатов)` }
+    );
 
     return {
       success: true,
@@ -125,7 +127,7 @@ export default defineEventHandler(async (event) => {
     }
 
     console.error('Ошибка получения списка групп:', error);
-    
+
     return {
       success: false,
       message: 'Ошибка при получении списка групп',

@@ -34,7 +34,7 @@
         </button>
         
         <!-- Кнопка добавления события -->
-        <UiButton @click="openAddModal()" class="flex items-center gap-2">
+        <UiButton v-if="canCreateSchedule" @click="openAddModal()" class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -259,6 +259,14 @@ interface Classroom {
 
 const { authFetch } = useAuthFetch();
 const notification = useNotification();
+
+// Проверка прав доступа
+const { 
+  canCreateSchedule, 
+  canEditSchedule, 
+  canDeleteSchedule,
+  isTeacher 
+} = usePermissions();
 
 // Настройки расписания (академические пары)
 const {
@@ -832,6 +840,9 @@ const calendarOptions = computed<CalendarOptions>(() => {
   const periodDuration = parseInt(scheduleSettings.value.period_duration_minutes || '40', 10);
   const snapDurationValue = `00:${String(periodDuration).padStart(2, '0')}:00`;
   
+  // Определяем возможность редактирования на основе прав доступа
+  const isEditable = canEditSchedule.value || canCreateSchedule.value;
+  
   return {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
     initialView: 'dayGridMonth',
@@ -843,9 +854,13 @@ const calendarOptions = computed<CalendarOptions>(() => {
     // События будут управляться через API календаря
     events: [],
     
-    editable: true,
-    selectable: true,
-    selectMirror: true,
+    // Блокируем редактирование для пользователей без прав
+    editable: isEditable,
+    selectable: isEditable,
+    selectMirror: isEditable,
+    eventStartEditable: isEditable,
+    eventDurationEditable: isEditable,
+    
     dayMaxEvents: 3,
     moreLinkClick: 'popover',
     weekends: true,

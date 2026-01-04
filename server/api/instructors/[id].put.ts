@@ -8,19 +8,18 @@
  * - Создание аккаунта для существующего инструктора
  */
 
-import { 
-  updateInstructor, 
-  instructorEmailExists, 
+import {
+  updateInstructor,
+  instructorEmailExists,
   getInstructorById,
   linkInstructorToUser,
-  type UpdateInstructorInput 
+  type UpdateInstructorInput
 } from '../../repositories/instructorRepository';
-import { 
-  createUser, 
-  updateUserPassword, 
+import {
+  createUser,
+  updateUserPassword,
   userEmailExists,
-  generateSecurePassword,
-  hashPassword 
+  hashPassword
 } from '../../repositories/userRepository';
 import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
@@ -36,12 +35,10 @@ const updateInstructorSchema = z.object({
   // Поля для смены пароля
   changePassword: z.boolean().optional(),
   newPassword: z.string().min(8, 'Пароль должен быть минимум 8 символов').optional(),
-  autoGenerateNewPassword: z.boolean().optional(),
   // Поля для создания аккаунта
   createAccount: z.boolean().optional(),
   accountEmail: z.string().email('Некорректный email').optional(),
   accountPassword: z.string().min(8, 'Пароль должен быть минимум 8 символов').optional(),
-  autoGeneratePassword: z.boolean().optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -93,22 +90,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    let generatedPassword: string | undefined;
     let accountEmail: string | undefined;
 
     // Смена пароля для существующего аккаунта
     if (data.changePassword && existingInstructor.userId) {
-      if (data.autoGenerateNewPassword) {
-        generatedPassword = generateSecurePassword();
-      } else if (data.newPassword) {
-        generatedPassword = undefined; // Не показываем введённый пароль
+      if (!data.newPassword || data.newPassword.length < 8) {
+        return {
+          success: false,
+          message: 'Новый пароль должен быть минимум 8 символов',
+          field: 'newPassword',
+        };
       }
 
-      const newPassword = data.autoGenerateNewPassword 
-        ? generatedPassword! 
-        : data.newPassword!;
-      
-      const hashedPassword = await hashPassword(newPassword);
+      const hashedPassword = await hashPassword(data.newPassword);
       await updateUserPassword(existingInstructor.userId, hashedPassword);
 
       accountEmail = existingInstructor.email || undefined;
@@ -127,7 +121,7 @@ export default defineEventHandler(async (event) => {
     // Создание аккаунта для существующего инструктора
     if (data.createAccount && !existingInstructor.userId) {
       accountEmail = data.accountEmail || existingInstructor.email || `instructor_${id}@local`;
-      
+
       // Проверяем уникальность email пользователя
       const userExists = await userEmailExists(accountEmail);
       if (userExists) {
@@ -138,15 +132,16 @@ export default defineEventHandler(async (event) => {
         };
       }
 
-      // Генерация или использование указанного пароля
-      if (data.autoGeneratePassword) {
-        generatedPassword = generateSecurePassword();
+      // Проверяем наличие пароля
+      if (!data.accountPassword || data.accountPassword.length < 8) {
+        return {
+          success: false,
+          message: 'Пароль должен быть минимум 8 символов',
+          field: 'accountPassword',
+        };
       }
-      const password = data.autoGeneratePassword 
-        ? generatedPassword! 
-        : data.accountPassword!;
-      
-      const hashedPassword = await hashPassword(password);
+
+      const hashedPassword = await hashPassword(data.accountPassword);
 
       // Создаём пользователя
       const newUser = await createUser({
@@ -194,18 +189,16 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      message: generatedPassword 
-        ? (data.changePassword ? 'Пароль успешно изменён' : 'Аккаунт успешно создан')
-        : 'Инструктор успешно обновлён',
+      message: data.changePassword
+        ? 'Пароль успешно изменён'
+        : data.createAccount
+          ? 'Аккаунт успешно создан'
+          : 'Инструктор успешно обновлён',
       instructor,
-      ...(generatedPassword && {
-        generatedPassword,
-        accountEmail,
-      }),
     };
   } catch (error) {
     console.error('Ошибка обновления инструктора:', error);
-    
+
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Ошибка при обновлении инструктора',

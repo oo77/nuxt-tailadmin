@@ -14,16 +14,6 @@ import { logActivity } from '../../utils/activityLogger';
 import { z } from 'zod';
 import type { User } from '../../types/auth';
 
-// Генерация случайного пароля
-function generatePassword(length = 12): string {
-  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
-
 const instructorSchema = z.object({
   fullName: z.string().min(1, 'ФИО обязательно'),
   email: z.string().email('Некорректный email').optional().or(z.literal('')),
@@ -32,21 +22,20 @@ const instructorSchema = z.object({
   contractInfo: z.string().optional(),
   maxHours: z.number().min(0, 'Часы не могут быть отрицательными').optional(),
   isActive: z.boolean().optional(),
-  
+
   // Поля для создания учётной записи
   createAccount: z.boolean().optional().default(false),
   accountEmail: z.string().email('Некорректный email для аккаунта').optional(),
   accountPassword: z.string().min(8, 'Пароль должен быть минимум 8 символов').optional(),
-  autoGeneratePassword: z.boolean().optional().default(true),
 });
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
 
-    console.log('[Instructors API] Создание инструктора:', { 
-      fullName: body.fullName, 
-      createAccount: body.createAccount 
+    console.log('[Instructors API] Создание инструктора:', {
+      fullName: body.fullName,
+      createAccount: body.createAccount
     });
 
     // Валидация
@@ -77,12 +66,11 @@ export default defineEventHandler(async (event) => {
     }
 
     let userId: string | null = null;
-    let generatedPassword: string | null = null;
 
     // Если нужно создать учётную запись
     if (data.createAccount) {
       const accountEmail = data.accountEmail || data.email;
-      
+
       if (!accountEmail) {
         return {
           success: false,
@@ -105,22 +93,15 @@ export default defineEventHandler(async (event) => {
         };
       }
 
-      // Генерируем или используем указанный пароль
-      const password = data.autoGeneratePassword 
-        ? generatePassword() 
-        : data.accountPassword;
+      // Проверяем наличие пароля
+      const password = data.accountPassword;
 
-      if (!password) {
+      if (!password || password.length < 8) {
         return {
           success: false,
-          message: 'Пароль обязателен для создания учётной записи',
+          message: 'Пароль обязателен и должен быть минимум 8 символов',
           field: 'accountPassword',
         };
-      }
-
-      // Если автогенерация — сохраняем для возврата
-      if (data.autoGeneratePassword) {
-        generatedPassword = password;
       }
 
       // Хешируем пароль
@@ -153,7 +134,7 @@ export default defineEventHandler(async (event) => {
       'INSTRUCTOR',
       String(instructor.id),
       instructor.fullName,
-      { 
+      {
         email: instructor.email,
         accountCreated: !!userId,
         accountEmail: data.createAccount ? (data.accountEmail || data.email) : undefined
@@ -162,19 +143,14 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      message: data.createAccount 
-        ? 'Инструктор и учётная запись успешно созданы' 
+      message: data.createAccount
+        ? 'Инструктор и учётная запись успешно созданы'
         : 'Инструктор успешно создан',
       instructor,
-      // Возвращаем сгенерированный пароль ТОЛЬКО при автогенерации
-      ...(generatedPassword && { 
-        generatedPassword,
-        accountEmail: data.accountEmail || data.email 
-      }),
     };
   } catch (error) {
     console.error('Ошибка создания инструктора:', error);
-    
+
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Ошибка при создании инструктора',

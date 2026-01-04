@@ -11,9 +11,9 @@
 import { getScheduleEvents } from '../../repositories/scheduleRepository';
 import type { ScheduleEventType } from '../../repositories/scheduleRepository';
 import { dateToLocalIso } from '../../utils/timeUtils';
-import { 
-  getPermissionContext, 
-  roleHasPermission, 
+import {
+  getPermissionContext,
+  roleHasPermission,
   getTeacherGroups,
   getStudentGroups,
 } from '../../utils/permissions';
@@ -25,10 +25,10 @@ import { logActivity } from '../../utils/activityLogger';
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event);
-    
+
     // Получаем контекст разрешений
     const context = await getPermissionContext(event);
-    
+
     if (!context) {
       throw createError({
         statusCode: 401,
@@ -57,6 +57,7 @@ export default defineEventHandler(async (event) => {
       classroomId?: string;
       eventType?: ScheduleEventType;
       groupIds?: string[];
+      orInstructorId?: string;
     } = {
       startDate: query.startDate as string | undefined,
       endDate: query.endDate as string | undefined,
@@ -66,12 +67,13 @@ export default defineEventHandler(async (event) => {
       eventType: query.eventType as ScheduleEventType | undefined,
     };
 
-    // Фильтрация для TEACHER: только свои группы
+    // Фильтрация для TEACHER: события его групп или где он назначен инструктором
     if (context.role === UserRole.TEACHER && !canViewAll) {
       if (context.instructorId) {
         const teacherGroupIds = await getTeacherGroups(context.instructorId);
         filters.groupIds = teacherGroupIds;
-        console.log(`[Schedule API] TEACHER ${context.userId} фильтрация по своим группам: ${teacherGroupIds.length} групп`);
+        filters.orInstructorId = context.instructorId; // Также показывать события, где он назначен инструктором
+        console.log(`[Schedule API] TEACHER ${context.userId} фильтрация по своим группам: ${teacherGroupIds.length} групп + события где назначен инструктором`);
       } else {
         console.warn(`[Schedule API] TEACHER ${context.userId} не имеет связанного instructorId`);
         return { success: true, events: [] };
@@ -93,7 +95,7 @@ export default defineEventHandler(async (event) => {
     console.log('[Schedule API] Фильтры запроса:', JSON.stringify(filters));
 
     const events = await getScheduleEvents(filters);
-    
+
     console.log(`[Schedule API] Найдено событий: ${events.length}`);
 
     // Логируем первое событие для отладки
@@ -107,12 +109,14 @@ export default defineEventHandler(async (event) => {
     }
 
     // Логируем действие
-    await logActivity({
-      userId: context.userId,
-      action: 'view',
-      entityType: 'schedule_event',
-      details: `Просмотр расписания (${events.length} событий)`,
-    });
+    await logActivity(
+      event,
+      'VIEW',
+      'SCHEDULE',
+      undefined,
+      undefined,
+      { message: `Просмотр расписания (${events.length} событий)` }
+    );
 
     return {
       success: true,

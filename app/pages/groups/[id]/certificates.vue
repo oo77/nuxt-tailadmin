@@ -49,7 +49,7 @@
               </svg>
               <span class="text-sm font-medium">Шаблон не назначен для курса</span>
               <NuxtLink 
-                :to="`/courses/${group.course?.id}`" 
+                :to="`/programs/edit/${group.course?.id}`" 
                 class="text-xs underline hover:no-underline"
               >
                 Настроить

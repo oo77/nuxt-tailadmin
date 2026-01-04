@@ -17,6 +17,8 @@ import * as certificateValidityAndPermissions from './migrations/20251229_023_ce
 import * as telegramBotRequests from './migrations/20251229_024_telegram_bot_requests';
 import * as unifyCertificates from './migrations/20251229_025_unify_certificates';
 import * as userEntityLinks from './migrations/20251230_026_user_entity_links';
+import * as activityLogEnumExpansion from './migrations/20260103_027_activity_log_view_action';
+import * as testingSystem from './migrations/20260104_028_testing_system';
 
 /**
  * ============================================================================
@@ -40,7 +42,7 @@ import * as userEntityLinks from './migrations/20251230_026_user_entity_links';
 // ИНТЕРФЕЙС МИГРАЦИИ
 // ============================================================================
 
-interface Migration { 
+interface Migration {
   name: string;
   up: (connection: PoolConnection) => Promise<void>;
   down: (connection: PoolConnection) => Promise<void>;
@@ -124,6 +126,24 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: userEntityLinks.up,
     down: userEntityLinks.down,
     description: userEntityLinks.description,
+  },
+  // ============================================================
+  // Миграция 027: Расширение ENUM для activity_logs
+  // ============================================================
+  {
+    name: '20260103_027_activity_log_enum_expansion',
+    up: activityLogEnumExpansion.up,
+    down: activityLogEnumExpansion.down,
+    description: activityLogEnumExpansion.description,
+  },
+  // ============================================================
+  // Миграция 028: Система тестирования студентов
+  // ============================================================
+  {
+    name: '20260104_028_testing_system',
+    up: testingSystem.up,
+    down: testingSystem.down,
+    description: testingSystem.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже
@@ -232,18 +252,18 @@ function hasLegacyMigrationsApplied(executedMigrations: string[]): boolean {
  */
 async function consolidateMigrationRecords(connection: PoolConnection): Promise<void> {
   console.log('🔄 Consolidating old migration records...');
-  
+
   // Удаляем записи о старых миграциях
   for (const legacyMigration of LEGACY_MIGRATIONS_INCLUDED_IN_CONSOLIDATED) {
     await connection.query('DELETE FROM migrations WHERE name = ?', [legacyMigration]);
   }
-  
+
   // Добавляем запись о консолидированной миграции
   await connection.query(
     `INSERT IGNORE INTO migrations (name, description) VALUES (?, ?)`,
     ['20251224_001_consolidated_schema', consolidatedSchema.description]
   );
-  
+
   console.log('✅ Migration records consolidated');
 }
 
@@ -462,7 +482,7 @@ export async function getMigrationStatus(): Promise<void> {
       console.log(`Total migrations: ${allMigrations.length}`);
       console.log(`Executed: ${executedMigrations.length}`);
       console.log(`Pending: ${allMigrations.length - executedMigrations.length}`);
-      
+
       if (hasLegacy) {
         console.log(`\n⚠️  Legacy migrations detected. Run migrations to consolidate.`);
       }
@@ -506,7 +526,7 @@ export async function resetMigrations(): Promise<void> {
     try {
       await connection.query('DROP TABLE IF EXISTS migrations');
       console.log('✅ Migrations table dropped');
-      
+
       await createMigrationsTable(connection);
       console.log('✅ Migrations table recreated');
     } finally {
