@@ -39,6 +39,7 @@ export default defineEventHandler(async (event) => {
             points: body.points,
             explanation: body.explanation?.trim(),
             difficulty: body.difficulty,
+            language: body.language,
             tags: body.tags,
             order_index: body.order_index,
             is_active: body.is_active,

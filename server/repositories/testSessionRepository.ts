@@ -19,6 +19,7 @@ import type {
     TestResultDTO,
     Question,
     SingleChoiceOptions,
+    QuestionLanguage,
 } from '../types/testing';
 
 // ============================================================================
@@ -33,6 +34,7 @@ interface TestSessionRow extends RowDataPacket {
     attempt_number: number;
     status: TestSessionStatus;
     is_preview: boolean;
+    language: QuestionLanguage | null;
     questions_order: string | null;
     current_question_index: number;
     started_at: Date;
@@ -92,6 +94,7 @@ function mapRowToTestSession(row: TestSessionRow): TestSession {
         attempt_number: row.attempt_number,
         status: row.status,
         is_preview: Boolean(row.is_preview),
+        language: row.language || null,
         questions_order: parseJsonSafe<SessionQuestionOrder[] | null>(row.questions_order, null),
         current_question_index: row.current_question_index,
         started_at: row.started_at,
@@ -180,6 +183,12 @@ export async function getTestSessions(
     if (status) {
         conditions.push('ts.status = ?');
         queryParams.push(status);
+    }
+
+    // Фильтр по языку сессии
+    if (filters.language) {
+        conditions.push('ts.language = ?');
+        queryParams.push(filters.language);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -302,9 +311,9 @@ export async function createTestSession(
     await executeQuery(
         `INSERT INTO test_sessions (
       id, assignment_id, student_id, attempt_number, status, is_preview, preview_user_id,
-      questions_order, current_question_index, started_at,
+      language, questions_order, current_question_index, started_at,
       ip_address, user_agent, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             data.assignment_id || null,
@@ -313,6 +322,7 @@ export async function createTestSession(
             'in_progress',
             data.is_preview || false,
             data.preview_user_id || null,
+            data.language || null,
             JSON.stringify(questionsOrder),
             0,
             now,

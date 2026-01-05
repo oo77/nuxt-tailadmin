@@ -214,8 +214,24 @@
                   {{ template.description }}
                 </p>
 
-                <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Банк: <NuxtLink :to="`/test-bank/${template.bank_id}`" class="text-primary hover:underline">{{ template.bank_name }}</NuxtLink>
+                <div class="flex flex-wrap items-center gap-2 mt-2">
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    Банк: <NuxtLink :to="`/test-bank/${template.bank_id}`" class="text-primary hover:underline">{{ template.bank_name }}</NuxtLink>
+                  </span>
+                  <!-- Бейджи языков -->
+                  <div v-if="template.allowed_languages && template.allowed_languages.length > 0" class="flex items-center gap-1 ml-2">
+                    <span
+                      v-for="lang in template.allowed_languages"
+                      :key="lang"
+                      :class="languageBadgeClasses[lang]"
+                      :title="languageLabels[lang]"
+                    >
+                      {{ languageFlags[lang] }}
+                    </span>
+                  </div>
+                  <span v-else class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" title="Все языки доступны">
+                    🌐 Все
+                  </span>
                 </div>
               </div>
             </div>
@@ -459,6 +475,78 @@
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">Перемешивать варианты</span>
             </label>
+          </div>
+        </div>
+
+        <!-- Языки тестирования -->
+        <div class="border-t border-gray-200 dark:border-gray-700 pt-5">
+          <h4 class="font-medium text-gray-900 dark:text-white mb-4">Языки тестирования</h4>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Доступные языки <span class="text-danger">*</span>
+            </label>
+            <div class="flex flex-wrap gap-3">
+              <label 
+                v-for="lang in availableLanguages" 
+                :key="lang.value"
+                class="flex items-center gap-2 cursor-pointer p-3 rounded-lg border-2 transition-all"
+                :class="[
+                  form.allowed_languages.includes(lang.value)
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+                ]"
+              >
+                <input
+                  type="checkbox"
+                  :value="lang.value"
+                  v-model="form.allowed_languages"
+                  class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  @change="onLanguageChange"
+                />
+                <span class="text-lg">{{ lang.flag }}</span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ lang.label }}</span>
+              </label>
+            </div>
+            <p v-if="formErrors.allowed_languages" class="mt-1 text-sm text-danger">{{ formErrors.allowed_languages }}</p>
+          </div>
+
+          <!-- Валидация количества вопросов по языкам -->
+          <div v-if="form.bank_id && form.allowed_languages.length > 0 && form.questions_mode === 'random'" class="space-y-2">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Достаточность вопросов (минимум {{ form.questions_count }} на каждом языке):</p>
+            <div v-if="languageValidationLoading" class="flex items-center gap-2 text-sm text-gray-500">
+              <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              Проверка...
+            </div>
+            <div v-else class="space-y-2">
+              <div 
+                v-for="validation in languageValidation" 
+                :key="validation.language"
+                class="flex items-center justify-between p-2 rounded-lg"
+                :class="validation.isValid ? 'bg-success/10' : 'bg-danger/10'"
+              >
+                <div class="flex items-center gap-2">
+                  <span>{{ validation.flag }}</span>
+                  <span class="text-sm font-medium" :class="validation.isValid ? 'text-success' : 'text-danger'">
+                    {{ validation.label }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm" :class="validation.isValid ? 'text-success' : 'text-danger'">
+                    {{ validation.available }} / {{ validation.required }}
+                  </span>
+                  <svg v-if="validation.isValid" class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else class="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <p v-if="hasInvalidLanguages" class="text-sm text-danger mt-2">
+              ⚠️ Недостаточно вопросов на некоторых языках. Добавьте вопросы или уменьшите количество.
+            </p>
           </div>
         </div>
 
@@ -710,6 +798,39 @@ const deleteModalOpen = ref(false);
 const editingTemplate = ref(null);
 const deletingTemplate = ref(null);
 
+// Языки
+const availableLanguages = [
+  { value: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { value: 'uz', label: "O'zbek", flag: '🇺🇿' },
+  { value: 'en', label: 'English', flag: '🇬🇧' },
+];
+
+const languageLabels = {
+  ru: 'Русский',
+  uz: "O'zbek",
+  en: 'English',
+};
+
+const languageFlags = {
+  ru: '🇷🇺',
+  uz: '🇺🇿',
+  en: '🇬🇧',
+};
+
+const languageBadgeClasses = {
+  ru: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30',
+  uz: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-green-100 dark:bg-green-900/30',
+  en: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30',
+};
+
+// Валидация языков
+const languageValidationLoading = ref(false);
+const languageValidation = ref([]);
+
+const hasInvalidLanguages = computed(() => {
+  return languageValidation.value.some(v => !v.isValid);
+});
+
 // Форма
 const getDefaultForm = () => ({
   name: '',
@@ -732,6 +853,7 @@ const getDefaultForm = () => ({
     blockCopyPaste: false,
     blockRightClick: false,
   },
+  allowed_languages: ['ru'],
   is_active: true,
 });
 
@@ -741,6 +863,7 @@ const formErrors = ref({
   name: '',
   code: '',
   bank_id: '',
+  allowed_languages: '',
 });
 
 // Уведомления
@@ -830,7 +953,8 @@ const changePage = (page) => {
 const openCreateModal = () => {
   editingTemplate.value = null;
   form.value = getDefaultForm();
-  formErrors.value = { name: '', code: '', bank_id: '' };
+  formErrors.value = { name: '', code: '', bank_id: '', allowed_languages: '' };
+  languageValidation.value = [];
   modalOpen.value = true;
 };
 
@@ -857,10 +981,16 @@ const openEditModal = (template) => {
       blockCopyPaste: false,
       blockRightClick: false,
     },
+    allowed_languages: template.allowed_languages || ['ru', 'uz', 'en'],
     is_active: template.is_active,
   };
-  formErrors.value = { name: '', code: '', bank_id: '' };
+  formErrors.value = { name: '', code: '', bank_id: '', allowed_languages: '' };
+  languageValidation.value = [];
   modalOpen.value = true;
+  // Загружаем валидацию при редактировании
+  if (form.value.bank_id && form.value.questions_mode === 'random') {
+    validateLanguages();
+  }
 };
 
 const closeModal = () => {
@@ -877,9 +1007,42 @@ const confirmDelete = (template) => {
   deleteModalOpen.value = true;
 };
 
+// Загрузка валидации языков
+const validateLanguages = async () => {
+  if (!form.value.bank_id || form.value.allowed_languages.length === 0) {
+    languageValidation.value = [];
+    return;
+  }
+
+  languageValidationLoading.value = true;
+  try {
+    // Используем банк, количество вопросов и выбранные языки
+    const minCount = form.value.questions_mode === 'random' ? form.value.questions_count : 1;
+    const languages = form.value.allowed_languages.join(',');
+    
+    const response = await authFetch(
+      `/api/test-bank/banks/${form.value.bank_id}/validate-languages?min_count=${minCount}&languages=${languages}`
+    );
+    
+    if (response.success) {
+      languageValidation.value = response.validation;
+    }
+  } catch (error) {
+    console.error('Ошибка валидации языков:', error);
+  } finally {
+    languageValidationLoading.value = false;
+  }
+};
+
+const onLanguageChange = () => {
+  if (form.value.bank_id && form.value.questions_mode === 'random') {
+    validateLanguages();
+  }
+};
+
 // Валидация
 const validateForm = () => {
-  formErrors.value = { name: '', code: '', bank_id: '' };
+  formErrors.value = { name: '', code: '', bank_id: '', allowed_languages: '' };
   let isValid = true;
 
   if (!form.value.name.trim()) {
@@ -897,6 +1060,17 @@ const validateForm = () => {
     isValid = false;
   }
 
+  if (form.value.allowed_languages.length === 0) {
+    formErrors.value.allowed_languages = 'Выберите хотя бы один язык';
+    isValid = false;
+  }
+
+  // Проверяем достаточность вопросов для random режима
+  if (form.value.questions_mode === 'random' && hasInvalidLanguages.value) {
+    formErrors.value.allowed_languages = 'Недостаточно вопросов на выбранных языках';
+    isValid = false;
+  }
+
   return isValid;
 };
 
@@ -911,6 +1085,7 @@ const saveTemplate = async () => {
       code: form.value.code.trim().toUpperCase(),
       time_limit_minutes: form.value.time_limit_minutes || null,
       proctoring_settings: form.value.proctoring_enabled ? form.value.proctoring_settings : null,
+      allowed_languages: form.value.allowed_languages,
     };
 
     let response;

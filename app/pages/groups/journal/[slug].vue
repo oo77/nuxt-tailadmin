@@ -268,6 +268,24 @@
             <span class="w-3 h-3 rounded-full bg-orange-500"></span>
             Проверка знаний (с оценкой)
           </span>
+          
+          <span class="mx-2 text-gray-300 dark:text-gray-600">|</span>
+          
+          <span class="font-medium">Оценки:</span>
+          <span class="flex items-center gap-1" title="Автоматическая оценка из теста">
+            <span class="relative w-5 h-5 rounded bg-success/20 flex items-center justify-center text-xs text-success">
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-500"></span>
+              85
+            </span>
+            Из теста
+          </span>
+          <span class="flex items-center gap-1" title="Изменённая оценка">
+            <span class="relative w-5 h-5 rounded bg-purple-200 dark:bg-purple-900/40 flex items-center justify-center text-xs text-purple-700 dark:text-purple-300 ring-1 ring-purple-400">
+              <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-purple-500"></span>
+              78
+            </span>
+            Изменена
+          </span>
         </div>
       </div>
     </template>
@@ -440,6 +458,9 @@ interface JournalCell {
     id: string;
     grade: number;
     notes: string | null;
+    isFromTest?: boolean;
+    isModified?: boolean;
+    originalGrade?: number | null;
   };
 }
 

@@ -606,59 +606,109 @@ export async function checkStudentEligibility(
   // Получаем существующий сертификат
   const existingCert = await getStudentCertificateInGroup(studentId, groupId);
 
-  // Получаем данные о посещаемости и оценках
-  const attendanceData = await executeQuery<RowDataPacket[]>(
-    `SELECT 
-       d.id as discipline_id,
-       d.name as discipline_name,
-       d.hours as total_hours,
-       COALESCE(SUM(a.hours_attended), 0) as attended_hours,
-       fg.final_grade
-     FROM disciplines d
-     JOIN courses c ON d.course_id = c.id
-     JOIN study_groups sg ON sg.course_id = c.id
-     LEFT JOIN schedule_events se ON se.discipline_id = d.id AND se.group_id = sg.id
-     LEFT JOIN attendance a ON a.schedule_event_id = se.id AND a.student_id = ?
-     LEFT JOIN final_grades fg ON fg.discipline_id = d.id AND fg.student_id = ? AND fg.group_id = sg.id
-     WHERE sg.id = ?
-     GROUP BY d.id, d.name, d.hours, fg.final_grade
-     ORDER BY d.order_index`,
-    [studentId, studentId, groupId]
+  // Получаем информацию о группе и курсе
+  const [groupInfo] = await executeQuery<RowDataPacket[]>(
+    `SELECT sg.id, sg.course_id, c.total_hours as course_total_hours
+     FROM study_groups sg
+     JOIN courses c ON sg.course_id = c.id
+     WHERE sg.id = ?`,
+    [groupId]
   );
 
-  const warnings: IssueWarning[] = [];
-  let totalAttendedHours = 0;
-  let totalHours = 0;
+  if (!groupInfo) {
+    throw new Error('Группа не найдена');
+  }
+
+  // Получаем список дисциплин курса
+  const disciplines = await executeQuery<RowDataPacket[]>(
+    `SELECT d.id, d.name, d.hours
+     FROM disciplines d
+     WHERE d.course_id = ?
+     ORDER BY d.order_index`,
+    [groupInfo.course_id]
+  );
+
+  // Получаем суммарную посещаемость студента по занятиям группы
+  const [attendanceStats] = await executeQuery<RowDataPacket[]>(
+    `SELECT 
+       COALESCE(SUM(a.hours_attended), 0) as total_attended_hours,
+       COALESCE(SUM(a.max_hours), 0) as total_max_hours,
+       COUNT(DISTINCT a.schedule_event_id) as attended_events
+     FROM attendance a
+     JOIN schedule_events se ON a.schedule_event_id = se.id
+     WHERE a.student_id = ? AND se.group_id = ?`,
+    [studentId, groupId]
+  );
+
+  // Получаем общее количество часов запланированных занятий для группы
+  const [scheduledStats] = await executeQuery<RowDataPacket[]>(
+    `SELECT 
+       COALESCE(SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time) / 45), 0) as scheduled_hours,
+       COUNT(*) as total_events
+     FROM schedule_events se
+     WHERE se.group_id = ?`,
+    [groupId]
+  );
+
+  // Получаем итоговые оценки студента в группе
+  const gradesData = await executeQuery<RowDataPacket[]>(
+    `SELECT fg.discipline_id, fg.final_grade, fg.status
+     FROM final_grades fg
+     WHERE fg.student_id = ? AND fg.group_id = ?`,
+    [studentId, groupId]
+  );
+
+  // Подсчёт статистики
+  const totalAttendedHours = Number(attendanceStats?.total_attended_hours) || 0;
+
+  // Используем максимально возможные часы или часы курса
+  let totalHours = Number(scheduledStats?.scheduled_hours) || 0;
+  if (totalHours === 0) {
+    // Если нет запланированных занятий, используем часы курса
+    totalHours = Number(groupInfo.course_total_hours) || 0;
+  }
+
+  const totalDisciplines = disciplines.length;
   let gradesSum = 0;
   let gradesCount = 0;
   let completedDisciplines = 0;
 
-  for (const row of attendanceData) {
-    totalAttendedHours += Number(row.attended_hours) || 0;
-    totalHours += Number(row.total_hours) || 0;
-
-    const disciplineAttendance = row.total_hours > 0 
-      ? (Number(row.attended_hours) / Number(row.total_hours)) * 100 
-      : 0;
-
-    if (disciplineAttendance > 0) {
-      completedDisciplines++;
-    }
-
-    if (row.final_grade !== null) {
-      gradesSum += Number(row.final_grade);
+  // Создаём набор дисциплин с оценками
+  const gradedDisciplineIds = new Set<string>();
+  for (const grade of gradesData) {
+    if (grade.final_grade !== null) {
+      gradesSum += Number(grade.final_grade);
       gradesCount++;
+      gradedDisciplineIds.add(grade.discipline_id);
+      if (grade.status === 'passed') {
+        completedDisciplines++;
+      }
     }
   }
 
-  const totalAttendancePercent = totalHours > 0 
-    ? (totalAttendedHours / totalHours) * 100 
+  // Если нет итоговых оценок, считаем посещение как выполнение дисциплины
+  if (gradesCount === 0 && attendanceStats?.attended_events > 0) {
+    // Получаем уникальные дисциплины с посещением
+    const attendedDisciplines = await executeQuery<RowDataPacket[]>(
+      `SELECT DISTINCT se.discipline_id 
+       FROM attendance a
+       JOIN schedule_events se ON a.schedule_event_id = se.id
+       WHERE a.student_id = ? AND se.group_id = ? AND a.hours_attended > 0`,
+      [studentId, groupId]
+    );
+    completedDisciplines = attendedDisciplines.length;
+  }
+
+  // Расчёт процента посещаемости
+  const totalAttendancePercent = totalHours > 0
+    ? (totalAttendedHours / totalHours) * 100
     : 0;
 
   const averageGrade = gradesCount > 0 ? gradesSum / gradesCount : null;
-  const totalDisciplines = attendanceData.length;
 
   // Проверяем требования
+  const warnings: IssueWarning[] = [];
+
   if (totalAttendancePercent < ELIGIBILITY_REQUIREMENTS.minAttendancePercent) {
     warnings.push({
       type: 'low_attendance',
@@ -667,7 +717,7 @@ export async function checkStudentEligibility(
     });
   }
 
-  if (ELIGIBILITY_REQUIREMENTS.requireAllDisciplines && completedDisciplines < totalDisciplines) {
+  if (ELIGIBILITY_REQUIREMENTS.requireAllDisciplines && completedDisciplines < totalDisciplines && totalDisciplines > 0) {
     warnings.push({
       type: 'incomplete_disciplines',
       message: `Пройдено ${completedDisciplines} из ${totalDisciplines} дисциплин`,
@@ -690,6 +740,8 @@ export async function checkStudentEligibility(
       details: { graded: gradesCount, total: totalDisciplines }
     });
   }
+
+  console.log(`[Eligibility] Student ${studentId}: attendance=${totalAttendancePercent.toFixed(1)}% (${totalAttendedHours}/${totalHours}h), grades=${gradesCount}/${totalDisciplines}, avgGrade=${averageGrade?.toFixed(1) || 'N/A'}`);
 
   return {
     studentId,

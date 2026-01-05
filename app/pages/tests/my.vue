@@ -131,7 +131,14 @@
                   getStatusBgClass(assignment)
                 ]">
                   <svg :class="['w-7 h-7', getStatusIconClass(assignment)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <component :is="getStatusIcon(assignment)" />
+                    <!-- В процессе -->
+                    <path v-if="assignment.has_active_session" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <!-- Сдан -->
+                    <path v-else-if="assignment.passed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <!-- Не сдан -->
+                    <path v-else-if="assignment.best_score !== null && !assignment.passed" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <!-- Ожидает -->
+                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div class="flex-1">
@@ -183,7 +190,12 @@
 
               <div v-if="assignment.event_date" class="text-sm text-gray-500 dark:text-gray-400 text-right">
                 <div class="font-medium">{{ formatDate(assignment.event_date) }}</div>
-                <div v-if="assignment.event_time">{{ assignment.event_time }}</div>
+                <div v-if="assignment.start_date || assignment.end_date" class="mt-1">
+                  <span v-if="assignment.start_date">{{ formatTime(assignment.start_date) }}</span>
+                  <span v-if="assignment.start_date && assignment.end_date"> — </span>
+                  <span v-if="assignment.end_date">{{ formatTime(assignment.end_date) }}</span>
+                </div>
+                <div v-else-if="assignment.event_time">{{ assignment.event_time }}</div>
               </div>
 
               <!-- Результат если завершён -->
@@ -227,6 +239,14 @@
       </div>
     </div>
 
+    <!-- Модалка выбора языка -->
+    <TestsLanguageSelectModal
+      :is-open="showLanguageModal"
+      :assignment-id="selectedAssignmentId"
+      @close="closeLanguageModal"
+      @confirm="handleLanguageConfirm"
+    />
+
     <!-- Уведомления -->
     <UiNotification
       v-if="notification.show"
@@ -252,6 +272,11 @@ const loading = ref(false);
 const assignments = ref([]);
 const activeTab = ref('all');
 const startingTest = ref(null);
+
+// Модалка выбора языка
+const showLanguageModal = ref(false);
+const selectedAssignmentId = ref(null);
+const selectedAssignment = ref(null);
 
 // Уведомления
 const notification = ref({
@@ -318,8 +343,25 @@ const loadAssignments = async () => {
   try {
     const response = await authFetch('/api/tests/my');
     
+    console.log('[Tests/My] Ответ API:', response);
+    
     if (response.success) {
       assignments.value = response.assignments || [];
+      console.log('[Tests/My] Загружено тестов:', assignments.value.length);
+      
+      // Логируем каждый тест для диагностики
+      assignments.value.forEach((a, index) => {
+        console.log(`[Tests/My] Тест ${index + 1}:`, {
+          name: a.template_name,
+          status: a.status,
+          start_date: a.start_date,
+          end_date: a.end_date,
+          attempts_used: a.attempts_used,
+          max_attempts: a.max_attempts,
+          has_active_session: a.has_active_session,
+          canTake: canTakeTest(a)
+        });
+      });
     } else {
       showNotification('error', 'Ошибка', response.message || 'Не удалось загрузить тесты');
     }
@@ -333,21 +375,45 @@ const loadAssignments = async () => {
 
 // Начать тест
 const startTest = async (assignment) => {
-  startingTest.value = assignment.id;
-  try {
-    // Если есть активная сессия - перейти к ней
-    if (assignment.active_session_id) {
-      await navigateTo(`/tests/take/${assignment.active_session_id}`);
-      return;
-    }
+  // Если есть активная сессия - перейти к ней напрямую
+  if (assignment.active_session_id) {
+    startingTest.value = assignment.id;
+    await navigateTo(`/tests/take/${assignment.active_session_id}`);
+    startingTest.value = null;
+    return;
+  }
 
-    // Создаём новую сессию
+  // Открываем модалку выбора языка
+  selectedAssignment.value = assignment;
+  selectedAssignmentId.value = assignment.id;
+  showLanguageModal.value = true;
+};
+
+// Закрытие модалки выбора языка
+const closeLanguageModal = () => {
+  showLanguageModal.value = false;
+  selectedAssignmentId.value = null;
+  selectedAssignment.value = null;
+};
+
+// Подтверждение выбора языка и старт теста
+const handleLanguageConfirm = async (language) => {
+  if (!selectedAssignment.value) return;
+
+  startingTest.value = selectedAssignment.value.id;
+  
+  try {
+    // Создаём новую сессию с выбранным языком
     const response = await authFetch('/api/tests/sessions/start', {
       method: 'POST',
-      body: { assignment_id: assignment.id },
+      body: { 
+        assignment_id: selectedAssignment.value.id,
+        language: language,
+      },
     });
 
     if (response.success) {
+      closeLanguageModal();
       await navigateTo(`/tests/take/${response.session.id}`);
     } else {
       showNotification('error', 'Ошибка', response.message || 'Не удалось начать тест');
@@ -360,22 +426,100 @@ const startTest = async (assignment) => {
   }
 };
 
+// Функция для парсинга даты
+// Обрабатывает два формата:
+// 1. "2026-01-05 14:40:00" (MySQL/локальное время) — парсим как локальное
+// 2. "2026-01-05T09:40:00.000Z" (ISO UTC) — парсим как UTC, браузер конвертирует в локальное
+const parseLocalDateTime = (dateStr) => {
+  if (!dateStr) return null;
+  
+  console.log(`[parseLocalDateTime] Вход: "${dateStr}"`);
+  
+  // Если есть 'Z' — это UTC время, используем стандартный парсинг
+  // JavaScript автоматически конвертирует в локальное время
+  if (dateStr.includes('Z') || dateStr.includes('+')) {
+    const date = new Date(dateStr);
+    console.log(`[parseLocalDateTime] UTC формат → Локальное: ${date.toLocaleString()}`);
+    return date;
+  }
+  
+  // Если нет 'Z' — это локальное время (формат MySQL)
+  // Парсим вручную, чтобы избежать интерпретации как UTC
+  const normalized = dateStr.replace('T', ' ').trim();
+  const parts = normalized.split(/[- :]/);
+  
+  if (parts.length >= 5) {
+    const date = new Date(
+      parseInt(parts[0]),      // год
+      parseInt(parts[1]) - 1,  // месяц (0-indexed)
+      parseInt(parts[2]),      // день
+      parseInt(parts[3]) || 0, // часы
+      parseInt(parts[4]) || 0, // минуты
+      parseInt(parts[5]) || 0  // секунды
+    );
+    console.log(`[parseLocalDateTime] Локальный формат → ${date.toLocaleString()}`);
+    return date;
+  }
+  
+  // Fallback
+  console.log(`[parseLocalDateTime] Fallback парсинг`);
+  return new Date(dateStr);
+};
+
 // Проверка возможности пройти тест
 const canTakeTest = (assignment) => {
+  const now = new Date();
+  
+  console.log(`[canTakeTest] ═══════════════════════════════════════`);
+  console.log(`[canTakeTest] Проверка теста: "${assignment.template_name}"`);
+  console.log(`[canTakeTest] Данные из API:`, {
+    start_date_raw: assignment.start_date,
+    status: assignment.status,
+    attempts: `${assignment.attempts_used || 0}/${assignment.max_attempts || 1}`,
+    has_active_session: assignment.has_active_session
+  });
+  console.log(`[canTakeTest] Текущее время: ${now.toLocaleString()}`);
+  
   // Если есть активная сессия - можно продолжить
-  if (assignment.has_active_session) return true;
+  if (assignment.has_active_session) {
+    console.log(`[canTakeTest] ✅ Есть активная сессия`);
+    return true;
+  }
   
   // Проверяем статус
-  if (assignment.status === 'cancelled' || assignment.status === 'completed') return false;
+  if (assignment.status === 'cancelled' || assignment.status === 'completed') {
+    console.log(`[canTakeTest] ❌ Статус: ${assignment.status}`);
+    return false;
+  }
   
   // Проверяем попытки
-  if ((assignment.attempts_used || 0) >= (assignment.max_attempts || 1)) return false;
+  if ((assignment.attempts_used || 0) >= (assignment.max_attempts || 1)) {
+    console.log(`[canTakeTest] ❌ Попытки исчерпаны: ${assignment.attempts_used}/${assignment.max_attempts}`);
+    return false;
+  }
   
-  // Проверяем сроки
-  const now = new Date();
-  if (assignment.start_date && new Date(assignment.start_date) > now) return false;
-  if (assignment.end_date && new Date(assignment.end_date) < now) return false;
+  // Проверяем сроки ТОЛЬКО если start_date/end_date явно заданы
+  if (assignment.start_date) {
+    const startDate = parseLocalDateTime(assignment.start_date);
+    if (startDate && startDate > now) {
+      console.log(`[canTakeTest] ❌ Тест ещё не начался.`);
+      console.log(`[canTakeTest]    Начало: ${startDate.toLocaleString()}`);
+      console.log(`[canTakeTest]    Сейчас: ${now.toLocaleString()}`);
+      return false;
+    }
+  }
   
+  if (assignment.end_date) {
+    const endDate = parseLocalDateTime(assignment.end_date);
+    if (endDate && endDate < now) {
+      console.log(`[canTakeTest] ❌ Тест завершён.`);
+      console.log(`[canTakeTest]    Окончание: ${endDate.toLocaleString()}`);
+      console.log(`[canTakeTest]    Сейчас: ${now.toLocaleString()}`);
+      return false;
+    }
+  }
+  
+  console.log(`[canTakeTest] ✅ Тест доступен для прохождения`);
   return true;
 };
 
@@ -385,26 +529,69 @@ const viewResults = (assignment) => {
   showNotification('info', 'В разработке', 'Страница результатов находится в разработке');
 };
 
+
 // Получение статуса
 const getStatusLabel = (assignment) => {
+  const now = new Date();
+  
+  // Тест в процессе
   if (assignment.has_active_session) return 'В процессе';
+  
+  // Тест сдан
   if (assignment.passed) return 'Сдан';
+  
+  // Тест не сдан (есть попытка, но не прошёл)
   if (assignment.best_score !== null && !assignment.passed) return 'Не сдан';
+  
+  // Тест отменён
   if (assignment.status === 'cancelled') return 'Отменён';
+  
+  // Тест завершён админом
   if (assignment.status === 'completed') return 'Завершён';
-  if (assignment.end_date && new Date(assignment.end_date) < new Date()) return 'Просрочен';
-  return 'Ожидает';
+  
+  // Проверяем даты
+  if (assignment.end_date) {
+    const endDate = parseLocalDateTime(assignment.end_date);
+    if (endDate && endDate < now) {
+      // Попытки исчерпаны или просто время вышло
+      return 'Просрочен';
+    }
+  }
+  
+  if (assignment.start_date) {
+    const startDate = parseLocalDateTime(assignment.start_date);
+    if (startDate && startDate > now) {
+      return 'Ожидает начала';
+    }
+  }
+  
+  // Тест доступен для прохождения
+  return 'Доступен';
 };
 
 const getStatusBadgeClass = (assignment) => {
   const base = 'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium';
+  const now = new Date();
   
   if (assignment.has_active_session) return `${base} bg-primary/10 text-primary`;
   if (assignment.passed) return `${base} bg-success/10 text-success`;
   if (assignment.best_score !== null && !assignment.passed) return `${base} bg-danger/10 text-danger`;
   if (assignment.status === 'cancelled') return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400`;
-  if (assignment.end_date && new Date(assignment.end_date) < new Date()) return `${base} bg-danger/10 text-danger`;
-  return `${base} bg-warning/10 text-warning`;
+  
+  // Просрочен
+  if (assignment.end_date) {
+    const endDate = parseLocalDateTime(assignment.end_date);
+    if (endDate && endDate < now) return `${base} bg-danger/10 text-danger`;
+  }
+  
+  // Ожидает начала
+  if (assignment.start_date) {
+    const startDate = parseLocalDateTime(assignment.start_date);
+    if (startDate && startDate > now) return `${base} bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400`;
+  }
+  
+  // Доступен
+  return `${base} bg-success/10 text-success`;
 };
 
 const getStatusBgClass = (assignment) => {
@@ -419,28 +606,6 @@ const getStatusIconClass = (assignment) => {
   if (assignment.passed) return 'text-success';
   if (assignment.best_score !== null && !assignment.passed) return 'text-danger';
   return 'text-warning';
-};
-
-const getStatusIcon = (assignment) => {
-  // Возвращаем path для иконки
-  if (assignment.has_active_session) {
-    return {
-      template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />`
-    };
-  }
-  if (assignment.passed) {
-    return {
-      template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />`
-    };
-  }
-  if (assignment.best_score !== null && !assignment.passed) {
-    return {
-      template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />`
-    };
-  }
-  return {
-    template: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />`
-  };
 };
 
 const getEmptyMessage = () => {
@@ -459,6 +624,20 @@ const formatDate = (date) => {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+  });
+};
+
+// Форматирование времени из строки даты
+const formatTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '';
+  
+  // Парсим дату без учёта часового пояса
+  const parsed = parseLocalDateTime(dateTimeStr);
+  if (!parsed) return '';
+  
+  return parsed.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };
 

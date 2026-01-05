@@ -22,6 +22,8 @@ import * as testingSystem from './migrations/20260104_028_testing_system';
 import * as testPreviewMode from './migrations/20260105_029_test_preview_mode';
 import * as previewSessionsNullableAssignment from './migrations/20260105_030_preview_sessions_nullable_assignment';
 import * as previewSessionsNullableStudent from './migrations/20260105_031_preview_sessions_nullable_student';
+import * as multilangQuestions from './migrations/20260105_032_multilang_questions';
+import * as gradesFromTest from './migrations/20260106_033_grades_from_test';
 
 /**
  * ============================================================================
@@ -174,6 +176,24 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: previewSessionsNullableStudent.up,
     down: previewSessionsNullableStudent.down,
     description: previewSessionsNullableStudent.name,
+  },
+  // ============================================================
+  // Миграция 032: Многоязычная поддержка вопросов
+  // ============================================================
+  {
+    name: '20260105_032_multilang_questions',
+    up: multilangQuestions.up,
+    down: multilangQuestions.down,
+    description: multilangQuestions.description,
+  },
+  // ============================================================
+  // Миграция 033: Поддержка оценок из тестов
+  // ============================================================
+  {
+    name: '20260106_033_grades_from_test',
+    up: gradesFromTest.up,
+    down: gradesFromTest.down,
+    description: gradesFromTest.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

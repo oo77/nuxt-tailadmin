@@ -149,15 +149,26 @@
               </div>
             </div>
 
-            <!-- Таймер -->
-            <div v-if="timeLimit" :class="[
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium',
-              timerWarning ? 'bg-danger/10 text-danger animate-pulse' : 'bg-gray-100 dark:bg-meta-4 text-gray-700 dark:text-gray-300'
-            ]">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span class="tabular-nums">{{ formatTimer(remainingTime) }}</span>
+            <div class="flex items-center gap-3">
+              <!-- Бейдж языка -->
+              <div 
+                v-if="sessionLanguage" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-meta-4 text-sm"
+              >
+                <span class="text-lg">{{ getLanguageFlag(sessionLanguage) }}</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ getLanguageLabel(sessionLanguage) }}</span>
+              </div>
+
+              <!-- Таймер -->
+              <div v-if="timeLimit" :class="[
+                'flex items-center gap-2 px-4 py-2 rounded-lg font-medium',
+                timerWarning ? 'bg-danger/10 text-danger animate-pulse' : 'bg-gray-100 dark:bg-meta-4 text-gray-700 dark:text-gray-300'
+              ]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="tabular-nums">{{ formatTimer(remainingTime) }}</span>
+              </div>
             </div>
           </div>
 
@@ -206,20 +217,21 @@
                 <label
                   v-for="option in currentQuestion.options?.options"
                   :key="option.id"
+                  @click="selectOption(option.id)"
                   :class="[
                     'flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200',
-                    currentAnswerData?.selectedOption === option.id
+                    selectedOption === option.id
                       ? 'border-primary bg-primary/5'
                       : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-meta-4'
                   ]"
                 >
                   <div :class="[
                     'flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
-                    currentAnswerData?.selectedOption === option.id
+                    selectedOption === option.id
                       ? 'border-primary bg-primary'
                       : 'border-gray-300 dark:border-gray-600'
                   ]">
-                    <div v-if="currentAnswerData?.selectedOption === option.id" class="w-2 h-2 rounded-full bg-white"></div>
+                    <div v-if="selectedOption === option.id" class="w-2 h-2 rounded-full bg-white"></div>
                   </div>
                   <div class="flex-1">
                     <span class="block text-gray-900 dark:text-white">{{ option.text }}</span>
@@ -228,9 +240,8 @@
                     type="radio"
                     :name="`question-${currentQuestion.id}`"
                     :value="option.id"
-                    v-model="currentAnswerData.selectedOption"
+                    :checked="selectedOption === option.id"
                     class="sr-only"
-                    @change="autoSaveAnswer"
                   />
                 </label>
               </div>
@@ -329,10 +340,13 @@
             </div>
             <div class="bg-danger/10 rounded-lg p-3 mb-4">
               <p class="text-sm text-danger">
-                Нарушений: {{ violationsCount }} из {{ maxViolations }}
+                Нарушений: {{ violationsCount }} (максимум: {{ maxViolations }})
               </p>
-              <p v-if="violationsCount >= maxViolations - 1" class="text-sm text-danger mt-1 font-medium">
+              <p v-if="violationsCount >= maxViolations - 1 && violationsCount < maxViolations" class="text-sm text-danger mt-1 font-medium">
                 Следующее нарушение приведёт к автоматическому завершению теста!
+              </p>
+              <p v-else-if="violationsCount >= maxViolations" class="text-sm text-danger mt-1 font-medium">
+                Лимит нарушений превышен! Тест будет завершён.
               </p>
             </div>
             <UiButton class="w-full" @click="dismissViolationWarning">
@@ -369,6 +383,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 
 definePageMeta({
   layout: false, // Полноэкранный режим
@@ -392,6 +407,9 @@ const answers = ref({});
 const templateInfo = ref(null);
 const currentQuestionIndex = ref(0);
 const finishing = ref(false);
+
+// Текущий выбранный вариант (для реактивности v-model)
+const selectedOption = ref(null);
 
 // Таймер
 const timeLimit = ref(null); // в минутах
@@ -423,18 +441,39 @@ const currentQuestion = computed(() =>
   questions.value[currentQuestionIndex.value] || null
 );
 
-const currentAnswerData = computed({
-  get: () => {
-    const qId = currentQuestion.value?.id;
-    if (!qId) return { selectedOption: null };
-    return answers.value[qId] || { selectedOption: null };
-  },
-  set: (val) => {
-    const qId = currentQuestion.value?.id;
-    if (qId) {
-      answers.value[qId] = val;
-    }
+// Синхронизация selectedOption при смене вопроса
+watch(currentQuestionIndex, () => {
+  const qId = currentQuestion.value?.id;
+  if (qId) {
+    const ans = answers.value[qId];
+    selectedOption.value = ans?.selectedOption || null;
+  } else {
+    selectedOption.value = null;
   }
+}, { immediate: true });
+
+// Синхронизация при изменении вопросов (после загрузки)
+watch(questions, () => {
+  const qId = currentQuestion.value?.id;
+  if (qId) {
+    const ans = answers.value[qId];
+    selectedOption.value = ans?.selectedOption || null;
+  }
+});
+
+// Обновление answers при выборе варианта
+watch(selectedOption, (newVal) => {
+  const qId = currentQuestion.value?.id;
+  if (qId && newVal !== null) {
+    answers.value[qId] = { selectedOption: newVal };
+  }
+});
+
+// Computed для обратной совместимости с шаблоном
+const currentAnswerData = computed(() => {
+  const qId = currentQuestion.value?.id;
+  if (!qId) return { selectedOption: null };
+  return answers.value[qId] || { selectedOption: null };
 });
 
 const answeredCount = computed(() => 
@@ -456,6 +495,24 @@ const isCompleted = computed(() =>
 );
 
 const timerWarning = computed(() => remainingTime.value > 0 && remainingTime.value <= 60);
+
+// Язык сессии
+const sessionLanguage = computed(() => session.value?.language || null);
+
+// Хелперы для отображения языка
+const LANGUAGE_DATA = {
+  en: { label: 'English', flag: '🇬🇧' },
+  ru: { label: 'Русский', flag: '🇷🇺' },
+  uz: { label: "O'zbek", flag: '🇺🇿' },
+};
+
+const getLanguageLabel = (lang) => {
+  return LANGUAGE_DATA[lang]?.label || lang;
+};
+
+const getLanguageFlag = (lang) => {
+  return LANGUAGE_DATA[lang]?.flag || '';
+};
 
 // Загрузка данных
 const loadSession = async () => {
@@ -487,7 +544,7 @@ const loadSession = async () => {
 
     // Загружаем информацию о шаблоне теста (если сессия активна)
     if (!isCompleted.value) {
-      await loadTemplateInfo();
+      await loadTemplateInfo(response.templateSettings);
       initTimer();
       // Отключаем антипрокторинг в preview-режиме
       if (!isPreviewMode.value) {
@@ -502,7 +559,7 @@ const loadSession = async () => {
   }
 };
 
-const loadTemplateInfo = async () => {
+const loadTemplateInfo = async (apiTemplateSettings = null) => {
   try {
     // Для preview-режима пробуем получить информацию из localStorage
     if (isPreviewMode.value) {
@@ -526,7 +583,34 @@ const loadTemplateInfo = async () => {
       }
     }
 
-    // Для обычного теста используем данные из сессии
+    // Используем данные templateSettings из API если они есть
+    if (apiTemplateSettings) {
+      templateInfo.value = {
+        name: apiTemplateSettings.name || session.value?.template_name || 'Тест',
+        allow_back: apiTemplateSettings.allow_back !== false,
+        time_limit_minutes: apiTemplateSettings.time_limit_minutes || null,
+        proctoring_enabled: apiTemplateSettings.proctoring_enabled || false,
+        proctoring_settings: apiTemplateSettings.proctoring_settings || null,
+      };
+      
+      // Устанавливаем лимит времени
+      if (apiTemplateSettings.time_limit_minutes) {
+        timeLimit.value = apiTemplateSettings.time_limit_minutes;
+      }
+      
+      // Устанавливаем настройки прокторинга
+      if (apiTemplateSettings.proctoring_enabled) {
+        proctoringEnabled.value = true;
+        proctoringSettings.value = apiTemplateSettings.proctoring_settings || {
+          blockTabSwitch: true,
+          maxViolations: 3,
+          autoSubmitOnViolation: true,
+        };
+      }
+      return;
+    }
+
+    // Fallback для обычного теста без данных из API
     templateInfo.value = {
       name: session.value?.template_name || 'Тест',
       allow_back: true,
@@ -623,6 +707,17 @@ const preventPaste = (e) => {
 };
 
 const recordViolation = async (type) => {
+  // Если лимит уже превышен, не накапливаем дальше — тест должен быть завершён
+  if (violationsCount.value >= maxViolations.value) {
+    // Тест уже должен был быть завершён, принудительно завершаем
+    if (proctoringSettings.value?.autoSubmitOnViolation) {
+      showViolationWarning.value = false;
+      showNotification('error', 'Тест завершён', 'Превышен лимит нарушений');
+      await finishTest();
+    }
+    return;
+  }
+
   violationsCount.value++;
   showViolationWarning.value = true;
 
@@ -638,7 +733,7 @@ const recordViolation = async (type) => {
     console.error('Ошибка записи нарушения:', err);
   }
 
-  // Автозавершение при превышении лимита
+  // Автозавершение при достижении лимита
   if (violationsCount.value >= maxViolations.value && proctoringSettings.value?.autoSubmitOnViolation) {
     showViolationWarning.value = false;
     showNotification('error', 'Тест завершён', 'Превышен лимит нарушений');
@@ -650,24 +745,57 @@ const dismissViolationWarning = () => {
   showViolationWarning.value = false;
 };
 
+// Выбор варианта ответа
+const selectOption = (optionId) => {
+  selectedOption.value = optionId;
+  // Обновляем локально, сохранение на сервер произойдёт при переходе
+  const qId = currentQuestion.value?.id;
+  if (qId) {
+    answers.value[qId] = { selectedOption: optionId };
+  }
+};
+
+// Флаг для предотвращения двойного перехода
+let isNavigating = false;
+
 // Навигация
-const nextQuestion = () => {
+const nextQuestion = async () => {
+  if (isNavigating) return;
   if (currentQuestionIndex.value < questionsCount.value - 1) {
-    saveCurrentAnswer();
-    currentQuestionIndex.value++;
+    isNavigating = true;
+    try {
+      await saveCurrentAnswer();
+      currentQuestionIndex.value++;
+    } finally {
+      isNavigating = false;
+    }
   }
 };
 
-const prevQuestion = () => {
+const prevQuestion = async () => {
+  if (isNavigating) return;
   if (currentQuestionIndex.value > 0) {
-    saveCurrentAnswer();
-    currentQuestionIndex.value--;
+    isNavigating = true;
+    try {
+      await saveCurrentAnswer();
+      currentQuestionIndex.value--;
+    } finally {
+      isNavigating = false;
+    }
   }
 };
 
-const goToQuestion = (index) => {
-  saveCurrentAnswer();
-  currentQuestionIndex.value = index;
+const goToQuestion = async (index) => {
+  if (isNavigating) return;
+  if (index !== currentQuestionIndex.value) {
+    isNavigating = true;
+    try {
+      await saveCurrentAnswer();
+      currentQuestionIndex.value = index;
+    } finally {
+      isNavigating = false;
+    }
+  }
 };
 
 const isQuestionAnswered = (index) => {
@@ -678,12 +806,16 @@ const isQuestionAnswered = (index) => {
 };
 
 // Сохранение ответа
+let isSaving = false;
 const saveCurrentAnswer = async () => {
+  if (isSaving) return;
+  
   const question = currentQuestion.value;
   const answer = answers.value[question?.id];
   
   if (!question || !answer) return;
 
+  isSaving = true;
   try {
     await authFetch(`/api/tests/sessions/${sessionId.value}/answer`, {
       method: 'POST',
@@ -695,6 +827,8 @@ const saveCurrentAnswer = async () => {
     });
   } catch (err) {
     console.error('Ошибка сохранения ответа:', err);
+  } finally {
+    isSaving = false;
   }
 };
 
@@ -811,22 +945,65 @@ const showNotification = (type, title, message) => {
 // Lifecycle
 onMounted(() => {
   loadSession();
+  
+  // Добавляем beforeunload обработчик
+  if (import.meta.client) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
 });
 
 onUnmounted(() => {
   cleanupProctoring();
   if (timerInterval) clearInterval(timerInterval);
+  
+  // Удаляем beforeunload обработчик
+  if (import.meta.client) {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  }
 });
 
-// Предупреждение при закрытии страницы
-if (import.meta.client) {
-  window.addEventListener('beforeunload', (e) => {
-    if (!isCompleted.value && answeredCount.value > 0) {
-      e.preventDefault();
-      e.returnValue = '';
+// Обработчик закрытия/перезагрузки страницы
+const handleBeforeUnload = (e) => {
+  if (!isCompleted.value && !isPreviewMode.value) {
+    // Перед уходом попробуем завершить тест
+    navigator.sendBeacon(`/api/tests/sessions/${sessionId.value}/finish`, JSON.stringify({}));
+    e.preventDefault();
+    e.returnValue = 'Тест будет автоматически завершён при выходе со страницы!';
+    return e.returnValue;
+  }
+};
+
+// Защита от навигации внутри приложения (Vue Router)
+// При попытке уйти со страницы - тест автоматически завершается!
+onBeforeRouteLeave(async (to, from, next) => {
+  if (!isCompleted.value && !isPreviewMode.value) {
+    // Показываем предупреждение
+    const confirmLeave = window.confirm(
+      '⚠️ ВНИМАНИЕ!\n\nПри выходе со страницы тест будет автоматически ЗАВЕРШЁН с текущими результатами.\n\nВы уверены, что хотите выйти и завершить тест?'
+    );
+    
+    if (confirmLeave) {
+      // Записываем нарушение
+      if (proctoringEnabled.value) {
+        await recordViolation('tab_switch');
+      }
+      
+      // Автоматически завершаем тест
+      try {
+        await finishTest();
+        showNotification('warning', 'Тест завершён', 'Вы покинули страницу теста');
+      } catch (err) {
+        console.error('Ошибка завершения теста при уходе:', err);
+      }
+      
+      next();
+    } else {
+      next(false);
     }
-  });
-}
+  } else {
+    next();
+  }
+});
 </script>
 
 <style scoped>

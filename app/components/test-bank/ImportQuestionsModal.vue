@@ -47,6 +47,31 @@
             <p><strong>Правильный ответ:</strong> A, B, C или D (буква правильного варианта)</p>
             <p><strong>Сложность:</strong> easy, medium или hard (необязательно, по умолчанию medium)</p>
             <p><strong>Баллы:</strong> число от 1 до 100 (необязательно, по умолчанию 1)</p>
+            <p><strong>Язык:</strong> ru, uz или en (необязательно, по умолчанию язык, выбранный ниже)</p>
+          </div>
+
+          <!-- Язык по умолчанию -->
+          <div class="mt-4 p-4 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Язык по умолчанию для импортируемых вопросов
+            </label>
+            <div class="flex items-center gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="defaultLanguage" value="ru" class="w-4 h-4 text-primary" />
+                <span class="text-sm">🇷🇺 Русский</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="defaultLanguage" value="uz" class="w-4 h-4 text-primary" />
+                <span class="text-sm">🇺🇿 O'zbek</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="defaultLanguage" value="en" class="w-4 h-4 text-primary" />
+                <span class="text-sm">🇬🇧 English</span>
+              </label>
+            </div>
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Этот язык будет применён ко всем вопросам, у которых не указан язык в файле
+            </p>
           </div>
 
           <button
@@ -143,6 +168,7 @@
               <tr class="border-b border-gray-200 dark:border-gray-700">
                 <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400 w-8">#</th>
                 <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Вопрос</th>
+                <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-gray-400 w-16">Язык</th>
                 <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-gray-400 w-24">Вариантов</th>
                 <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-gray-400 w-20">Ответ</th>
                 <th class="px-4 py-2 text-center font-medium text-gray-600 dark:text-gray-400 w-20">Статус</th>
@@ -158,6 +184,11 @@
                 <td class="px-4 py-2 text-gray-900 dark:text-white">
                   <div class="line-clamp-2">{{ q.question_text || '—' }}</div>
                   <p v-if="q.error" class="text-xs text-danger mt-1">{{ q.error }}</p>
+                </td>
+                <td class="px-4 py-2 text-center">
+                  <span :class="languageBadgeClasses[q.language]">
+                    {{ languageFlags[q.language] }}
+                  </span>
                 </td>
                 <td class="px-4 py-2 text-center text-gray-600 dark:text-gray-400">
                   {{ q.optionsCount || 0 }}
@@ -298,12 +329,26 @@ const fileError = ref('');
 const parsing = ref(false);
 const importing = ref(false);
 const parsedQuestions = ref([]);
+const defaultLanguage = ref('ru');
 const importResult = ref({
   success: false,
   imported: 0,
   skipped: 0,
   error: '',
 });
+
+// Константы для языков
+const languageFlags = {
+  ru: '🇷🇺',
+  uz: '🇺🇿',
+  en: '🇬🇧',
+};
+
+const languageBadgeClasses = {
+  ru: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  uz: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  en: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+};
 
 // Вычисляемые свойства
 const validQuestionsCount = computed(() => {
@@ -411,6 +456,12 @@ const readFileAsArrayBuffer = (file) => {
 };
 
 const parseRow = (row, rowNumber) => {
+  // Определяем язык: из файла или по умолчанию
+  let lang = String(row[8] || '').trim().toLowerCase();
+  if (!['ru', 'uz', 'en'].includes(lang)) {
+    lang = defaultLanguage.value;
+  }
+
   const question = {
     question_text: String(row[0] || '').trim(),
     optionA: String(row[1] || '').trim(),
@@ -420,6 +471,7 @@ const parseRow = (row, rowNumber) => {
     correctAnswer: String(row[5] || '').trim().toUpperCase(),
     points: parseInt(row[6]) || 1,
     difficulty: String(row[7] || 'medium').trim().toLowerCase(),
+    language: lang,
     valid: true,
     error: '',
     optionsCount: 0,
@@ -489,6 +541,7 @@ const importQuestions = async () => {
         question_type: 'single',
         question_text: q.question_text,
         options: { options },
+        language: q.language,
         points: q.points,
         difficulty: q.difficulty,
         is_active: true,
@@ -534,9 +587,10 @@ const importQuestions = async () => {
 // Скачивание шаблона
 const downloadTemplate = () => {
   const templateData = [
-    ['Вопрос', 'Вариант A', 'Вариант B', 'Вариант C', 'Вариант D', 'Правильный', 'Баллы', 'Сложность'],
-    ['Что такое СИЗ?', 'Средства индивидуальной защиты', 'Система измерения защиты', 'Специальная инструкция защиты', 'Стандарт измерения защиты', 'A', 1, 'easy'],
-    ['Какой огнетушитель используется при пожаре класса E?', 'Водный', 'Порошковый', 'Углекислотный', 'Пенный', 'C', 2, 'medium'],
+    ['Вопрос', 'Вариант A', 'Вариант B', 'Вариант C', 'Вариант D', 'Правильный', 'Баллы', 'Сложность', 'Язык'],
+    ['Что такое СИЗ?', 'Средства индивидуальной защиты', 'Система измерения защиты', 'Специальная инструкция защиты', 'Стандарт измерения защиты', 'A', 1, 'easy', 'ru'],
+    ['Какой огнетушитель используется при пожаре класса E?', 'Водный', 'Порошковый', 'Углекислотный', 'Пенный', 'C', 2, 'medium', 'ru'],
+    ['Xavfsizlik texnikasi nima?', 'Ishlab chiqarishda xavfsizlik qoidalari', 'Texnik xizmat ko\'rsatish', 'Sifat nazorati', 'Ishlab chiqarish rejasi', 'A', 1, 'easy', 'uz'],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -553,6 +607,7 @@ const downloadTemplate = () => {
     { wch: 12 }, // Правильный
     { wch: 8 },  // Баллы
     { wch: 12 }, // Сложность
+    { wch: 8 },  // Язык
   ];
 
   XLSX.writeFile(wb, 'questions_template.xlsx');

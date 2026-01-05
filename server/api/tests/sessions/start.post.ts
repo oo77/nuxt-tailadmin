@@ -9,11 +9,11 @@ import {
     getStudentAttemptCount
 } from '../../../repositories/testSessionRepository';
 import { getTestAssignmentById } from '../../../repositories/testAssignmentRepository';
-import { getTestTemplateById } from '../../../repositories/testTemplateRepository';
+import { getTestTemplateById, getAvailableLanguagesForTemplate } from '../../../repositories/testTemplateRepository';
 import { getQuestionsByBankId, getRandomQuestionsFromBank, getQuestionsByIds } from '../../../repositories/questionRepository';
 import { getTemplateQuestions } from '../../../repositories/testTemplateRepository';
 import { getStudentByUserId } from '../../../repositories/studentRepository';
-import type { SessionQuestionOrder, TestTemplateQuestion } from '../../../types/testing';
+import type { SessionQuestionOrder, QuestionLanguage } from '../../../types/testing';
 
 function shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array];
@@ -26,12 +26,22 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export default defineEventHandler(async (event) => {
     try {
-        const body = await readBody<{ assignment_id: string }>(event);
+        const body = await readBody<{
+            assignment_id: string;
+            language: QuestionLanguage;
+        }>(event);
 
         if (!body.assignment_id) {
             return {
                 success: false,
                 message: 'ID назначения обязателен',
+            };
+        }
+
+        if (!body.language) {
+            return {
+                success: false,
+                message: 'Необходимо выбрать язык тестирования',
             };
         }
 
@@ -115,29 +125,46 @@ export default defineEventHandler(async (event) => {
             };
         }
 
-        // Получаем вопросы в зависимости от режима
+        // Проверяем доступность выбранного языка
+        const availableLanguages = await getAvailableLanguagesForTemplate(template.id);
+        if (!availableLanguages.includes(body.language)) {
+            return {
+                success: false,
+                message: `Язык "${body.language}" недоступен для этого теста`,
+                available_languages: availableLanguages,
+            };
+        }
+
+        // Получаем вопросы в зависимости от режима и выбранного языка
         let questions;
 
         switch (template.questions_mode) {
             case 'all':
-                questions = await getQuestionsByBankId(template.bank_id, true);
+                // Фильтруем по языку
+                const allQuestions = await getQuestionsByBankId(template.bank_id, true);
+                questions = allQuestions.filter(q => q.language === body.language);
                 break;
 
             case 'random':
+                // Получаем случайные вопросы указанного языка
                 questions = await getRandomQuestionsFromBank(
                     template.bank_id,
-                    template.questions_count || 10
+                    template.questions_count || 10,
+                    { activeOnly: true, language: body.language }
                 );
                 break;
 
             case 'manual':
+                // Для manual режима фильтруем по языку
                 const templateQuestions = await getTemplateQuestions(template.id);
                 const questionIds = templateQuestions.map(tq => tq.question_id);
-                questions = await getQuestionsByIds(questionIds);
+                const manualQuestions = await getQuestionsByIds(questionIds);
+                questions = manualQuestions.filter(q => q.language === body.language);
                 break;
 
             default:
-                questions = await getQuestionsByBankId(template.bank_id, true);
+                const defaultQuestions = await getQuestionsByBankId(template.bank_id, true);
+                questions = defaultQuestions.filter(q => q.language === body.language);
         }
 
         if (!questions.length) {
@@ -181,6 +208,7 @@ export default defineEventHandler(async (event) => {
         const session = await createTestSession({
             assignment_id: body.assignment_id,
             student_id: student.id,
+            language: body.language,
             ip_address: ipAddress.toString().split(',')[0].trim(),
             user_agent: userAgent,
         }, questionsOrder);

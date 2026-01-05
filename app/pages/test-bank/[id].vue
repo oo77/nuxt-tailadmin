@@ -90,7 +90,7 @@
       </div>
 
       <!-- Статистика банка -->
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-4 mb-6">
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7 mb-6">
         <div class="rounded-lg bg-white dark:bg-boxdark p-5 shadow-md">
           <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -146,6 +146,43 @@
             </div>
           </div>
         </div>
+
+        <!-- Статистика по языкам -->
+        <div class="rounded-lg bg-white dark:bg-boxdark p-5 shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100/50 dark:bg-blue-900/30 text-lg">
+              🇷🇺
+            </div>
+            <div>
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-400">Русский</p>
+              <p class="text-xl font-bold text-black dark:text-white">{{ languageStats.ru }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-white dark:bg-boxdark p-5 shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100/50 dark:bg-green-900/30 text-lg">
+              🇺🇿
+            </div>
+            <div>
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-400">O'zbek</p>
+              <p class="text-xl font-bold text-black dark:text-white">{{ languageStats.uz }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-white dark:bg-boxdark p-5 shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100/50 dark:bg-purple-900/30 text-lg">
+              🇬🇧
+            </div>
+            <div>
+              <p class="text-xs font-medium text-gray-600 dark:text-gray-400">English</p>
+              <p class="text-xl font-bold text-black dark:text-white">{{ languageStats.en }}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Фильтры вопросов -->
@@ -169,7 +206,7 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
           <!-- Поиск -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -225,6 +262,27 @@
                 <option value="easy">Лёгкий</option>
                 <option value="medium">Средний</option>
                 <option value="hard">Сложный</option>
+              </select>
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Язык -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Язык
+            </label>
+            <div class="relative">
+              <select
+                v-model="questionFilters.language"
+                class="w-full rounded-lg border border-stroke bg-transparent py-2 pl-4 pr-10 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary appearance-none"
+              >
+                <option value="">Все языки</option>
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="uz">🇺🇿 O'zbek</option>
+                <option value="en">🇬🇧 English</option>
               </select>
               <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -296,6 +354,11 @@
 
                     <!-- Мета-информация -->
                     <div class="flex flex-wrap items-center gap-2 mt-2">
+                      <!-- Язык -->
+                      <span :class="languageBadgeClasses[question.language || 'ru']">
+                        {{ languageFlags[question.language || 'ru'] }} {{ languageLabels[question.language || 'ru'] }}
+                      </span>
+
                       <!-- Тип вопроса -->
                       <span class="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {{ questionTypeLabels[question.question_type] }}
@@ -512,7 +575,27 @@
         </div>
 
         <!-- Дополнительные настройки -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Язык -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Язык <span class="text-danger">*</span>
+            </label>
+            <div class="relative">
+              <select
+                v-model="questionForm.language"
+                class="w-full rounded-lg border border-stroke bg-transparent py-2 pl-4 pr-10 outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:focus:border-primary appearance-none"
+              >
+                <option value="ru">🇷🇺 Русский</option>
+                <option value="uz">🇺🇿 O'zbek</option>
+                <option value="en">🇬🇧 English</option>
+              </select>
+              <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+
           <!-- Сложность -->
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -653,6 +736,7 @@ const questionFilters = ref({
   search: '',
   type: '',
   difficulty: '',
+  language: '',
   isActive: undefined,
 });
 
@@ -660,6 +744,7 @@ const hasActiveQuestionFilters = computed(() => {
   return questionFilters.value.search !== '' || 
          questionFilters.value.type !== '' || 
          questionFilters.value.difficulty !== '' ||
+         questionFilters.value.language !== '' ||
          questionFilters.value.isActive !== undefined;
 });
 
@@ -679,6 +764,10 @@ const filteredQuestions = computed(() => {
     result = result.filter(q => q.difficulty === questionFilters.value.difficulty);
   }
 
+  if (questionFilters.value.language) {
+    result = result.filter(q => (q.language || 'ru') === questionFilters.value.language);
+  }
+
   if (questionFilters.value.isActive !== undefined) {
     result = result.filter(q => q.is_active === questionFilters.value.isActive);
   }
@@ -691,6 +780,7 @@ const resetQuestionFilters = () => {
     search: '',
     type: '',
     difficulty: '',
+    language: '',
     isActive: undefined,
   };
 };
@@ -701,6 +791,15 @@ const difficultyStats = computed(() => {
     easy: questions.value.filter(q => q.difficulty === 'easy').length,
     medium: questions.value.filter(q => q.difficulty === 'medium').length,
     hard: questions.value.filter(q => q.difficulty === 'hard').length,
+  };
+});
+
+// Статистика по языкам
+const languageStats = computed(() => {
+  return {
+    ru: questions.value.filter(q => (q.language || 'ru') === 'ru').length,
+    uz: questions.value.filter(q => q.language === 'uz').length,
+    en: questions.value.filter(q => q.language === 'en').length,
   };
 });
 
@@ -733,6 +832,25 @@ const difficultyClasses = {
   hard: 'bg-danger/10 text-danger',
 };
 
+// Языки
+const languageLabels = {
+  ru: 'RU',
+  uz: 'UZ',
+  en: 'EN',
+};
+
+const languageFlags = {
+  ru: '🇷🇺',
+  uz: '🇺🇿',
+  en: '🇬🇧',
+};
+
+const languageBadgeClasses = {
+  ru: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  uz: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  en: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+};
+
 // Модальные окна
 const questionModalOpen = ref(false);
 const deleteQuestionModalOpen = ref(false);
@@ -750,6 +868,7 @@ const questionForm = ref({
     { id: 'c', text: '', correct: false },
     { id: 'd', text: '', correct: false },
   ],
+  language: 'ru',
   points: 1,
   difficulty: 'medium',
   explanation: '',
@@ -839,6 +958,7 @@ const openCreateQuestionModal = () => {
       { id: 'c', text: '', correct: false },
       { id: 'd', text: '', correct: false },
     ],
+    language: 'ru',
     points: 1,
     difficulty: 'medium',
     explanation: '',
@@ -859,6 +979,7 @@ const openEditQuestionModal = (question) => {
       { id: 'a', text: '', correct: true },
       { id: 'b', text: '', correct: false },
     ],
+    language: question.language || 'ru',
     points: question.points,
     difficulty: question.difficulty,
     explanation: question.explanation || '',
@@ -947,6 +1068,7 @@ const saveQuestion = async () => {
       question_type: questionForm.value.question_type,
       question_text: questionForm.value.question_text.trim(),
       options: { options: filteredOptions },
+      language: questionForm.value.language,
       points: questionForm.value.points,
       difficulty: questionForm.value.difficulty,
       explanation: questionForm.value.explanation.trim() || undefined,

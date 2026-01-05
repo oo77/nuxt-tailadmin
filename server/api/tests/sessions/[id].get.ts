@@ -5,6 +5,8 @@
 
 import { getTestSessionById, getSessionAnswers } from '../../../repositories/testSessionRepository';
 import { getQuestionsByIds } from '../../../repositories/questionRepository';
+import { getTestAssignmentById } from '../../../repositories/testAssignmentRepository';
+import { getTestTemplateById } from '../../../repositories/testTemplateRepository';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -25,6 +27,26 @@ export default defineEventHandler(async (event) => {
                 success: false,
                 message: 'Сессия не найдена',
             };
+        }
+
+        // Загружаем информацию о шаблоне теста (для таймера и прокторинга)
+        let templateSettings = null;
+        if (session.assignment_id) {
+            const assignment = await getTestAssignmentById(session.assignment_id);
+            if (assignment) {
+                const template = await getTestTemplateById(assignment.test_template_id);
+                if (template) {
+                    templateSettings = {
+                        name: template.name,
+                        time_limit_minutes: assignment.time_limit_override || template.time_limit_minutes,
+                        passing_score: assignment.passing_score_override || template.passing_score,
+                        allow_back: template.allow_back,
+                        proctoring_enabled: template.proctoring_enabled,
+                        proctoring_settings: template.proctoring_settings,
+                        show_results: template.show_results,
+                    };
+                }
+            }
         }
 
         // Если запрошены вопросы
@@ -94,6 +116,7 @@ export default defineEventHandler(async (event) => {
                 started_at: session.started_at,
                 completed_at: session.completed_at,
                 time_spent_seconds: session.time_spent_seconds,
+                template_name: session.template_name || templateSettings?.name,
                 // Результаты только если тест завершён
                 ...(session.status === 'completed' ? {
                     total_points: session.total_points,
@@ -103,6 +126,7 @@ export default defineEventHandler(async (event) => {
                     grade: session.grade,
                 } : {}),
             },
+            templateSettings,
             questions,
             answers,
             questions_count: session.questions_order?.length || 0,

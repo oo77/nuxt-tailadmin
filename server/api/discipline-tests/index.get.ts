@@ -10,6 +10,8 @@ export default defineEventHandler(async (event) => {
         const query = getQuery(event);
         const disciplineId = query.discipline_id as string;
 
+        console.log('[API discipline-tests] Запрос с discipline_id:', disciplineId);
+
         if (!disciplineId) {
             return {
                 success: false,
@@ -19,6 +21,8 @@ export default defineEventHandler(async (event) => {
         }
 
         const tests = await getDisciplineTests(disciplineId);
+
+        console.log('[API discipline-tests] Найдено тестов:', tests.length, 'для discipline_id:', disciplineId);
 
         return {
             success: true,

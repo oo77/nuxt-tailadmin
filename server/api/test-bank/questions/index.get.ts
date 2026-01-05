@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
             bank_id: query.bank_id as string | undefined,
             question_type: query.question_type as any,
             difficulty: query.difficulty as any,
+            language: query.language as any,
+            languages: query.languages ? (query.languages as string).split(',') as any : undefined,
             is_active: query.is_active !== undefined ? query.is_active === 'true' : undefined,
             search: query.search as string | undefined,
         };

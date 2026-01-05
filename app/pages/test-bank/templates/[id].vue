@@ -65,6 +65,22 @@
                 <span class="text-sm text-gray-600 dark:text-gray-400">
                   Банк: <NuxtLink :to="`/test-bank/${template.bank_id}`" class="text-primary hover:underline">{{ template.bank_name }}</NuxtLink>
                 </span>
+                <!-- Бейджи языков -->
+                <div class="flex items-center gap-1 ml-2">
+                  <template v-if="template.allowed_languages && template.allowed_languages.length > 0">
+                    <span
+                      v-for="lang in template.allowed_languages"
+                      :key="lang"
+                      :class="languageBadgeClasses[lang]"
+                      :title="languageLabels[lang]"
+                    >
+                      {{ languageFlags[lang] }}
+                    </span>
+                  </template>
+                  <span v-else class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    🌐 Все языки
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -224,6 +240,51 @@
 
             <p v-else class="text-gray-500 dark:text-gray-400 text-sm">
               Антипрокторинг отключён. Студенты смогут свободно переключаться между вкладками во время теста.
+            </p>
+          </div>
+
+          <!-- Языки тестирования -->
+          <div class="bg-white dark:bg-boxdark rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
+              <svg class="w-5 h-5 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+              </svg>
+              Языки тестирования
+            </h3>
+
+            <div v-if="template.allowed_languages && template.allowed_languages.length > 0">
+              <div class="flex flex-wrap gap-3 mb-4">
+                <div
+                  v-for="lang in template.allowed_languages"
+                  :key="lang"
+                  class="flex items-center gap-2 px-4 py-2 rounded-lg"
+                  :class="languageCardClasses[lang]"
+                >
+                  <span class="text-xl">{{ languageFlags[lang] }}</span>
+                  <span class="font-medium">{{ languageLabels[lang] }}</span>
+                </div>
+              </div>
+
+              <!-- Статистика вопросов по языкам -->
+              <div v-if="languageStats.length > 0" class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Вопросов в банке по языкам:</p>
+                <div class="space-y-2">
+                  <div
+                    v-for="stat in languageStats"
+                    :key="stat.language"
+                    class="flex items-center justify-between"
+                  >
+                    <div class="flex items-center gap-2">
+                      <span>{{ languageFlags[stat.language] }}</span>
+                      <span class="text-sm text-gray-700 dark:text-gray-300">{{ languageLabels[stat.language] }}</span>
+                    </div>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ stat.count }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="text-gray-500 dark:text-gray-400">
+              Доступны все языки (ограничения не установлены)
             </p>
           </div>
 
@@ -387,6 +448,184 @@
           </div>
         </div>
       </div>
+
+      <!-- Секция аналитики прохождений -->
+      <div class="mt-8 bg-white dark:bg-boxdark rounded-xl shadow-md p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg font-semibold text-black dark:text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Аналитика прохождений
+          </h3>
+          <button 
+            v-if="!analyticsLoading && !analytics"
+            @click="loadAnalytics"
+            class="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Загрузить аналитику
+          </button>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="analyticsLoading" class="flex items-center justify-center py-8">
+          <div class="text-center">
+            <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent mb-2"></div>
+            <p class="text-sm text-gray-500">Загрузка аналитики...</p>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else-if="!analytics" class="text-center py-8">
+          <svg class="mx-auto w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <p class="text-gray-500 dark:text-gray-400 mb-4">Нажмите для загрузки статистики прохождений</p>
+          <UiButton variant="outline" size="sm" @click="loadAnalytics">
+            Загрузить аналитику
+          </UiButton>
+        </div>
+
+        <!-- Analytics content -->
+        <div v-else-if="analytics.summary">
+          <!-- Summary stats -->
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div class="text-center p-4 bg-gray-50 dark:bg-meta-4 rounded-lg">
+              <p class="text-2xl font-bold text-primary">{{ analytics.summary.totalSessions }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Прохождений</p>
+            </div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-meta-4 rounded-lg">
+              <p class="text-2xl font-bold text-black dark:text-white">{{ analytics.summary.uniqueStudents }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Студентов</p>
+            </div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-meta-4 rounded-lg">
+              <p class="text-2xl font-bold text-warning">{{ analytics.summary.averageScore }}%</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Средний балл</p>
+            </div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-meta-4 rounded-lg">
+              <p class="text-2xl font-bold text-success">{{ analytics.summary.passRate }}%</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">% сдачи</p>
+            </div>
+            <div class="text-center p-4 bg-gray-50 dark:bg-meta-4 rounded-lg">
+              <p class="text-2xl font-bold text-gray-600 dark:text-gray-300">{{ formatDuration(analytics.summary.averageTimeSeconds) }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Среднее время</p>
+            </div>
+          </div>
+
+          <!-- No data message -->
+          <div v-if="analytics.summary.totalSessions === 0" class="text-center py-8 text-gray-500">
+            <p>Пока нет данных о прохождениях этого теста</p>
+          </div>
+
+          <!-- Sessions table -->
+          <div v-else>
+            <h4 class="text-md font-medium text-black dark:text-white mb-4">Последние прохождения</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left border-b border-stroke dark:border-strokedark">
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400">Студент</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400">Группа</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400 text-center">Балл</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400 text-center">Статус</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400 text-center">Время</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400">Дата</th>
+                    <th class="pb-3 font-medium text-gray-600 dark:text-gray-400"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="session in analytics.sessions.slice(0, 20)" 
+                    :key="session.sessionId"
+                    class="border-b border-stroke/50 dark:border-strokedark/50 hover:bg-gray-50 dark:hover:bg-meta-4 transition-colors"
+                  >
+                    <td class="py-3">
+                      <div>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ session.studentName }}</p>
+                        <p v-if="session.studentPinfl" class="text-xs text-gray-400">{{ session.studentPinfl }}</p>
+                      </div>
+                    </td>
+                    <td class="py-3 text-gray-600 dark:text-gray-400">{{ session.groupCode || '—' }}</td>
+                    <td class="py-3 text-center">
+                      <span 
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        :class="session.passed ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'"
+                      >
+                        {{ session.score }}%
+                      </span>
+                    </td>
+                    <td class="py-3 text-center">
+                      <svg v-if="session.passed" class="w-5 h-5 text-success mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <svg v-else class="w-5 h-5 text-danger mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </td>
+                    <td class="py-3 text-center text-gray-600 dark:text-gray-400">
+                      {{ formatDuration(session.timeSpentSeconds) }}
+                    </td>
+                    <td class="py-3 text-gray-600 dark:text-gray-400">
+                      {{ formatDate(session.completedAt) }}
+                    </td>
+                    <td class="py-3">
+                      <button 
+                        @click="viewSessionDetails(session.sessionId)"
+                        class="text-primary hover:text-primary/80 text-xs"
+                      >
+                        Подробнее
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Question stats -->
+            <div v-if="analytics.questionStats && analytics.questionStats.length > 0" class="mt-8">
+              <h4 class="text-md font-medium text-black dark:text-white mb-4">
+                Статистика по вопросам
+                <span class="text-xs font-normal text-gray-500 ml-2">(отсортировано по сложности)</span>
+              </h4>
+              <div class="space-y-2">
+                <div 
+                  v-for="(q, idx) in analytics.questionStats.slice(0, 10)" 
+                  :key="q.questionId"
+                  class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-meta-4 rounded-lg"
+                >
+                  <span class="w-6 h-6 rounded-full bg-gray-200 dark:bg-strokedark flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400">
+                    {{ idx + 1 }}
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm text-gray-900 dark:text-white truncate">{{ q.questionText }}</p>
+                  </div>
+                  <div class="flex items-center gap-4 text-xs">
+                    <span 
+                      class="px-2 py-1 rounded"
+                      :class="q.correctRate >= 70 ? 'bg-success/10 text-success' : q.correctRate >= 40 ? 'bg-warning/10 text-warning' : 'bg-danger/10 text-danger'"
+                    >
+                      {{ q.correctRate }}% правильно
+                    </span>
+                    <span class="text-gray-500">
+                      {{ q.totalAnswers }} ответов
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TestResultsModal для просмотра деталей сессии -->
+      <AttendanceTestResultsModal
+        :is-open="showSessionDetails"
+        :session-id="selectedSessionId"
+        @close="showSessionDetails = false"
+      />
     </template>
 
     <!-- Уведомления -->
@@ -443,6 +682,47 @@ const difficultyClasses = {
   medium: 'bg-warning/10 text-warning',
   hard: 'bg-danger/10 text-danger',
 };
+
+// Языки
+const languageLabels = {
+  ru: 'Русский',
+  uz: "O'zbek",
+  en: 'English',
+};
+
+const languageFlags = {
+  ru: '🇷🇺',
+  uz: '🇺🇿',
+  en: '🇬🇧',
+};
+
+const languageBadgeClasses = {
+  ru: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30',
+  uz: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-green-100 dark:bg-green-900/30',
+  en: 'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30',
+};
+
+const languageCardClasses = {
+  ru: 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300',
+  uz: 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300',
+  en: 'bg-purple-50 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300',
+};
+
+// Статистика по языкам
+const languageStats = computed(() => {
+  if (!questions.value.length) return [];
+  
+  const stats = {};
+  questions.value.forEach(q => {
+    const lang = q.language || 'ru';
+    stats[lang] = (stats[lang] || 0) + 1;
+  });
+  
+  return Object.entries(stats).map(([language, count]) => ({
+    language,
+    count,
+  })).sort((a, b) => b.count - a.count);
+});
 
 // Статистика использования (заглушка)
 const usage = ref({
@@ -559,6 +839,50 @@ const previewTest = async () => {
       notification.value.show = false;
     }, 3000);
   }
+};
+
+// ==================
+// АНАЛИТИКА
+// ==================
+
+const analyticsLoading = ref(false);
+const analytics = ref(null);
+const showSessionDetails = ref(false);
+const selectedSessionId = ref(null);
+
+// Загрузка аналитики
+const loadAnalytics = async () => {
+  analyticsLoading.value = true;
+  try {
+    const response = await authFetch(`/api/test-bank/templates/${route.params.id}/analytics`);
+    if (response.success) {
+      analytics.value = response;
+    } else {
+      console.error('Ошибка загрузки аналитики:', response.message);
+    }
+  } catch (err) {
+    console.error('Ошибка загрузки аналитики:', err);
+  } finally {
+    analyticsLoading.value = false;
+  }
+};
+
+// Форматирование длительности
+const formatDuration = (seconds) => {
+  if (!seconds) return '0с';
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  
+  if (mins === 0) return `${secs}с`;
+  if (secs === 0) return `${mins}м`;
+  return `${mins}м ${secs}с`;
+};
+
+// Просмотр деталей сессии
+const viewSessionDetails = (sessionId) => {
+  selectedSessionId.value = sessionId;
+  showSessionDetails.value = true;
 };
 
 // Инициализация

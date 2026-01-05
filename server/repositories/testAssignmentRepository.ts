@@ -128,12 +128,12 @@ export async function getTestAssignments(
     }
 
     if (from_date) {
-        conditions.push('se.event_date >= ?');
+        conditions.push('DATE(se.start_time) >= ?');
         queryParams.push(from_date);
     }
 
     if (to_date) {
-        conditions.push('se.event_date <= ?');
+        conditions.push('DATE(se.start_time) <= ?');
         queryParams.push(to_date);
     }
 
@@ -156,9 +156,9 @@ export async function getTestAssignments(
       ta.*,
       tt.name as template_name,
       tt.code as template_code,
-      sg.name as group_name,
-      se.event_date,
-      se.start_time as event_start_time,
+      sg.code as group_name,
+      DATE(se.start_time) as event_date,
+      TIME(se.start_time) as event_start_time,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id) as sessions_count,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.status = 'completed') as completed_count
     FROM test_assignments ta
@@ -166,7 +166,7 @@ export async function getTestAssignments(
     LEFT JOIN study_groups sg ON ta.group_id = sg.id
     LEFT JOIN schedule_events se ON ta.schedule_event_id = se.id
     ${whereClause}
-    ORDER BY se.event_date DESC, se.start_time DESC
+    ORDER BY se.start_time DESC
     LIMIT ? OFFSET ?
   `;
 
@@ -190,9 +190,9 @@ export async function getTestAssignmentById(id: string): Promise<TestAssignmentW
       ta.*,
       tt.name as template_name,
       tt.code as template_code,
-      sg.name as group_name,
-      se.event_date,
-      se.start_time as event_start_time,
+      sg.code as group_name,
+      DATE(se.start_time) as event_date,
+      TIME(se.start_time) as event_start_time,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id) as sessions_count,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.status = 'completed') as completed_count
     FROM test_assignments ta
@@ -222,9 +222,9 @@ export async function getTestAssignmentByScheduleEventId(
       ta.*,
       tt.name as template_name,
       tt.code as template_code,
-      sg.name as group_name,
-      se.event_date,
-      se.start_time as event_start_time,
+      sg.code as group_name,
+      DATE(se.start_time) as event_date,
+      TIME(se.start_time) as event_start_time,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id) as sessions_count,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.status = 'completed') as completed_count
     FROM test_assignments ta
@@ -244,12 +244,27 @@ export async function getTestAssignmentByScheduleEventId(
 }
 
 /**
- * Проверить существование назначения для события
+ * Проверить существование хотя бы одного назначения для события
  */
 export async function testAssignmentExistsForEvent(scheduleEventId: string): Promise<boolean> {
     const rows = await executeQuery<RowDataPacket[]>(
         'SELECT 1 FROM test_assignments WHERE schedule_event_id = ? LIMIT 1',
         [scheduleEventId]
+    );
+    return rows.length > 0;
+}
+
+/**
+ * Проверить существование конкретного назначения (занятие + шаблон теста)
+ * Используется для предотвращения дублирования одного и того же теста на одном занятии
+ */
+export async function testAssignmentExistsForEventAndTemplate(
+    scheduleEventId: string,
+    testTemplateId: string
+): Promise<boolean> {
+    const rows = await executeQuery<RowDataPacket[]>(
+        'SELECT 1 FROM test_assignments WHERE schedule_event_id = ? AND test_template_id = ? LIMIT 1',
+        [scheduleEventId, testTemplateId]
     );
     return rows.length > 0;
 }
@@ -264,6 +279,22 @@ export async function createTestAssignment(
     const id = uuidv4();
     const now = new Date();
 
+    // Преобразуем даты из строк в Date объекты, если нужно
+    let startDate: Date | null = null;
+    let endDate: Date | null = null;
+
+    if (data.start_date) {
+        startDate = typeof data.start_date === 'string'
+            ? new Date(data.start_date)
+            : data.start_date;
+    }
+
+    if (data.end_date) {
+        endDate = typeof data.end_date === 'string'
+            ? new Date(data.end_date)
+            : data.end_date;
+    }
+
     await executeQuery(
         `INSERT INTO test_assignments (
       id, schedule_event_id, test_template_id, group_id,
@@ -277,8 +308,8 @@ export async function createTestAssignment(
             data.group_id,
             data.time_limit_override || null,
             data.passing_score_override || null,
-            data.start_date || null,
-            data.end_date || null,
+            startDate,
+            endDate,
             'scheduled',
             userId || null,
             now,
@@ -463,10 +494,10 @@ export async function getStudentAssignments(
       tt.max_attempts,
       COALESCE(ta.time_limit_override, tt.time_limit_minutes) as time_limit,
       COALESCE(ta.passing_score_override, tt.passing_score) as passing_score,
-      sg.name as group_name,
+      sg.code as group_name,
       d.name as discipline_name,
-      se.event_date,
-      se.start_time as event_time,
+      DATE(se.start_time) as event_date,
+      TIME(se.start_time) as event_time,
       (SELECT COUNT(*) FROM questions q WHERE q.bank_id = tt.bank_id AND q.is_active = 1) as questions_count,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ?) as attempts_used,
       (SELECT MAX(ts.score_percent) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.student_id = ? AND ts.status = 'completed') as best_score,
@@ -484,11 +515,14 @@ export async function getStudentAssignments(
         WHEN ta.status = 'scheduled' THEN 1
         ELSE 2
       END,
-      se.event_date DESC, 
       se.start_time DESC
   `;
 
     const rows = await executeQuery<RowDataPacket[]>(query, queryParams);
+
+    // Возвращаем Date объекты напрямую
+    // При сериализации в JSON они станут ISO строками с 'Z' (UTC)
+    // Клиент автоматически конвертирует в локальное время браузера
 
     return rows.map((row: any) => ({
         id: row.id,
@@ -502,6 +536,8 @@ export async function getStudentAssignments(
         event_date: row.event_date || null,
         event_time: row.event_time || null,
         status: row.status,
+        // Date объекты сериализуются в ISO UTC строки ("2026-01-06T09:40:00.000Z")
+        // Клиент должен использовать new Date() для парсинга
         start_date: row.start_date || null,
         end_date: row.end_date || null,
         time_limit: row.time_limit || null,
@@ -536,12 +572,12 @@ export async function getGroupAssignments(
     }
 
     if (filters.from_date) {
-        conditions.push('se.event_date >= ?');
+        conditions.push('DATE(se.start_time) >= ?');
         queryParams.push(filters.from_date);
     }
 
     if (filters.to_date) {
-        conditions.push('se.event_date <= ?');
+        conditions.push('DATE(se.start_time) <= ?');
         queryParams.push(filters.to_date);
     }
 
@@ -552,9 +588,9 @@ export async function getGroupAssignments(
       ta.*,
       tt.name as template_name,
       tt.code as template_code,
-      sg.name as group_name,
-      se.event_date,
-      se.start_time as event_start_time,
+      sg.code as group_name,
+      DATE(se.start_time) as event_date,
+      TIME(se.start_time) as event_start_time,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id) as sessions_count,
       (SELECT COUNT(*) FROM test_sessions ts WHERE ts.assignment_id = ta.id AND ts.status = 'completed') as completed_count
     FROM test_assignments ta
@@ -562,7 +598,7 @@ export async function getGroupAssignments(
     LEFT JOIN study_groups sg ON ta.group_id = sg.id
     LEFT JOIN schedule_events se ON ta.schedule_event_id = se.id
     ${whereClause}
-    ORDER BY se.event_date DESC, se.start_time DESC
+    ORDER BY se.start_time DESC
   `;
 
     const rows = await executeQuery<TestAssignmentRow[]>(query, queryParams);

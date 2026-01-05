@@ -15,7 +15,11 @@ import type {
     QuestionsMode,
     ShowResultsMode,
     ProctoringSettings,
+    QuestionLanguage,
+    LanguageValidation,
 } from '../types/testing';
+import { QuestionLanguage as QLang, LANGUAGE_LABELS, LANGUAGE_FLAGS } from '../types/testing';
+import * as questionRepository from './questionRepository';
 
 // ============================================================================
 // ROW TYPES
@@ -39,6 +43,7 @@ interface TestTemplateRow extends RowDataPacket {
     allow_back: boolean;
     proctoring_enabled: boolean;
     proctoring_settings: string | null;
+    allowed_languages: string | null;
     is_active: boolean;
     created_by: string | null;
     created_at: Date;
@@ -94,6 +99,7 @@ function mapRowToTestTemplate(row: TestTemplateRow): TestTemplate {
         allow_back: Boolean(row.allow_back),
         proctoring_enabled: Boolean(row.proctoring_enabled),
         proctoring_settings: parseJsonSafe<ProctoringSettings | null>(row.proctoring_settings, null),
+        allowed_languages: parseJsonSafe<QuestionLanguage[] | null>(row.allowed_languages, null),
         is_active: Boolean(row.is_active),
         created_by: row.created_by,
         created_at: row.created_at,
@@ -282,9 +288,9 @@ export async function createTestTemplate(
       id, bank_id, name, code, description, questions_mode, questions_count,
       time_limit_minutes, passing_score, max_attempts, shuffle_questions,
       shuffle_options, questions_per_page, show_results, allow_back,
-      proctoring_enabled, proctoring_settings, is_active, created_by,
+      proctoring_enabled, proctoring_settings, allowed_languages, is_active, created_by,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             data.bank_id,
@@ -303,6 +309,7 @@ export async function createTestTemplate(
             data.allow_back !== false,
             data.proctoring_enabled || false,
             data.proctoring_settings ? JSON.stringify(data.proctoring_settings) : null,
+            data.allowed_languages ? JSON.stringify(data.allowed_languages) : null,
             data.is_active !== false,
             userId || null,
             now,
@@ -396,6 +403,10 @@ export async function updateTestTemplate(
     if (data.is_active !== undefined) {
         updates.push('is_active = ?');
         params.push(data.is_active);
+    }
+    if (data.allowed_languages !== undefined) {
+        updates.push('allowed_languages = ?');
+        params.push(data.allowed_languages ? JSON.stringify(data.allowed_languages) : null);
     }
 
     if (updates.length === 0) {
@@ -610,4 +621,81 @@ export async function getTemplatesByBankId(bankId: string): Promise<TestTemplate
     );
 
     return rows.map(mapRowToTestTemplate);
+}
+
+// ============================================================================
+// ФУНКЦИИ ВАЛИДАЦИИ ЯЗЫКОВ
+// ============================================================================
+
+/**
+ * Проверить достаточность вопросов по языкам для шаблона
+ */
+export async function validateLanguagesQuestionCount(
+    bankId: string,
+    languages: QuestionLanguage[],
+    minCount: number
+): Promise<{ isValid: boolean; validations: LanguageValidation[] }> {
+    const validations: LanguageValidation[] = [];
+    let allValid = true;
+
+    for (const lang of languages) {
+        const count = await questionRepository.getQuestionCountByLanguage(bankId, lang, true);
+        const isValid = count >= minCount;
+
+        if (!isValid) {
+            allValid = false;
+        }
+
+        validations.push({
+            language: lang,
+            required: minCount,
+            available: count,
+            isValid,
+            label: LANGUAGE_LABELS[lang],
+            flag: LANGUAGE_FLAGS[lang],
+        });
+    }
+
+    return { isValid: allValid, validations };
+}
+
+/**
+ * Получить доступные языки для шаблона (языки с достаточным количеством вопросов)
+ */
+export async function getAvailableLanguagesForTemplate(
+    templateId: string
+): Promise<QuestionLanguage[]> {
+    const template = await getTestTemplateById(templateId);
+    if (!template) {
+        return [];
+    }
+
+    // Если allowed_languages не указаны, возвращаем все языки с вопросами
+    const languageStats = await questionRepository.getQuestionStatsByLanguage(template.bank_id, true);
+
+    if (!template.allowed_languages || template.allowed_languages.length === 0) {
+        // Возвращаем все языки, у которых есть достаточно вопросов
+        const minQuestions = template.questions_mode === 'random' && template.questions_count
+            ? template.questions_count
+            : 1;
+
+        return languageStats
+            .filter(stat => stat.count >= minQuestions)
+            .map(stat => stat.language);
+    }
+
+    // Фильтруем только разрешённые языки
+    const minQuestions = template.questions_mode === 'random' && template.questions_count
+        ? template.questions_count
+        : 1;
+
+    const availableLanguages: QuestionLanguage[] = [];
+    for (const lang of template.allowed_languages) {
+        const stat = languageStats.find(s => s.language === lang);
+        if (stat && stat.count >= minQuestions) {
+            availableLanguages.push(lang);
+        }
+    }
+
+    return availableLanguages;
 }

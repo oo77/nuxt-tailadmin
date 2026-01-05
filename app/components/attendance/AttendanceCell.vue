@@ -14,12 +14,24 @@
       
       <!-- Оценка -->
       <button
-        class="w-10 h-6 rounded text-xs font-medium transition-all"
+        class="w-10 h-6 rounded text-xs font-medium transition-all relative"
         :class="gradeButtonClass"
         @click="openGradeModal"
         :title="gradeTooltip"
       >
         {{ gradeDisplay }}
+        <!-- Индикатор автоматической оценки -->
+        <span 
+          v-if="props.cell.grade?.isFromTest && !props.cell.grade?.isModified" 
+          class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-500"
+          title="Автоматическая оценка из теста"
+        ></span>
+        <!-- Индикатор изменённой оценки -->
+        <span 
+          v-if="props.cell.grade?.isModified" 
+          class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-500"
+          title="Оценка была изменена"
+        ></span>
       </button>
     </div>
     
@@ -133,12 +145,84 @@
           />
         </div>
         
+        <!-- Предупреждение об автоматической оценке -->
+        <div 
+          v-if="props.cell.grade?.isFromTest && !props.cell.grade?.isModified"
+          class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+        >
+          <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+              Эта оценка была автоматически выставлена на основе результатов теста. 
+              При изменении будет сохранена исходная оценка.
+            </p>
+          </div>
+        </div>
+        
         <div class="flex justify-end gap-3 pt-4">
           <UiButton variant="outline" @click="showGradeModal = false">
             Отмена
           </UiButton>
-          <UiButton :loading="saving" @click="saveGrade">
+          <UiButton :loading="saving" @click="() => saveGrade()">
             Сохранить
+          </UiButton>
+        </div>
+      </div>
+    </UiModal>
+    
+    <!-- Модальное окно подтверждения изменения автоматической оценки -->
+    <UiModal 
+      :is-open="showConfirmModal" 
+      title="Изменение автоматической оценки" 
+      @close="cancelModifyGrade"
+    >
+      <div class="space-y-4">
+        <div class="p-4 bg-warning/10 rounded-lg border border-warning/30">
+          <div class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h4 class="font-medium text-warning mb-1">Внимание!</h4>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Вы собираетесь изменить автоматически выставленную оценку из теста.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Текущая оценка (из теста)</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ props.cell.grade?.grade }}</p>
+            </div>
+            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Новая оценка</p>
+              <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ pendingConfirmGrade }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Исходная оценка будет сохранена в истории. Изменённая оценка будет отмечена специальным цветом.
+        </p>
+        
+        <div class="flex justify-end gap-3 pt-4">
+          <UiButton variant="outline" @click="cancelModifyGrade">
+            Отмена
+          </UiButton>
+          <UiButton 
+            variant="warning" 
+            :loading="saving" 
+            @click="confirmModifyGrade"
+          >
+            Подтвердить изменение
           </UiButton>
         </div>
       </div>
@@ -160,6 +244,9 @@ interface JournalCell {
     id: string;
     grade: number;
     notes: string | null;
+    isFromTest?: boolean;
+    isModified?: boolean;
+    originalGrade?: number | null;
   };
 }
 
@@ -192,11 +279,13 @@ const toast = useNotification();
 // State
 const showAttendanceModal = ref(false);
 const showGradeModal = ref(false);
+const showConfirmModal = ref(false);
 const saving = ref(false);
 const attendanceInput = ref(0);
 const attendanceNotes = ref('');
 const gradeInput = ref(0);
 const gradeNotes = ref('');
+const pendingConfirmGrade = ref<number | null>(null);
 
 // Computed
 const maxHours = computed(() => props.column.scheduleEvent.academicHours);
@@ -253,6 +342,12 @@ const gradeButtonClass = computed(() => {
     return 'bg-gray-100 dark:bg-gray-700 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600';
   }
   const grade = props.cell.grade.grade;
+  const isModified = props.cell.grade.isModified;
+  
+  // Изменённые оценки отображаются фиолетовым цветом
+  if (isModified) {
+    return 'bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 hover:bg-purple-300 dark:hover:bg-purple-800/50 ring-1 ring-purple-400';
+  }
   
   if (grade >= 60) return 'bg-success/20 text-success hover:bg-success/30';
   if (grade >= 40) return 'bg-warning/20 text-warning hover:bg-warning/30';
@@ -263,6 +358,15 @@ const gradeTooltip = computed(() => {
   if (!props.cell.grade) return 'Выставить оценку';
   const g = props.cell.grade;
   let text = `Оценка: ${g.grade}`;
+  
+  if (g.isFromTest && !g.isModified) {
+    text += '\n🤖 Автоматическая оценка из теста';
+  }
+  
+  if (g.isModified && g.originalGrade !== null && g.originalGrade !== undefined) {
+    text += `\n✏️ Изменена (из теста: ${g.originalGrade})`;
+  }
+  
   if (g.notes) text += `\n${g.notes}`;
   return text;
 });
@@ -317,7 +421,7 @@ const saveAttendance = async () => {
   }
 };
 
-const saveGrade = async () => {
+const saveGrade = async (confirmModify = false) => {
   if (gradeInput.value < 0 || gradeInput.value > 100) {
     toast.error('Оценка должна быть от 0 до 100');
     return;
@@ -325,19 +429,35 @@ const saveGrade = async () => {
   
   saving.value = true;
   try {
-    const response = await authFetch<{ success: boolean; message?: string }>('/api/grades', {
+    const response = await authFetch<{ 
+      success: boolean; 
+      message?: string;
+      requireConfirmation?: boolean;
+      originalGrade?: number;
+    }>('/api/grades', {
       method: 'POST',
       body: {
         studentId: props.studentId,
         scheduleEventId: props.column.scheduleEvent.id,
         grade: gradeInput.value,
         notes: gradeNotes.value || undefined,
+        confirmModify,
       },
     });
+    
+    // Если требуется подтверждение изменения автоматической оценки
+    if (response.requireConfirmation) {
+      pendingConfirmGrade.value = gradeInput.value;
+      showGradeModal.value = false;
+      showConfirmModal.value = true;
+      saving.value = false;
+      return;
+    }
     
     if (response.success) {
       toast.success('Оценка сохранена');
       showGradeModal.value = false;
+      showConfirmModal.value = false;
       emit('update', { 
         studentId: props.studentId, 
         scheduleEventId: props.column.scheduleEvent.id, 
@@ -351,5 +471,19 @@ const saveGrade = async () => {
   } finally {
     saving.value = false;
   }
+};
+
+// Подтверждение изменения автоматической оценки
+const confirmModifyGrade = async () => {
+  if (pendingConfirmGrade.value !== null) {
+    gradeInput.value = pendingConfirmGrade.value;
+    await saveGrade(true);
+    pendingConfirmGrade.value = null;
+  }
+};
+
+const cancelModifyGrade = () => {
+  showConfirmModal.value = false;
+  pendingConfirmGrade.value = null;
 };
 </script>

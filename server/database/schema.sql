@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS students (
   id VARCHAR(191) PRIMARY KEY,
+  user_id VARCHAR(191) NULL COMMENT 'Связь с таблицей users для авторизации',
   full_name VARCHAR(255) NOT NULL,
   pinfl VARCHAR(14) NOT NULL UNIQUE,
   organization VARCHAR(255) NOT NULL COMMENT 'Текстовое название организации (legacy)',
@@ -67,10 +68,14 @@ CREATE TABLE IF NOT EXISTS students (
   INDEX idx_organization (organization),
   INDEX idx_organization_id (organization_id),
   INDEX idx_position (position),
+  INDEX idx_user_id (user_id),
   FULLTEXT INDEX ft_search (full_name, organization, position),
   
   CONSTRAINT fk_students_organization 
     FOREIGN KEY (organization_id) REFERENCES organizations(id) 
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT fk_students_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

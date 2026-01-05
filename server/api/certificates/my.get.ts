@@ -41,28 +41,24 @@ export default defineEventHandler(async (event: H3Event) => {
 
   try {
     // Получаем сертификаты студента
-    const [certificates] = await executeQuery<any[]>(`
+    const certificates = await executeQuery<any[]>(`
       SELECT 
         c.id,
-        c.status,
-        c.issued_at as issuedAt,
-        c.expires_at as expiresAt,
+        c.issue_date as issuedAt,
+        c.expiry_date as expiresAt,
         c.certificate_number as certificateNumber,
-        co.name as courseName,
-        sg.code as groupCode
+        c.course_name as courseName,
+        c.file_url as fileUrl
       FROM certificates c
-      INNER JOIN study_groups sg ON c.group_id = sg.id
-      INNER JOIN courses co ON sg.course_id = co.id
       WHERE c.student_id = ?
-        AND c.status IN ('issued', 'revoked')
-      ORDER BY c.issued_at DESC
+      ORDER BY c.issue_date DESC
     `, [student.id])
 
     const result: StudentCertificate[] = certificates.map(cert => ({
       id: cert.id,
-      courseName: cert.courseName,
-      groupCode: cert.groupCode,
-      status: cert.status,
+      courseName: cert.courseName || '',
+      groupCode: '', // В текущей схеме нет связи с группами
+      status: 'issued' as const, // В текущей схеме нет статуса, считаем выданным
       issuedAt: cert.issuedAt,
       expiresAt: cert.expiresAt,
     }))

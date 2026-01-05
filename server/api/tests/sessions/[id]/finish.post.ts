@@ -78,17 +78,20 @@ export default defineEventHandler(async (event) => {
                     const now = new Date();
 
                     await executeQuery(
-                        `INSERT INTO grades (id, student_id, schedule_event_id, grade, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE grade = ?, updated_at = ?`,
+                        `INSERT INTO grades (id, student_id, schedule_event_id, grade, is_from_test, test_session_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, TRUE, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             grade = IF(is_modified = FALSE, VALUES(grade), grade),
+             is_from_test = TRUE,
+             test_session_id = IF(test_session_id IS NULL, VALUES(test_session_id), test_session_id),
+             updated_at = VALUES(updated_at)`,
                         [
                             gradeId,
                             session.student_id,
                             assignment.schedule_event_id,
                             results.grade,
+                            id, // test_session_id
                             now,
-                            now,
-                            results.grade,
                             now,
                         ]
                     );

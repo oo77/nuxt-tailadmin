@@ -46,6 +46,7 @@ export default defineEventHandler(async (event) => {
             allow_back: body.allow_back,
             proctoring_enabled: body.proctoring_enabled,
             proctoring_settings: body.proctoring_settings,
+            allowed_languages: body.allowed_languages,
             is_active: body.is_active,
         });
 

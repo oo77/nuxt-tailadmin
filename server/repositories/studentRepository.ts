@@ -95,9 +95,9 @@ function mapRowToCertificate(row: CertificateRow): StudentCertificate {
     try {
       const varsData = JSON.parse(row.variables_data);
       courseName = varsData.courseName || varsData.course_name || '';
-    } catch {}
+    } catch { }
   }
-  
+
   return {
     id: row.id,
     studentId: row.student_id,
@@ -152,11 +152,11 @@ export async function getCertificateById(certificateId: string): Promise<Student
      WHERE ic.id = ? LIMIT 1`,
     [certificateId]
   );
-  
+
   if (rows.length === 0) {
     return null;
   }
-  
+
   return mapRowToCertificate(rows[0]);
 }
 
@@ -183,7 +183,7 @@ async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<st
   );
 
   const certificatesMap = new Map<string, StudentCertificate[]>();
-  
+
   for (const row of rows) {
     const cert = mapRowToCertificate(row);
     const existing = certificatesMap.get(cert.studentId) || [];
@@ -203,7 +203,7 @@ async function getCertificatesByStudentIds(studentIds: string[]): Promise<Map<st
  */
 export async function getAllStudents(): Promise<Student[]> {
   const rows = await executeQuery<StudentRow[]>('SELECT * FROM students ORDER BY full_name');
-  
+
   if (rows.length === 0) {
     return [];
   }
@@ -357,7 +357,7 @@ export async function studentExistsByPinfl(pinfl: string, excludeId?: string): P
   }
 
   query += ' LIMIT 1';
-  
+
   const rows = await executeQuery<RowDataPacket[]>(query, params);
   return rows.length > 0;
 }
@@ -463,7 +463,7 @@ export async function getStudentByUserId(userId: string): Promise<Student | null
     'SELECT * FROM students WHERE user_id = ? LIMIT 1',
     [userId]
   );
-  
+
   if (rows.length === 0) {
     return null;
   }
@@ -500,12 +500,13 @@ export interface BatchUpsertResult {
   updated: number;
   errors: Array<{ pinfl: string; error: string }>;
   organizationsCreated: number;
+  accountsCreated: number;
 }
 
 /**
  * Массовое создание/обновление студентов (upsert)
  * Использует транзакцию для атомарности
- * Автоматически создаёт организации при необходимости
+ * Автоматически создаёт организации и учётные записи
  */
 export async function batchUpsertStudents(
   students: Array<{
@@ -521,11 +522,15 @@ export async function batchUpsertStudents(
     updated: 0,
     errors: [],
     organizationsCreated: 0,
+    accountsCreated: 0,
   };
 
   if (students.length === 0) {
     return result;
   }
+
+  // Импорт hashPassword
+  const { hashPassword } = await import('../utils/auth');
 
   // Кэш организаций для оптимизации
   const organizationCache = new Map<string, string>(); // name -> id
@@ -550,16 +555,16 @@ export async function batchUpsertStudents(
     for (const student of students) {
       try {
         const organizationId = organizationCache.get(student.organization.trim()) || null;
-        
+
         // Проверяем существование по ПИНФЛ
         const [existingRows] = await connection.execute<StudentRow[]>(
-          'SELECT id, organization_id FROM students WHERE pinfl = ? LIMIT 1',
+          'SELECT id, organization_id, user_id FROM students WHERE pinfl = ? LIMIT 1',
           [student.pinfl]
         );
 
         if (existingRows.length > 0) {
           const existingOrgId = existingRows[0].organization_id;
-          
+
           // Обновляем
           await connection.execute(
             `UPDATE students 
@@ -568,21 +573,50 @@ export async function batchUpsertStudents(
             [student.fullName, student.organization, organizationId, student.department || null, student.position, new Date(), student.pinfl]
           );
           result.updated++;
-          
+
           // Отслеживаем изменённые организации
           if (organizationId) affectedOrganizationIds.add(organizationId);
           if (existingOrgId && existingOrgId !== organizationId) affectedOrganizationIds.add(existingOrgId);
         } else {
-          // Создаём
-          const id = uuidv4();
+          // Создаём студента
+          const studentId = uuidv4();
           const now = new Date();
+
+          // Создаём учётную запись для студента
+          const email = `${student.pinfl}@student.local`;
+          const password = student.pinfl; // Пароль = ПИНФЛ
+          const passwordHash = await hashPassword(password);
+
+          // Проверяем существование пользователя с таким email
+          const [existingUserRows] = await connection.execute<RowDataPacket[]>(
+            'SELECT id FROM users WHERE email = ? LIMIT 1',
+            [email]
+          );
+
+          let userId: string | null = null;
+
+          if (existingUserRows.length === 0) {
+            // Создаём пользователя
+            userId = uuidv4();
+            await connection.execute(
+              `INSERT INTO users (id, role, name, email, password_hash, pinfl, workplace, position, created_at, updated_at)
+               VALUES (?, 'STUDENT', ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+              [userId, student.fullName, email, passwordHash, student.pinfl, student.organization, student.position]
+            );
+            result.accountsCreated++;
+          } else {
+            // Пользователь уже существует, используем его ID
+            userId = (existingUserRows[0] as any).id;
+          }
+
+          // Создаём студента
           await connection.execute(
-            `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, now, now]
+            `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, user_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [studentId, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, userId, now, now]
           );
           result.created++;
-          
+
           if (organizationId) affectedOrganizationIds.add(organizationId);
         }
       } catch (error) {
@@ -608,7 +642,7 @@ export async function batchUpsertStudents(
 
 /**
  * Массовое создание/обновление с прогрессом (для импорта с отслеживанием)
- * Автоматически создаёт организации при необходимости
+ * Автоматически создаёт организации и учётные записи
  */
 export async function batchUpsertStudentsWithProgress(
   students: Array<{
@@ -627,11 +661,15 @@ export async function batchUpsertStudentsWithProgress(
     updated: 0,
     errors: [],
     organizationsCreated: 0,
+    accountsCreated: 0,
   };
 
   if (students.length === 0) {
     return result;
   }
+
+  // Импорт hashPassword
+  const { hashPassword } = await import('../utils/auth');
 
   // Кэш организаций для оптимизации
   const organizationCache = new Map<string, string>(); // name -> id
@@ -659,16 +697,16 @@ export async function batchUpsertStudentsWithProgress(
       for (const student of batch) {
         try {
           const organizationId = organizationCache.get(student.organization.trim()) || null;
-          
+
           // Проверяем существование по ПИНФЛ
           const [existingRows] = await connection.execute<StudentRow[]>(
-            'SELECT id, organization_id FROM students WHERE pinfl = ? LIMIT 1',
+            'SELECT id, organization_id, user_id FROM students WHERE pinfl = ? LIMIT 1',
             [student.pinfl]
           );
 
           if (existingRows.length > 0) {
             const existingOrgId = existingRows[0].organization_id;
-            
+
             // Обновляем
             await connection.execute(
               `UPDATE students 
@@ -677,20 +715,49 @@ export async function batchUpsertStudentsWithProgress(
               [student.fullName, student.organization, organizationId, student.department || null, student.position, new Date(), student.pinfl]
             );
             result.updated++;
-            
+
             if (organizationId) affectedOrganizationIds.add(organizationId);
             if (existingOrgId && existingOrgId !== organizationId) affectedOrganizationIds.add(existingOrgId);
           } else {
-            // Создаём
-            const id = uuidv4();
+            // Создаём студента
+            const studentId = uuidv4();
             const now = new Date();
+
+            // Создаём учётную запись для студента
+            const email = `${student.pinfl}@student.local`;
+            const password = student.pinfl; // Пароль = ПИНФЛ
+            const passwordHash = await hashPassword(password);
+
+            // Проверяем существование пользователя с таким email
+            const [existingUserRows] = await connection.execute<RowDataPacket[]>(
+              'SELECT id FROM users WHERE email = ? LIMIT 1',
+              [email]
+            );
+
+            let userId: string | null = null;
+
+            if (existingUserRows.length === 0) {
+              // Создаём пользователя
+              userId = uuidv4();
+              await connection.execute(
+                `INSERT INTO users (id, role, name, email, password_hash, pinfl, workplace, position, created_at, updated_at)
+                 VALUES (?, 'STUDENT', ?, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
+                [userId, student.fullName, email, passwordHash, student.pinfl, student.organization, student.position]
+              );
+              result.accountsCreated++;
+            } else {
+              // Пользователь уже существует, используем его ID
+              userId = (existingUserRows[0] as any).id;
+            }
+
+            // Создаём студента
             await connection.execute(
-              `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [id, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, now, now]
+              `INSERT INTO students (id, full_name, pinfl, organization, organization_id, department, position, user_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [studentId, student.fullName, student.pinfl, student.organization, organizationId, student.department || null, student.position, userId, now, now]
             );
             result.created++;
-            
+
             if (organizationId) affectedOrganizationIds.add(organizationId);
           }
         } catch (error) {

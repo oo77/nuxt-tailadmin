@@ -13,9 +13,14 @@ import type {
     UpdateQuestionDTO,
     QuestionType,
     QuestionDifficulty,
+    QuestionLanguage,
     QuestionOptions,
     QuestionMedia,
+    LanguageStats,
+    LANGUAGE_LABELS,
+    LANGUAGE_FLAGS,
 } from '../types/testing';
+import { QuestionLanguage as QLang, LANGUAGE_LABELS as LABELS, LANGUAGE_FLAGS as FLAGS } from '../types/testing';
 
 // ============================================================================
 // ROW TYPES
@@ -31,6 +36,7 @@ interface QuestionRow extends RowDataPacket {
     points: number;
     explanation: string | null;
     difficulty: QuestionDifficulty;
+    language: QuestionLanguage;
     tags: string | null;
     order_index: number;
     is_active: boolean;
@@ -69,6 +75,7 @@ function mapRowToQuestion(row: QuestionRow): Question {
         points: row.points,
         explanation: row.explanation,
         difficulty: row.difficulty,
+        language: row.language || QLang.RU,
         tags: parseJsonSafe<string[] | null>(row.tags, null),
         order_index: row.order_index,
         is_active: Boolean(row.is_active),
@@ -114,11 +121,12 @@ export async function getQuestions(
     pagination: PaginationParams = {}
 ): Promise<PaginatedResult<QuestionWithBank>> {
     const { page = 1, limit = 20 } = pagination;
-    const { bank_id, question_type, difficulty, is_active, search, tags } = filters;
+    const { bank_id, question_type, difficulty, language, languages, is_active, search, tags } = filters;
 
     // Строим WHERE условия
     const conditions: string[] = [];
     const queryParams: any[] = [];
+
 
     if (bank_id) {
         conditions.push('q.bank_id = ?');
@@ -150,6 +158,19 @@ export async function getQuestions(
         const tagConditions = tags.map(() => 'JSON_CONTAINS(q.tags, ?)');
         conditions.push(`(${tagConditions.join(' OR ')})`);
         tags.forEach(tag => queryParams.push(JSON.stringify(tag)));
+    }
+
+    // Фильтр по одному языку
+    if (language) {
+        conditions.push('q.language = ?');
+        queryParams.push(language);
+    }
+
+    // Фильтр по нескольким языкам
+    if (languages && languages.length > 0) {
+        const placeholders = languages.map(() => '?').join(', ');
+        conditions.push(`q.language IN (${placeholders})`);
+        queryParams.push(...languages);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -236,8 +257,10 @@ export async function getQuestionById(id: string): Promise<QuestionWithBank | nu
 export async function getRandomQuestionsFromBank(
     bankId: string,
     count: number,
-    activeOnly: boolean = true
+    options: { activeOnly?: boolean; language?: QuestionLanguage } = {}
 ): Promise<Question[]> {
+    const { activeOnly = true, language } = options;
+
     let query = `
     SELECT * FROM questions 
     WHERE bank_id = ?
@@ -246,6 +269,11 @@ export async function getRandomQuestionsFromBank(
 
     if (activeOnly) {
         query += ' AND is_active = TRUE';
+    }
+
+    if (language) {
+        query += ' AND language = ?';
+        params.push(language);
     }
 
     query += ' ORDER BY RAND() LIMIT ?';
@@ -282,9 +310,9 @@ export async function createQuestion(data: CreateQuestionDTO): Promise<Question>
     await executeQuery(
         `INSERT INTO questions (
       id, bank_id, question_type, question_text, question_media, options,
-      points, explanation, difficulty, tags, order_index, is_active,
+      points, explanation, difficulty, language, tags, order_index, is_active,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             data.bank_id,
@@ -295,6 +323,7 @@ export async function createQuestion(data: CreateQuestionDTO): Promise<Question>
             data.points || 1,
             data.explanation || null,
             data.difficulty || 'medium',
+            data.language || QLang.RU,
             data.tags ? JSON.stringify(data.tags) : null,
             data.order_index || 0,
             data.is_active !== false,
@@ -368,6 +397,10 @@ export async function updateQuestion(
         updates.push('is_active = ?');
         params.push(data.is_active);
     }
+    if (data.language !== undefined) {
+        updates.push('language = ?');
+        params.push(data.language);
+    }
 
     if (updates.length === 0) {
         return existing;
@@ -422,9 +455,9 @@ export async function bulkCreateQuestions(
                 await connection.execute(
                     `INSERT INTO questions (
             id, bank_id, question_type, question_text, question_media, options,
-            points, explanation, difficulty, tags, order_index, is_active,
+            points, explanation, difficulty, language, tags, order_index, is_active,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         id,
                         data.bank_id,
@@ -435,6 +468,7 @@ export async function bulkCreateQuestions(
                         data.points || 1,
                         data.explanation || null,
                         data.difficulty || 'medium',
+                        data.language || QLang.RU,
                         data.tags ? JSON.stringify(data.tags) : null,
                         data.order_index || i,
                         data.is_active !== false,
@@ -529,8 +563,94 @@ export async function copyQuestionToBank(
         points: original.points,
         explanation: original.explanation || undefined,
         difficulty: original.difficulty,
+        language: original.language,
         tags: original.tags || undefined,
         order_index: nextOrder,
         is_active: original.is_active,
     });
+}
+
+/**
+ * Получить количество вопросов по языку в банке
+ */
+export async function getQuestionCountByLanguage(
+    bankId: string,
+    language: QuestionLanguage,
+    activeOnly: boolean = true
+): Promise<number> {
+    let query = 'SELECT COUNT(*) as total FROM questions WHERE bank_id = ? AND language = ?';
+    const params: any[] = [bankId, language];
+
+    if (activeOnly) {
+        query += ' AND is_active = TRUE';
+    }
+
+    const rows = await executeQuery<CountRow[]>(query, params);
+    return rows[0]?.total || 0;
+}
+
+/**
+ * Получить статистику по языкам в банке
+ */
+export async function getQuestionStatsByLanguage(
+    bankId: string,
+    activeOnly: boolean = true
+): Promise<LanguageStats[]> {
+    let query = `
+    SELECT language, COUNT(*) as count 
+    FROM questions 
+    WHERE bank_id = ?
+  `;
+    const params: any[] = [bankId];
+
+    if (activeOnly) {
+        query += ' AND is_active = TRUE';
+    }
+
+    query += ' GROUP BY language ORDER BY count DESC';
+
+    interface LangRow extends RowDataPacket {
+        language: QuestionLanguage;
+        count: number;
+    }
+
+    const rows = await executeQuery<LangRow[]>(query, params);
+
+    return rows.map(row => ({
+        language: row.language,
+        count: row.count,
+        label: LABELS[row.language] || row.language,
+        flag: FLAGS[row.language] || '',
+    }));
+}
+
+/**
+ * Получить всю статистику по языкам (включая языки с 0 вопросов)
+ */
+export async function getFullLanguageStats(
+    bankId: string,
+    activeOnly: boolean = true
+): Promise<LanguageStats[]> {
+    const stats = await getQuestionStatsByLanguage(bankId, activeOnly);
+
+    // Добавляем языки с 0 вопросами
+    const allLanguages: QuestionLanguage[] = [QLang.RU, QLang.UZ, QLang.EN];
+    const existingLanguages = new Set(stats.map(s => s.language));
+
+    for (const lang of allLanguages) {
+        if (!existingLanguages.has(lang)) {
+            stats.push({
+                language: lang,
+                count: 0,
+                label: LABELS[lang],
+                flag: FLAGS[lang],
+            });
+        }
+    }
+
+    // Сортируем: RU первый, затем UZ, затем EN
+    const order = { [QLang.RU]: 0, [QLang.UZ]: 1, [QLang.EN]: 2 };
+    stats.sort((a, b) => order[a.language] - order[b.language]);
+
+    return stats;
 }

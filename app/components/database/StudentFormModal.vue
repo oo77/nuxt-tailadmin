@@ -184,51 +184,68 @@
                   </p>
                 </div>
 
-                <!-- Секция создания учётной записи (только при создании нового студента) -->
-                <div v-if="!props.student" class="sm:col-span-2 mt-4 pt-4 border-t border-stroke dark:border-strokedark">
-                  <label class="flex items-center gap-3 cursor-pointer">
-                    <input
-                      v-model="formData.createAccount"
-                      type="checkbox"
-                      class="sr-only"
-                    />
-                    <div
-                      :class="[
-                        'relative h-6 w-11 rounded-full transition-colors',
-                        formData.createAccount ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                      ]"
-                    >
-                      <div
-                        :class="[
-                          'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform',
-                          formData.createAccount ? 'translate-x-5' : 'translate-x-0.5'
-                        ]"
-                      ></div>
+                <!-- Секция учётной записи -->
+                <div class="sm:col-span-2 mt-4 pt-4 border-t border-stroke dark:border-strokedark">
+                  <!-- При создании нового студента -->
+                  <template v-if="!props.student">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <div class="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="font-medium">Учётная запись создаётся автоматически</span>
+                      </div>
+                      <p class="mt-2 text-sm text-blue-600 dark:text-blue-400">
+                        Логин: <span class="font-mono">{{ formData.pinfl || 'ПИНФЛ' }}@student.local</span><br>
+                        Пароль: <span class="font-mono">{{ formData.pinfl || 'ПИНФЛ' }}</span>
+                      </p>
                     </div>
-                    <span class="text-sm font-medium text-black dark:text-white">
-                      Создать учётную запись для входа
-                    </span>
-                  </label>
+                  </template>
 
-                  <!-- Поле пароля -->
-                  <div v-if="formData.createAccount" class="mt-4">
-                    <label class="mb-2 block text-sm font-medium text-black dark:text-white">
-                      Пароль <span class="text-danger">*</span>
-                    </label>
-                    <input
-                      v-model="formData.accountPassword"
-                      type="password"
-                      placeholder="Минимум 8 символов"
-                      class="w-full rounded-lg border border-stroke bg-transparent py-3 px-5 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                      :class="{ 'border-danger': errors.accountPassword }"
-                    />
-                    <p v-if="errors.accountPassword" class="mt-1 text-sm text-danger">
-                      {{ errors.accountPassword[0] }}
+                  <!-- При редактировании студента (только для ADMIN/MANAGER) -->
+                  <template v-else-if="canManagePassword">
+                    <h4 class="font-medium text-black dark:text-white mb-3">
+                      Управление учётной записью
+                    </h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Email для входа: <span class="font-mono">{{ props.student.pinfl }}@student.local</span>
                     </p>
-                    <p v-else class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Email для входа: {{ formData.pinfl ? `${formData.pinfl}@student.local` : 'ПИНФЛ@student.local' }}
-                    </p>
-                  </div>
+                    
+                    <div class="flex flex-wrap gap-3">
+                      <UiButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        @click="handleResetPassword"
+                        :disabled="isResettingPassword"
+                      >
+                        <template #icon>
+                          <svg v-if="isResettingPassword" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                          </svg>
+                          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </template>
+                        Сбросить пароль на ПИНФЛ
+                      </UiButton>
+
+                      <UiButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        @click="showChangePasswordModal = true"
+                      >
+                        <template #icon>
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                        </template>
+                        Изменить пароль
+                      </UiButton>
+                    </div>
+                  </template>
                 </div>
               </div>
 
@@ -284,9 +301,17 @@ const emit = defineEmits<{
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
 
+// Проверка прав доступа
+const { user } = useAuth();
+const canManagePassword = computed(() => {
+  return user.value && ['ADMIN', 'MANAGER'].includes(user.value.role);
+});
+
 // Состояние
 const isSubmitting = ref(false);
 const isVisible = ref(false);
+const isResettingPassword = ref(false);
+const showChangePasswordModal = ref(false);
 const errors = reactive<Record<string, string[]>>({});
 const notification = useNotification();
 
@@ -303,10 +328,35 @@ const formData = reactive({
   organization: '',
   department: '',
   position: '',
-  // Поля для создания учётной записи
-  createAccount: true, // По умолчанию включено для удобства
   accountPassword: '',
 });
+
+// Сброс пароля на ПИНФЛ
+const handleResetPassword = async () => {
+  if (!props.student) return;
+  
+  isResettingPassword.value = true;
+  
+  try {
+    const response = await authFetch<{ success: boolean; message: string }>(
+      `/api/students/${props.student.id}/reset-password`,
+      {
+        method: 'POST',
+        body: { resetToPinfl: true },
+      }
+    );
+    
+    if (response.success) {
+      notification.success(response.message || 'Пароль сброшен на ПИНФЛ', 'Успешно');
+    } else {
+      notification.error(response.message || 'Ошибка сброса пароля', 'Ошибка');
+    }
+  } catch (error: any) {
+    notification.error(error.message || 'Ошибка сброса пароля', 'Ошибка');
+  } finally {
+    isResettingPassword.value = false;
+  }
+};
 
 // Вычисляемые свойства
 const modalTitle = computed(() => {
@@ -439,16 +489,8 @@ const handleSubmit = async () => {
       position: formData.position.trim(),
     };
 
-    // Добавляем поля учётной записи если нужно создать аккаунт
-    if (formData.createAccount && !props.student) {
-      // Валидация пароля
-      if (!formData.accountPassword || formData.accountPassword.length < 8) {
-        errors.accountPassword = ['Пароль должен быть минимум 8 символов'];
-        notification.error('Пароль должен быть минимум 8 символов', 'Ошибка валидации');
-        isSubmitting.value = false;
-        return;
-      }
-      submitData.createAccount = true;
+    // Добавляем пароль если указан (иначе будет использован ПИНФЛ)
+    if (!props.student && formData.accountPassword) {
       submitData.accountPassword = formData.accountPassword;
     }
 

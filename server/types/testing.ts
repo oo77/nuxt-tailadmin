@@ -20,6 +20,25 @@ export enum QuestionDifficulty {
     HARD = 'hard',
 }
 
+export enum QuestionLanguage {
+    EN = 'en',
+    RU = 'ru',
+    UZ = 'uz',
+}
+
+// Константы для отображения языков в UI
+export const LANGUAGE_LABELS: Record<QuestionLanguage, string> = {
+    [QuestionLanguage.EN]: 'English',
+    [QuestionLanguage.RU]: 'Русский',
+    [QuestionLanguage.UZ]: "O'zbek",
+};
+
+export const LANGUAGE_FLAGS: Record<QuestionLanguage, string> = {
+    [QuestionLanguage.EN]: '🇬🇧',
+    [QuestionLanguage.RU]: '🇷🇺',
+    [QuestionLanguage.UZ]: '🇺🇿',
+};
+
 export enum QuestionsMode {
     ALL = 'all',
     RANDOM = 'random',
@@ -203,6 +222,7 @@ export interface Question {
     points: number;
     explanation: string | null;
     difficulty: QuestionDifficulty;
+    language: QuestionLanguage;  // Язык вопроса
     tags: string[] | null;
     order_index: number;
     is_active: boolean;
@@ -228,6 +248,7 @@ export interface TestTemplate {
     allow_back: boolean;
     proctoring_enabled: boolean;
     proctoring_settings: ProctoringSettings | null;
+    allowed_languages: QuestionLanguage[] | null;  // Разрешённые языки (null = все)
     is_active: boolean;
     created_by: string | null;
     created_at: Date;
@@ -275,6 +296,7 @@ export interface TestSession {
     attempt_number: number;
     status: TestSessionStatus;
     is_preview: boolean;
+    language: QuestionLanguage | null;  // Выбранный язык тестирования
     questions_order: SessionQuestionOrder[] | null;
     current_question_index: number;
     started_at: Date;
@@ -380,6 +402,7 @@ export interface CreateQuestionDTO {
     points?: number;
     explanation?: string;
     difficulty?: QuestionDifficulty;
+    language?: QuestionLanguage;  // Язык вопроса (по умолчанию 'ru')
     tags?: string[];
     order_index?: number;
     is_active?: boolean;
@@ -393,6 +416,7 @@ export interface UpdateQuestionDTO {
     points?: number;
     explanation?: string;
     difficulty?: QuestionDifficulty;
+    language?: QuestionLanguage;  // Язык вопроса
     tags?: string[];
     order_index?: number;
     is_active?: boolean;
@@ -415,6 +439,7 @@ export interface CreateTestTemplateDTO {
     allow_back?: boolean;
     proctoring_enabled?: boolean;
     proctoring_settings?: ProctoringSettings;
+    allowed_languages?: QuestionLanguage[];  // Разрешённые языки тестирования
     is_active?: boolean;
 }
 
@@ -434,6 +459,7 @@ export interface UpdateTestTemplateDTO {
     allow_back?: boolean;
     proctoring_enabled?: boolean;
     proctoring_settings?: ProctoringSettings;
+    allowed_languages?: QuestionLanguage[];  // Разрешённые языки тестирования
     is_active?: boolean;
 }
 
@@ -443,14 +469,15 @@ export interface CreateTestAssignmentDTO {
     group_id: string;
     time_limit_override?: number;
     passing_score_override?: number;
-    start_date?: Date;
-    end_date?: Date;
+    start_date?: string | Date;
+    end_date?: string | Date;
 }
 
 export interface StartTestSessionDTO {
     assignment_id: string | null;
     student_id: string | null;
     preview_user_id?: string | null;
+    language: QuestionLanguage;  // ОБЯЗАТЕЛЬНО: выбранный язык тестирования
     ip_address?: string;
     user_agent?: string;
     is_preview?: boolean;
@@ -459,6 +486,7 @@ export interface StartTestSessionDTO {
 export interface StartPreviewSessionDTO {
     template_id: string;
     user_id: string;
+    language?: QuestionLanguage;  // Язык предпросмотра (опционально, если не указан — 'ru')
     ip_address?: string;
     user_agent?: string;
 }
@@ -496,6 +524,8 @@ export interface QuestionFilters {
     bank_id?: string;
     question_type?: QuestionType;
     difficulty?: QuestionDifficulty;
+    language?: QuestionLanguage;  // Фильтр по языку
+    languages?: QuestionLanguage[];  // Фильтр по нескольким языкам
     is_active?: boolean;
     search?: string;
     tags?: string[];
@@ -519,4 +549,31 @@ export interface TestSessionFilters {
     assignment_id?: string;
     student_id?: string;
     status?: TestSessionStatus;
+    language?: QuestionLanguage;  // Фильтр по языку сессии
+}
+
+// ============================================================================
+// Language Stats
+// ============================================================================
+
+/**
+ * Статистика по языкам в банке вопросов
+ */
+export interface LanguageStats {
+    language: QuestionLanguage;
+    count: number;
+    label: string;
+    flag: string;
+}
+
+/**
+ * Валидация достаточности вопросов по языкам
+ */
+export interface LanguageValidation {
+    language: QuestionLanguage;
+    required: number;
+    available: number;
+    isValid: boolean;
+    label: string;
+    flag: string;
 }

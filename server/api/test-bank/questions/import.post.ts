@@ -9,7 +9,7 @@
 
 import { bulkCreateQuestions } from '../../../repositories/questionRepository';
 import { getQuestionBankById } from '../../../repositories/questionBankRepository';
-import { QuestionType } from '../../../types/testing';
+import { QuestionType, QuestionLanguage } from '../../../types/testing';
 import type { CreateQuestionDTO, SingleChoiceOptions } from '../../../types/testing';
 
 // Старый формат (из Excel)
@@ -23,6 +23,7 @@ interface LegacyImportedQuestion {
     points?: number;
     difficulty?: string;
     explanation?: string;
+    language?: string; // en, ru, uz
 }
 
 // Новый формат (из компонента)
@@ -34,6 +35,7 @@ interface NewImportedQuestion {
     points?: number;
     difficulty?: string;
     explanation?: string;
+    language?: QuestionLanguage;
     is_active?: boolean;
 }
 
@@ -92,6 +94,7 @@ export default defineEventHandler(async (event) => {
                 points: q.points || 1,
                 difficulty: (q.difficulty as any) || 'medium',
                 explanation: q.explanation,
+                language: q.language,
                 order_index: index,
                 is_active: q.is_active !== false,
             }));
@@ -120,6 +123,7 @@ export default defineEventHandler(async (event) => {
                     points: q.points || 1,
                     difficulty: (q.difficulty as any) || 'medium',
                     explanation: q.explanation,
+                    language: q.language as QuestionLanguage | undefined,
                     order_index: index,
                     is_active: true,
                 };
