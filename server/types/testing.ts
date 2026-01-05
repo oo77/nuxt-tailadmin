@@ -273,6 +273,7 @@ export interface TestSession {
     student_id: string;
     attempt_number: number;
     status: TestSessionStatus;
+    is_preview: boolean;
     questions_order: SessionQuestionOrder[] | null;
     current_question_index: number;
     started_at: Date;
@@ -448,6 +449,14 @@ export interface CreateTestAssignmentDTO {
 export interface StartTestSessionDTO {
     assignment_id: string;
     student_id: string;
+    ip_address?: string;
+    user_agent?: string;
+    is_preview?: boolean;
+}
+
+export interface StartPreviewSessionDTO {
+    template_id: string;
+    user_id: string;
     ip_address?: string;
     user_agent?: string;
 }

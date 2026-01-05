@@ -462,13 +462,15 @@ export async function addQuestionToTemplate(
     const id = uuidv4();
 
     // Получаем следующий order_index если не указан
-    let order = orderIndex;
-    if (order === undefined) {
+    let order: number;
+    if (orderIndex === undefined) {
         const rows = await executeQuery<RowDataPacket[]>(
             'SELECT MAX(order_index) as max_order FROM test_template_questions WHERE template_id = ?',
             [templateId]
         );
         order = (rows[0]?.max_order || 0) + 1;
+    } else {
+        order = orderIndex;
     }
 
     await executeQuery(

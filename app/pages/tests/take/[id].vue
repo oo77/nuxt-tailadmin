@@ -87,6 +87,28 @@
 
     <!-- Прохождение теста -->
     <div v-else class="flex flex-col min-h-screen">
+      <!-- Баннер preview-режима -->
+      <div v-if="isPreviewMode" class="bg-warning/10 border-b-2 border-warning">
+        <div class="max-w-5xl mx-auto px-4 py-3">
+          <div class="flex items-center gap-3">
+            <svg class="w-6 h-6 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <div class="flex-1">
+              <p class="font-semibold text-warning">Режим предпросмотра</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Вы просматриваете тест в режиме преподавателя. Результаты не будут сохранены.</p>
+            </div>
+            <button
+              @click="navigateTo('/test-bank/templates')"
+              class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-colors text-sm font-medium"
+            >
+              Закрыть предпросмотр
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Верхняя панель -->
       <header class="bg-white dark:bg-boxdark shadow-sm sticky top-0 z-50">
         <div class="max-w-5xl mx-auto px-4 py-3">
@@ -167,19 +189,40 @@
                   :class="[
                     'flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200',
                     currentAnswerData?.selectedOption === option.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-meta-4'
+                      ? isPreviewMode && option.correct
+                        ? 'border-success bg-success/5'
+                        : isPreviewMode && !option.correct
+                          ? 'border-danger bg-danger/5'
+                          : 'border-primary bg-primary/5'
+                      : isPreviewMode && option.correct
+                        ? 'border-success/30 bg-success/5'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-meta-4'
                   ]"
                 >
                   <div :class="[
                     'flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
                     currentAnswerData?.selectedOption === option.id
-                      ? 'border-primary bg-primary'
-                      : 'border-gray-300 dark:border-gray-600'
+                      ? isPreviewMode && option.correct
+                        ? 'border-success bg-success'
+                        : isPreviewMode && !option.correct
+                          ? 'border-danger bg-danger'
+                          : 'border-primary bg-primary'
+                      : isPreviewMode && option.correct
+                        ? 'border-success bg-success/20'
+                        : 'border-gray-300 dark:border-gray-600'
                   ]">
                     <div v-if="currentAnswerData?.selectedOption === option.id" class="w-2 h-2 rounded-full bg-white"></div>
+                    <svg v-if="isPreviewMode && option.correct && currentAnswerData?.selectedOption !== option.id" class="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <span class="flex-1 text-gray-900 dark:text-white">{{ option.text }}</span>
+                  <div class="flex-1">
+                    <span :class="[
+                      'block',
+                      isPreviewMode && option.correct ? 'text-success font-medium' : 'text-gray-900 dark:text-white'
+                    ]">{{ option.text }}</span>
+                    <span v-if="isPreviewMode && option.correct" class="text-xs text-success mt-1 block">✓ Правильный ответ</span>
+                  </div>
                   <input
                     type="radio"
                     :name="`question-${currentQuestion.id}`"
@@ -189,6 +232,19 @@
                     @change="autoSaveAnswer"
                   />
                 </label>
+              </div>
+
+              <!-- Объяснение для preview -->
+              <div v-if="isPreviewMode && currentQuestion?.explanation && currentAnswerData?.selectedOption" class="mt-4 p-4 bg-info/10 border border-info/20 rounded-lg">
+                <div class="flex items-start gap-2">
+                  <svg class="w-5 h-5 text-info flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p class="font-medium text-info text-sm">Объяснение:</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ currentQuestion.explanation }}</p>
+                  </div>
+                </div>
               </div>
 
               <!-- TODO: Другие типы вопросов (multiple, text, order, match) -->
@@ -244,14 +300,14 @@
             </UiButton>
             <UiButton
               v-else
-              variant="success"
+              :variant="isPreviewMode ? 'warning' : 'success'"
               @click="confirmFinish"
               :loading="finishing"
             >
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Завершить тест
+              {{ isPreviewMode ? 'Закрыть предпросмотр' : 'Завершить тест' }}
             </UiButton>
           </div>
         </div>
@@ -334,6 +390,9 @@ const { authFetch } = useAuthFetch();
 // ID сессии из URL
 const sessionId = computed(() => route.params.id);
 
+// Preview режим
+const isPreviewMode = computed(() => route.query.preview === 'true');
+
 // Состояние
 const loading = ref(true);
 const error = ref(null);
@@ -414,7 +473,7 @@ const loadSession = async () => {
   error.value = null;
 
   try {
-    const response = await authFetch(`/api/tests/sessions/${sessionId.value}?include_questions=true&include_answers=true`);
+    const response = await authFetch(`/api/tests/sessions/${sessionId.value}?include_questions=true&include_answers=true${isPreviewMode.value ? '&include_correct_answers=true' : ''}`);
 
     if (!response.success) {
       error.value = response.message || 'Сессия не найдена';
@@ -440,7 +499,10 @@ const loadSession = async () => {
     if (!isCompleted.value) {
       await loadTemplateInfo();
       initTimer();
-      initProctoring();
+      // Отключаем антипрокторинг в preview-режиме
+      if (!isPreviewMode.value) {
+        initProctoring();
+      }
     }
   } catch (err) {
     console.error('Ошибка загрузки сессии:', err);

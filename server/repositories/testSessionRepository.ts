@@ -31,6 +31,7 @@ interface TestSessionRow extends RowDataPacket {
     student_id: string;
     attempt_number: number;
     status: TestSessionStatus;
+    is_preview: boolean;
     questions_order: string | null;
     current_question_index: number;
     started_at: Date;
@@ -88,6 +89,7 @@ function mapRowToTestSession(row: TestSessionRow): TestSession {
         student_id: row.student_id,
         attempt_number: row.attempt_number,
         status: row.status,
+        is_preview: Boolean(row.is_preview),
         questions_order: parseJsonSafe<SessionQuestionOrder[] | null>(row.questions_order, null),
         current_question_index: row.current_question_index,
         started_at: row.started_at,
@@ -294,16 +296,17 @@ export async function createTestSession(
 
     await executeQuery(
         `INSERT INTO test_sessions (
-      id, assignment_id, student_id, attempt_number, status,
+      id, assignment_id, student_id, attempt_number, status, is_preview,
       questions_order, current_question_index, started_at,
       ip_address, user_agent, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
             data.assignment_id,
             data.student_id,
             attemptNumber,
             'in_progress',
+            data.is_preview || false,
             JSON.stringify(questionsOrder),
             0,
             now,

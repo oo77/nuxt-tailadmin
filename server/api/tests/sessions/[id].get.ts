@@ -33,18 +33,22 @@ export default defineEventHandler(async (event) => {
             const questionIds = session.questions_order.map(q => q.questionId);
             const questionsList = await getQuestionsByIds(questionIds);
 
+            // Проверяем, нужно ли включать правильные ответы (только для preview)
+            const includeCorrectAnswers = query.include_correct_answers === 'true' && session.is_preview;
+
             // Маппим вопросы с перемешанными вариантами
             questions = session.questions_order.map(qo => {
                 const question = questionsList.find(q => q.id === qo.questionId);
                 if (!question) return null;
 
-                // Не отправляем правильные ответы клиенту во время теста
+                // Для preview-режима отправляем правильные ответы
                 const cleanOptions = { ...question.options } as any;
                 if (cleanOptions.options) {
                     cleanOptions.options = cleanOptions.options.map((o: any) => ({
                         id: o.id,
                         text: o.text,
-                        // correct не отправляем!
+                        // Включаем correct только для preview
+                        ...(includeCorrectAnswers ? { correct: o.correct } : {}),
                     }));
 
                     // Применяем перемешанный порядок
@@ -63,6 +67,8 @@ export default defineEventHandler(async (event) => {
                     options: cleanOptions,
                     points: question.points,
                     difficulty: question.difficulty,
+                    // Добавляем explanation для preview
+                    ...(includeCorrectAnswers && question.explanation ? { explanation: question.explanation } : {}),
                 };
             }).filter(Boolean);
         }
@@ -83,6 +89,7 @@ export default defineEventHandler(async (event) => {
             session: {
                 id: session.id,
                 status: session.status,
+                is_preview: session.is_preview,
                 current_question_index: session.current_question_index,
                 started_at: session.started_at,
                 completed_at: session.completed_at,

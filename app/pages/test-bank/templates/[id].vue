@@ -522,17 +522,39 @@ const loadQuestions = async () => {
 };
 
 // Предпросмотр теста
-const previewTest = () => {
-  // TODO: Открыть предпросмотр теста
-  notification.value = {
-    show: true,
-    type: 'info',
-    title: 'В разработке',
-    message: 'Функция предпросмотра теста будет доступна позже',
-  };
-  setTimeout(() => {
-    notification.value.show = false;
-  }, 3000);
+const previewTest = async () => {
+  try {
+    // Создаём preview-сессию
+    const response = await authFetch(`/api/test-bank/templates/${route.params.id}/preview`, {
+      method: 'POST',
+    });
+
+    if (response.success && response.session_id) {
+      // Переходим на страницу прохождения теста с флагом preview
+      navigateTo(`/tests/take/${response.session_id}?preview=true`);
+    } else {
+      notification.value = {
+        show: true,
+        type: 'error',
+        title: 'Ошибка',
+        message: response.message || 'Не удалось создать preview-сессию',
+      };
+      setTimeout(() => {
+        notification.value.show = false;
+      }, 3000);
+    }
+  } catch (error) {
+    console.error('Ошибка создания preview-сессии:', error);
+    notification.value = {
+      show: true,
+      type: 'error',
+      title: 'Ошибка',
+      message: 'Произошла ошибка при создании preview-сессии',
+    };
+    setTimeout(() => {
+      notification.value.show = false;
+    }, 3000);
+  }
 };
 
 // Инициализация

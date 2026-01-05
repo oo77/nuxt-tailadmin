@@ -19,6 +19,7 @@ import * as unifyCertificates from './migrations/20251229_025_unify_certificates
 import * as userEntityLinks from './migrations/20251230_026_user_entity_links';
 import * as activityLogEnumExpansion from './migrations/20260103_027_activity_log_view_action';
 import * as testingSystem from './migrations/20260104_028_testing_system';
+import * as testPreviewMode from './migrations/20260105_029_test_preview_mode';
 
 /**
  * ============================================================================
@@ -144,6 +145,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: testingSystem.up,
     down: testingSystem.down,
     description: testingSystem.description,
+  },
+  // ============================================================
+  // Миграция 029: Режим предпросмотра тестов
+  // ============================================================
+  {
+    name: '20260105_029_test_preview_mode',
+    up: testPreviewMode.up,
+    down: testPreviewMode.down,
+    description: testPreviewMode.name,
   },
   // ============================================================
   // Новые миграции добавлять ниже

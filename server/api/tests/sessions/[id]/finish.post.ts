@@ -68,32 +68,35 @@ export default defineEventHandler(async (event) => {
             time_spent_seconds: results.time_spent_seconds,
         });
 
-        // Записываем оценку в журнал (grades)
-        try {
-            const assignment = await getTestAssignmentById(session.assignment_id);
-            if (assignment) {
-                const gradeId = uuidv4();
-                const now = new Date();
+        // Записываем оценку в журнал (grades) только для обычных сессий
+        // Preview-сессии не должны влиять на оценки студентов
+        if (!session.is_preview) {
+            try {
+                const assignment = await getTestAssignmentById(session.assignment_id);
+                if (assignment) {
+                    const gradeId = uuidv4();
+                    const now = new Date();
 
-                await executeQuery(
-                    `INSERT INTO grades (id, student_id, schedule_event_id, grade, created_at, updated_at)
+                    await executeQuery(
+                        `INSERT INTO grades (id, student_id, schedule_event_id, grade, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE grade = ?, updated_at = ?`,
-                    [
-                        gradeId,
-                        session.student_id,
-                        assignment.schedule_event_id,
-                        results.grade,
-                        now,
-                        now,
-                        results.grade,
-                        now,
-                    ]
-                );
+                        [
+                            gradeId,
+                            session.student_id,
+                            assignment.schedule_event_id,
+                            results.grade,
+                            now,
+                            now,
+                            results.grade,
+                            now,
+                        ]
+                    );
+                }
+            } catch (gradeError) {
+                console.error('Ошибка записи оценки в журнал:', gradeError);
+                // Не прерываем выполнение, тест всё равно завершён
             }
-        } catch (gradeError) {
-            console.error('Ошибка записи оценки в журнал:', gradeError);
-            // Не прерываем выполнение, тест всё равно завершён
         }
 
         return {
