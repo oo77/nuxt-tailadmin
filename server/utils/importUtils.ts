@@ -26,13 +26,69 @@ import {
 const importJobs = new Map<string, ImportProgress>();
 
 /**
+ * Маппинг альтернативных названий заголовков на стандартные
+ */
+const HEADER_MAPPINGS: Record<string, string> = {
+  // ПИНФЛ
+  'пинфл': 'ПИНФЛ',
+  'pinfl': 'ПИНФЛ',
+  'пінфл': 'ПИНФЛ',
+  'инн': 'ПИНФЛ',
+  'идентификатор': 'ПИНФЛ',
+  // ФИО
+  'фио': 'ФИО',
+  'ф.и.о': 'ФИО',
+  'ф.и.о.': 'ФИО',
+  'полное имя': 'ФИО',
+  'имя': 'ФИО',
+  'name': 'ФИО',
+  'fullname': 'ФИО',
+  'full_name': 'ФИО',
+  // Организация  
+  'организация': 'Организация',
+  'organization': 'Организация',
+  'компания': 'Организация',
+  'предприятие': 'Организация',
+  'место работы': 'Организация',
+  // Служба/Отдел
+  'служба/отдел': 'Служба/Отдел',
+  'служба': 'Служба/Отдел',
+  'отдел': 'Служба/Отдел',
+  'подразделение': 'Служба/Отдел',
+  'department': 'Служба/Отдел',
+  // Должность
+  'должность': 'Должность',
+  'position': 'Должность',
+  'позиция': 'Должность',
+  'title': 'Должность',
+};
+
+/**
+ * Нормализация заголовка: приводит к стандартному виду
+ */
+function normalizeHeader(header: string): string {
+  if (!header) return '';
+
+  const trimmed = String(header).trim();
+  const lowercased = trimmed.toLowerCase();
+
+  // Ищем в маппинге
+  if (HEADER_MAPPINGS[lowercased]) {
+    return HEADER_MAPPINGS[lowercased];
+  }
+
+  // Возвращаем оригинал (с trim)
+  return trimmed;
+}
+
+/**
  * Парсинг Excel файла
  */
 export function parseExcelFile(buffer: Buffer): ExcelStudentRow[] {
   const workbook = XLSX.read(buffer, { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[sheetName];
-  
+
   // Преобразуем в JSON с заголовками
   const data = XLSX.utils.sheet_to_json(worksheet, {
     header: 1,
@@ -45,7 +101,12 @@ export function parseExcelFile(buffer: Buffer): ExcelStudentRow[] {
   }
 
   // Преобразуем массив массивов в объекты
-  const headers = data[0] as unknown as string[];
+  const rawHeaders = data[0] as unknown as string[];
+  // Нормализуем заголовки
+  const headers = rawHeaders.map(h => normalizeHeader(String(h || '')));
+
+  console.log('[ImportUtils] Нормализованные заголовки:', headers);
+
   const rows: ExcelStudentRow[] = [];
 
   for (let i = 1; i < data.length; i++) {
@@ -56,7 +117,12 @@ export function parseExcelFile(buffer: Buffer): ExcelStudentRow[] {
 
     const rowObj: any = {};
     headers.forEach((header, index) => {
-      rowObj[header] = row[index] || '';
+      // Используем нормализованный заголовок
+      if (header) {
+        rowObj[header] = row[index] !== undefined && row[index] !== null
+          ? String(row[index]).trim()
+          : '';
+      }
     });
     rows.push(rowObj as ExcelStudentRow);
   }
@@ -77,7 +143,7 @@ function validatePinfl(pinfl: string): boolean {
  */
 function validateRow(row: ExcelStudentRow, rowNumber: number): ValidationResult {
   const errors: string[] = [];
-  
+
   // Проверка ПИНФЛ
   if (!row.ПИНФЛ || !row.ПИНФЛ.trim()) {
     errors.push('ПИНФЛ не указан');
@@ -186,7 +252,7 @@ export async function analyzeImportData(rows: ExcelStudentRow[]): Promise<Import
  */
 export function createImportJob(totalRows: number): string {
   const jobId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const job: ImportProgress = {
     jobId,
     status: 'pending' as ImportStatus,
@@ -297,7 +363,7 @@ export async function executeImport(
  */
 export function cleanupOldJobs(): void {
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  
+
   for (const [jobId, job] of importJobs.entries()) {
     if (job.startedAt.getTime() < oneHourAgo) {
       importJobs.delete(jobId);
