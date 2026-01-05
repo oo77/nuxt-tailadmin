@@ -27,8 +27,9 @@ import type {
 
 interface TestSessionRow extends RowDataPacket {
     id: string;
-    assignment_id: string;
-    student_id: string;
+    assignment_id: string | null;
+    student_id: string | null;
+    preview_user_id: string | null;
     attempt_number: number;
     status: TestSessionStatus;
     is_preview: boolean;
@@ -87,6 +88,7 @@ function mapRowToTestSession(row: TestSessionRow): TestSession {
         id: row.id,
         assignment_id: row.assignment_id,
         student_id: row.student_id,
+        preview_user_id: row.preview_user_id || null,
         attempt_number: row.attempt_number,
         status: row.status,
         is_preview: Boolean(row.is_preview),
@@ -290,23 +292,27 @@ export async function createTestSession(
     const id = uuidv4();
     const now = new Date();
 
-    // Получаем номер попытки
-    const attemptCount = await getStudentAttemptCount(data.assignment_id, data.student_id);
-    const attemptNumber = attemptCount + 1;
+    // Для preview-сессий не считаем попытки
+    let attemptNumber = 1;
+    if (!data.is_preview && data.assignment_id && data.student_id) {
+        const attemptCount = await getStudentAttemptCount(data.assignment_id, data.student_id);
+        attemptNumber = attemptCount + 1;
+    }
 
     await executeQuery(
         `INSERT INTO test_sessions (
-      id, assignment_id, student_id, attempt_number, status, is_preview,
+      id, assignment_id, student_id, attempt_number, status, is_preview, preview_user_id,
       questions_order, current_question_index, started_at,
       ip_address, user_agent, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             id,
-            data.assignment_id,
-            data.student_id,
+            data.assignment_id || null,
+            data.student_id || null,
             attemptNumber,
             'in_progress',
             data.is_preview || false,
+            data.preview_user_id || null,
             JSON.stringify(questionsOrder),
             0,
             now,

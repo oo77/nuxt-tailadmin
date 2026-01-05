@@ -20,6 +20,8 @@ import * as userEntityLinks from './migrations/20251230_026_user_entity_links';
 import * as activityLogEnumExpansion from './migrations/20260103_027_activity_log_view_action';
 import * as testingSystem from './migrations/20260104_028_testing_system';
 import * as testPreviewMode from './migrations/20260105_029_test_preview_mode';
+import * as previewSessionsNullableAssignment from './migrations/20260105_030_preview_sessions_nullable_assignment';
+import * as previewSessionsNullableStudent from './migrations/20260105_031_preview_sessions_nullable_student';
 
 /**
  * ============================================================================
@@ -154,6 +156,24 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: testPreviewMode.up,
     down: testPreviewMode.down,
     description: testPreviewMode.name,
+  },
+  // ============================================================
+  // Миграция 030: Nullable assignment_id для preview-сессий
+  // ============================================================
+  {
+    name: '20260105_030_preview_sessions_nullable_assignment',
+    up: previewSessionsNullableAssignment.up,
+    down: previewSessionsNullableAssignment.down,
+    description: previewSessionsNullableAssignment.name,
+  },
+  // ============================================================
+  // Миграция 031: Nullable student_id для preview-сессий
+  // ============================================================
+  {
+    name: '20260105_031_preview_sessions_nullable_student',
+    up: previewSessionsNullableStudent.up,
+    down: previewSessionsNullableStudent.down,
+    description: previewSessionsNullableStudent.name,
   },
   // ============================================================
   // Новые миграции добавлять ниже

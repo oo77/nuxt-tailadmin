@@ -2,21 +2,21 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  
-  // Настройка dev-сервера для доступа извне
+
+  // Настройка dev-сервера для доступа извне (включая ngrok)
   devServer: {
-    host: 'localhost', // Слушает все сетевые интерфейсы
+    host: '0.0.0.0', // Слушает все сетевые интерфейсы (необходимо для ngrok)
     port: 3000,      // Порт можно изменить при необходимости
   },
-  
+
   css: ['~/assets/css/main.css'],
-  
+
   postcss: {
     plugins: {
       '@tailwindcss/postcss': {},
     }
   },
-  
+
   app: {
     head: {
       title: 'АТЦ - Учебный центр',
@@ -31,11 +31,11 @@ export default defineNuxtConfig({
       ]
     }
   },
-  
+
   typescript: {
     strict: true
   },
-  
+
   components: [
     {
       path: '~/components',
@@ -45,7 +45,7 @@ export default defineNuxtConfig({
       pathPrefix: false, // Иконки доступны без префикса (EyeIcon вместо IconsEyeIcon)
     },
   ],
-  
+
   nitro: {
     esbuild: {
       options: {

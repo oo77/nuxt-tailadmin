@@ -269,8 +269,9 @@ export interface TestAssignment {
 
 export interface TestSession {
     id: string;
-    assignment_id: string;
-    student_id: string;
+    assignment_id: string | null;
+    student_id: string | null;
+    preview_user_id: string | null;
     attempt_number: number;
     status: TestSessionStatus;
     is_preview: boolean;
@@ -447,8 +448,9 @@ export interface CreateTestAssignmentDTO {
 }
 
 export interface StartTestSessionDTO {
-    assignment_id: string;
-    student_id: string;
+    assignment_id: string | null;
+    student_id: string | null;
+    preview_user_id?: string | null;
     ip_address?: string;
     user_agent?: string;
     is_preview?: boolean;

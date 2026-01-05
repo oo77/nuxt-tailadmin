@@ -84,15 +84,12 @@ export default defineEventHandler(async (event) => {
                 : undefined,
         }));
 
-        // Создаём временное назначение для preview
-        // Используем специальный ID для preview-сессий
-        const tempAssignmentId = `preview-${uuidv4()}`;
-
-        // Создаём preview-сессию
+        // Создаём preview-сессию (без привязки к assignment и student)
         const session = await createTestSession(
             {
-                assignment_id: tempAssignmentId,
-                student_id: user.id,
+                assignment_id: null, // Preview-сессии не привязаны к assignment
+                student_id: null, // Preview запускает преподаватель/админ, не студент
+                preview_user_id: user.id, // ID пользователя, запустившего preview
                 is_preview: true,
                 ip_address: event.node.req.socket.remoteAddress,
                 user_agent: event.node.req.headers['user-agent'],
@@ -103,7 +100,14 @@ export default defineEventHandler(async (event) => {
         return {
             success: true,
             session_id: session.id,
-            template_name: template.name,
+            template: {
+                id: template.id,
+                name: template.name,
+                time_limit_minutes: template.time_limit_minutes,
+                passing_score: template.passing_score,
+                allow_back: template.allow_back,
+                proctoring_enabled: false, // Отключаем прокторинг для preview
+            },
             questions_count: questionsOrder.length,
         };
     } catch (error: any) {

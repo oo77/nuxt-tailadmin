@@ -27,6 +27,17 @@
     <!-- Тест завершён -->
     <div v-else-if="isCompleted" class="flex items-center justify-center min-h-screen p-4">
       <div class="bg-white dark:bg-boxdark rounded-2xl shadow-xl p-8 max-w-lg w-full">
+        <!-- Метка preview-режима -->
+        <div v-if="isPreviewMode" class="text-center mb-4">
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Результат предпросмотра
+          </span>
+        </div>
+
         <div class="text-center mb-8">
           <div :class="[
             'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4',
@@ -40,10 +51,15 @@
             </svg>
           </div>
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            {{ session?.passed ? 'Тест пройден!' : 'Тест не сдан' }}
+            {{ session?.passed ? (isPreviewMode ? 'Тест будет пройден!' : 'Тест пройден!') : (isPreviewMode ? 'Тест не будет сдан' : 'Тест не сдан') }}
           </h2>
           <p class="text-gray-600 dark:text-gray-400">
-            {{ session?.passed ? 'Поздравляем с успешным прохождением теста!' : 'К сожалению, вы не набрали проходной балл.' }}
+            <template v-if="isPreviewMode">
+              {{ session?.passed ? 'Студент с такими ответами успешно сдаст тест.' : 'Студент с такими ответами не наберёт проходной балл.' }}
+            </template>
+            <template v-else>
+              {{ session?.passed ? 'Поздравляем с успешным прохождением теста!' : 'К сожалению, вы не набрали проходной балл.' }}
+            </template>
           </p>
         </div>
 
@@ -57,7 +73,7 @@
               {{ session?.score_percent !== null ? Math.round(session.score_percent) : 0 }}%
             </div>
             <div class="text-sm text-gray-500 dark:text-gray-400">
-              Ваш результат
+              {{ isPreviewMode ? 'Результат' : 'Ваш результат' }}
             </div>
           </div>
 
@@ -78,7 +94,17 @@
         </div>
 
         <div class="flex gap-3">
-          <UiButton variant="outline" class="flex-1" @click="navigateTo('/tests/my')">
+          <UiButton 
+            v-if="isPreviewMode"
+            class="flex-1" 
+            @click="navigateTo('/test-bank/templates')"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+            </svg>
+            Вернуться к шаблонам
+          </UiButton>
+          <UiButton v-else variant="outline" class="flex-1" @click="navigateTo('/tests/my')">
             К списку тестов
           </UiButton>
         </div>
@@ -88,23 +114,17 @@
     <!-- Прохождение теста -->
     <div v-else class="flex flex-col min-h-screen">
       <!-- Баннер preview-режима -->
-      <div v-if="isPreviewMode" class="bg-warning/10 border-b-2 border-warning">
-        <div class="max-w-5xl mx-auto px-4 py-3">
+      <div v-if="isPreviewMode" class="bg-primary/10 border-b-2 border-primary">
+        <div class="max-w-5xl mx-auto px-4 py-2">
           <div class="flex items-center gap-3">
-            <svg class="w-6 h-6 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            <div class="flex-1">
-              <p class="font-semibold text-warning">Режим предпросмотра</p>
-              <p class="text-sm text-gray-600 dark:text-gray-400">Вы просматриваете тест в режиме преподавателя. Результаты не будут сохранены.</p>
-            </div>
-            <button
-              @click="navigateTo('/test-bank/templates')"
-              class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-colors text-sm font-medium"
-            >
-              Закрыть предпросмотр
-            </button>
+            <p class="text-sm text-gray-700 dark:text-gray-300">
+              <span class="font-medium text-primary">Режим предпросмотра.</span>
+              Пройдите тест как студент, чтобы проверить его работу. Результаты не сохраняются.
+            </p>
           </div>
         </div>
       </div>
@@ -189,39 +209,20 @@
                   :class="[
                     'flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200',
                     currentAnswerData?.selectedOption === option.id
-                      ? isPreviewMode && option.correct
-                        ? 'border-success bg-success/5'
-                        : isPreviewMode && !option.correct
-                          ? 'border-danger bg-danger/5'
-                          : 'border-primary bg-primary/5'
-                      : isPreviewMode && option.correct
-                        ? 'border-success/30 bg-success/5'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-meta-4'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-meta-4'
                   ]"
                 >
                   <div :class="[
                     'flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
                     currentAnswerData?.selectedOption === option.id
-                      ? isPreviewMode && option.correct
-                        ? 'border-success bg-success'
-                        : isPreviewMode && !option.correct
-                          ? 'border-danger bg-danger'
-                          : 'border-primary bg-primary'
-                      : isPreviewMode && option.correct
-                        ? 'border-success bg-success/20'
-                        : 'border-gray-300 dark:border-gray-600'
+                      ? 'border-primary bg-primary'
+                      : 'border-gray-300 dark:border-gray-600'
                   ]">
                     <div v-if="currentAnswerData?.selectedOption === option.id" class="w-2 h-2 rounded-full bg-white"></div>
-                    <svg v-if="isPreviewMode && option.correct && currentAnswerData?.selectedOption !== option.id" class="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
                   </div>
                   <div class="flex-1">
-                    <span :class="[
-                      'block',
-                      isPreviewMode && option.correct ? 'text-success font-medium' : 'text-gray-900 dark:text-white'
-                    ]">{{ option.text }}</span>
-                    <span v-if="isPreviewMode && option.correct" class="text-xs text-success mt-1 block">✓ Правильный ответ</span>
+                    <span class="block text-gray-900 dark:text-white">{{ option.text }}</span>
                   </div>
                   <input
                     type="radio"
@@ -234,18 +235,7 @@
                 </label>
               </div>
 
-              <!-- Объяснение для preview -->
-              <div v-if="isPreviewMode && currentQuestion?.explanation && currentAnswerData?.selectedOption" class="mt-4 p-4 bg-info/10 border border-info/20 rounded-lg">
-                <div class="flex items-start gap-2">
-                  <svg class="w-5 h-5 text-info flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <p class="font-medium text-info text-sm">Объяснение:</p>
-                    <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ currentQuestion.explanation }}</p>
-                  </div>
-                </div>
-              </div>
+              <!-- Объяснение показывается только после завершения теста -->
 
               <!-- TODO: Другие типы вопросов (multiple, text, order, match) -->
             </div>
@@ -300,14 +290,14 @@
             </UiButton>
             <UiButton
               v-else
-              :variant="isPreviewMode ? 'warning' : 'success'"
+              variant="success"
               @click="confirmFinish"
               :loading="finishing"
             >
               <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {{ isPreviewMode ? 'Закрыть предпросмотр' : 'Завершить тест' }}
+              {{ isPreviewMode ? 'Отправить ответы' : 'Завершить тест' }}
             </UiButton>
           </div>
         </div>
@@ -356,14 +346,14 @@
     <!-- Модальное окно подтверждения завершения -->
     <UiConfirmModal
       :is-open="showFinishModal"
-      title="Завершить тест?"
+      :title="isPreviewMode ? 'Отправить ответы?' : 'Завершить тест?'"
       :message="getFinishMessage()"
-      confirm-text="Завершить"
-      cancel-text="Отмена"
-      :variant="unansweredCount > 0 ? 'warning' : 'primary'"
+      :confirm-text="isPreviewMode ? 'Отправить' : 'Завершить'"
+      :cancel-text="unansweredCount > 0 ? 'Вернуться к вопросам' : 'Отмена'"
+      :variant="unansweredCount > 0 ? 'warning' : 'success'"
       :loading="finishing"
       @confirm="finishTest"
-      @cancel="showFinishModal = false"
+      @cancel="handleCancelFinish"
     />
 
     <!-- Уведомления -->
@@ -473,7 +463,7 @@ const loadSession = async () => {
   error.value = null;
 
   try {
-    const response = await authFetch(`/api/tests/sessions/${sessionId.value}?include_questions=true&include_answers=true${isPreviewMode.value ? '&include_correct_answers=true' : ''}`);
+    const response = await authFetch(`/api/tests/sessions/${sessionId.value}?include_questions=true&include_answers=true`);
 
     if (!response.success) {
       error.value = response.message || 'Сессия не найдена';
@@ -514,9 +504,29 @@ const loadSession = async () => {
 
 const loadTemplateInfo = async () => {
   try {
-    // Получаем информацию из сессии start если есть
-    // Или делаем дополнительный запрос
-    // Пока используем заглушку
+    // Для preview-режима пробуем получить информацию из localStorage
+    if (isPreviewMode.value) {
+      const savedTemplate = localStorage.getItem(`preview_template_${sessionId.value}`);
+      if (savedTemplate) {
+        const parsed = JSON.parse(savedTemplate);
+        templateInfo.value = {
+          name: parsed.name || 'Тест',
+          allow_back: parsed.allow_back !== false,
+          time_limit_minutes: parsed.time_limit_minutes || null,
+          proctoring_enabled: false, // Отключено для preview
+          proctoring_settings: null,
+        };
+        // Устанавливаем лимит времени
+        if (parsed.time_limit_minutes) {
+          timeLimit.value = parsed.time_limit_minutes;
+        }
+        // Очищаем localStorage после использования
+        localStorage.removeItem(`preview_template_${sessionId.value}`);
+        return;
+      }
+    }
+
+    // Для обычного теста используем данные из сессии
     templateInfo.value = {
       name: session.value?.template_name || 'Тест',
       allow_back: true,
@@ -524,9 +534,6 @@ const loadTemplateInfo = async () => {
       proctoring_enabled: false,
       proctoring_settings: null,
     };
-
-    // Проверяем, нужно ли получить время из API
-    // Если сессия только что создана, информация должна быть в localStorage или повторном запросе
   } catch (err) {
     console.error('Ошибка загрузки информации о шаблоне:', err);
   }
@@ -702,11 +709,38 @@ const confirmFinish = () => {
   showFinishModal.value = true;
 };
 
-const getFinishMessage = () => {
+// Обработка отмены завершения
+const handleCancelFinish = () => {
+  showFinishModal.value = false;
+  
+  // Если есть пропущенные вопросы, переходим к первому из них
   if (unansweredCount.value > 0) {
-    return `У вас есть ${unansweredCount.value} ${pluralize(unansweredCount.value, 'неотвеченный вопрос', 'неотвеченных вопроса', 'неотвеченных вопросов')}. Вы уверены, что хотите завершить тест?`;
+    const firstUnansweredIndex = questions.value.findIndex((q, idx) => !isQuestionAnswered(idx));
+    if (firstUnansweredIndex !== -1) {
+      goToQuestion(firstUnansweredIndex);
+    }
   }
-  return 'Вы отвечили на все вопросы. Завершить тест и посмотреть результаты?';
+};
+
+const getFinishMessage = () => {
+  const prefix = isPreviewMode.value ? '' : '';
+  
+  if (unansweredCount.value > 0) {
+    let message = `У вас есть ${unansweredCount.value} ${pluralize(unansweredCount.value, 'неотвеченный вопрос', 'неотвеченных вопроса', 'неотвеченных вопросов')}.`;
+    
+    // Добавляем информацию о времени если есть
+    if (remainingTime.value > 60) {
+      message += ` У вас ещё есть ${formatTimer(remainingTime.value)} времени, чтобы подумать.`;
+    }
+    
+    message += ' Вы уверены, что хотите отправить ответы?';
+    return message;
+  }
+  
+  if (isPreviewMode.value) {
+    return 'Вы ответили на все вопросы. Отправить ответы и посмотреть результаты?';
+  }
+  return 'Вы ответили на все вопросы. Завершить тест и посмотреть результаты?';
 };
 
 const finishTest = async () => {

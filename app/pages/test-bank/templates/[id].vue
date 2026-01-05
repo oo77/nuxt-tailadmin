@@ -530,6 +530,10 @@ const previewTest = async () => {
     });
 
     if (response.success && response.session_id) {
+      // Сохраняем информацию о шаблоне в localStorage для использования на странице теста
+      if (response.template) {
+        localStorage.setItem(`preview_template_${response.session_id}`, JSON.stringify(response.template));
+      }
       // Переходим на страницу прохождения теста с флагом preview
       navigateTo(`/tests/take/${response.session_id}?preview=true`);
     } else {

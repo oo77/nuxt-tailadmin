@@ -26,3 +26,6 @@ scripts/
 
 # Storage uploads (local files)
 storage/uploads/
+
+# Ngrok configuration (contains authtoken)
+ngrok.yml

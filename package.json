@@ -13,7 +13,10 @@
     "db:rollback:all": "tsx server/database/migrate.ts rollback:all",
     "db:status": "tsx server/database/migrate.ts status",
     "db:seed": "tsx server/database/seed.ts",
-    "db:reset": "tsx server/database/reset.ts"
+    "db:seed:tests": "tsx server/database/seed-tests.ts",
+    "db:reset": "tsx server/database/reset.ts",
+    "ngrok": "ngrok http 3000",
+    "ngrok:config": "ngrok start nuxt-dev"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
