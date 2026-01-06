@@ -24,6 +24,7 @@ import * as previewSessionsNullableAssignment from './migrations/20260105_030_pr
 import * as previewSessionsNullableStudent from './migrations/20260105_031_preview_sessions_nullable_student';
 import * as multilangQuestions from './migrations/20260105_032_multilang_questions';
 import * as gradesFromTest from './migrations/20260106_033_grades_from_test';
+import * as certificateStandalone from './migrations/20260106_034_certificate_standalone';
 
 /**
  * ============================================================================
@@ -194,6 +195,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: gradesFromTest.up,
     down: gradesFromTest.down,
     description: gradesFromTest.description,
+  },
+  // ============================================================
+  // Миграция 034: Поддержка standalone сертификатов (импорт, ручное добавление)
+  // ============================================================
+  {
+    name: '20260106_034_certificate_standalone',
+    up: certificateStandalone.up,
+    down: certificateStandalone.down,
+    description: certificateStandalone.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

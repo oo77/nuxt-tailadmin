@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
         // Записываем оценку в журнал (grades) только для обычных сессий
         // Preview-сессии не должны влиять на оценки студентов
-        if (!session.is_preview) {
+        if (!session.is_preview && session.assignment_id) {
             try {
                 const assignment = await getTestAssignmentById(session.assignment_id);
                 if (assignment) {

@@ -9,7 +9,7 @@
 /**
  * Источники данных для переменных шаблона
  */
-export type VariableSource = 
+export type VariableSource =
   // Данные студента
   | 'student.fullName'
   | 'student.shortName'          // Сокращённое ФИО (Иванов И.И.)
@@ -123,10 +123,10 @@ export interface UpdateCertificateTemplateInput {
 /**
  * Макет сертификата
  */
-export type TemplateLayout = 
-  | 'A4_portrait' 
-  | 'A4_landscape' 
-  | 'letter_portrait' 
+export type TemplateLayout =
+  | 'A4_portrait'
+  | 'A4_landscape'
+  | 'letter_portrait'
   | 'letter_landscape';
 
 /**
@@ -256,11 +256,11 @@ export interface ShapeElement extends BaseElement {
 /**
  * Объединённый тип элемента
  */
-export type TemplateElement = 
-  | TextElement 
-  | VariableElement 
-  | ImageElement 
-  | QRElement 
+export type TemplateElement =
+  | TextElement
+  | VariableElement
+  | ImageElement
+  | QRElement
   | ShapeElement;
 
 /**
@@ -291,6 +291,11 @@ export interface CertificateTemplateData {
 export type IssuedCertificateStatus = 'draft' | 'issued' | 'revoked';
 
 /**
+ * Источник создания сертификата
+ */
+export type CertificateSourceType = 'group_journal' | 'manual' | 'import';
+
+/**
  * Предупреждение при выдаче
  */
 export interface IssueWarning {
@@ -304,26 +309,56 @@ export interface IssueWarning {
  */
 export interface IssuedCertificate {
   id: string;
-  groupId: string;
+  groupId: string | null;       // NULL для standalone сертификатов
   studentId: string;
-  templateId: string;
+  templateId: string | null;    // NULL для standalone сертификатов
   certificateNumber: string;
   issueDate: Date;
+
+  // Standalone данные о курсе (заполняются при source_type = 'manual' | 'import')
+  courseName: string | null;
+  courseCode: string | null;
+  courseHours: number | null;
+
+  // Standalone данные о группе (опционально)
+  groupCode: string | null;
+  groupStartDate: Date | null;
+  groupEndDate: Date | null;
+
+  // Источник создания
+  sourceType: CertificateSourceType;
+
+  // Файлы
   docxFileUrl: string | null;
   pdfFileUrl: string | null;
+
+  // Статус и данные
   status: IssuedCertificateStatus;
   variablesData: Record<string, string> | null;
   warnings: IssueWarning[] | null;
   overrideWarnings: boolean;
+
+  // Срок действия
+  expiryDate: Date | null;
+
+  // Telegram уведомления
+  isSentViaTelegram: boolean;
+  sentAt: Date | null;
+
+  // Аудит
   issuedBy: string | null;
   issuedAt: Date | null;
   revokedBy: string | null;
   revokedAt: Date | null;
   revokeReason: string | null;
   notes: string | null;
+
+  // Legacy
+  legacyId: string | null;
+
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Связанные данные (опционально)
   student?: {
     id: string;

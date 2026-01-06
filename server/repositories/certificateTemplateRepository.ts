@@ -17,6 +17,7 @@ import type {
   IssueWarning,
   StudentEligibility,
   IssuedCertificateStatus,
+  CertificateSourceType,
   TemplateLayout
 } from '../types/certificate';
 
@@ -45,23 +46,41 @@ interface TemplateRow extends RowDataPacket {
 
 interface IssuedCertificateRow extends RowDataPacket {
   id: string;
-  group_id: string;
+  group_id: string | null;
   student_id: string;
-  template_id: string;
+  template_id: string | null;
   certificate_number: string;
   issue_date: Date;
+  // Standalone поля
+  course_name: string | null;
+  course_code: string | null;
+  course_hours: number | null;
+  group_code: string | null;
+  group_start_date: Date | null;
+  group_end_date: Date | null;
+  source_type: CertificateSourceType;
+  // Файлы
   docx_file_url: string | null;
   pdf_file_url: string | null;
+  // Статус и данные
   status: IssuedCertificateStatus;
   variables_data: string | null;
   warnings: string | null;
   override_warnings: boolean;
+  // Срок действия
+  expiry_date: Date | null;
+  // Telegram
+  is_sent_via_telegram: boolean;
+  sent_at: Date | null;
+  // Аудит
   issued_by: string | null;
   issued_at: Date | null;
   revoked_by: string | null;
   revoked_at: Date | null;
   revoke_reason: string | null;
   notes: string | null;
+  // Legacy
+  legacy_id: string | null;
   created_at: Date;
   updated_at: Date;
   // Joined fields
@@ -108,18 +127,36 @@ function mapRowToIssuedCertificate(row: IssuedCertificateRow): IssuedCertificate
     templateId: row.template_id,
     certificateNumber: row.certificate_number,
     issueDate: row.issue_date,
+    // Standalone поля
+    courseName: row.course_name,
+    courseCode: row.course_code,
+    courseHours: row.course_hours,
+    groupCode: row.group_code,
+    groupStartDate: row.group_start_date,
+    groupEndDate: row.group_end_date,
+    sourceType: row.source_type || 'group_journal',
+    // Файлы
     docxFileUrl: row.docx_file_url,
     pdfFileUrl: row.pdf_file_url,
+    // Статус и данные
     status: row.status,
     variablesData: row.variables_data ? JSON.parse(row.variables_data) : null,
     warnings: row.warnings ? JSON.parse(row.warnings) : null,
     overrideWarnings: Boolean(row.override_warnings),
+    // Срок действия
+    expiryDate: row.expiry_date,
+    // Telegram
+    isSentViaTelegram: Boolean(row.is_sent_via_telegram),
+    sentAt: row.sent_at,
+    // Аудит
     issuedBy: row.issued_by,
     issuedAt: row.issued_at,
     revokedBy: row.revoked_by,
     revokedAt: row.revoked_at,
     revokeReason: row.revoke_reason,
     notes: row.notes,
+    // Legacy
+    legacyId: row.legacy_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -411,7 +448,7 @@ export async function getStudentCertificateInGroup(
 }
 
 /**
- * Создать запись о выданном сертификате
+ * Создать запись о выданном сертификате (из журнала группы)
  */
 export async function createIssuedCertificate(
   data: {
@@ -434,8 +471,8 @@ export async function createIssuedCertificate(
   await executeQuery<ResultSetHeader>(
     `INSERT INTO issued_certificates 
      (id, group_id, student_id, template_id, certificate_number, issue_date, expiry_date,
-      status, variables_data, warnings, override_warnings, issued_by, issued_at, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      source_type, status, variables_data, warnings, override_warnings, issued_by, issued_at, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'group_journal', 'issued', ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.groupId,
@@ -456,6 +493,87 @@ export async function createIssuedCertificate(
   );
 
   return (await getIssuedCertificateById(id))!;
+}
+
+/**
+ * Создать standalone сертификат (для импорта или ручного добавления)
+ */
+export async function createStandaloneCertificate(
+  data: {
+    studentId: string;
+    certificateNumber: string;
+    issueDate: Date;
+    expiryDate?: Date | null;
+    // Данные курса
+    courseName: string;
+    courseCode?: string;
+    courseHours?: number;
+    // Данные группы (опционально)
+    groupCode?: string;
+    groupStartDate?: Date;
+    groupEndDate?: Date;
+    // Источник
+    sourceType: 'manual' | 'import';
+    // Файлы
+    pdfFileUrl?: string;
+    // Прочее
+    issuedBy?: string;
+    notes?: string;
+  }
+): Promise<IssuedCertificate> {
+  const id = uuidv4();
+  const now = new Date();
+
+  await executeQuery<ResultSetHeader>(
+    `INSERT INTO issued_certificates 
+     (id, student_id, certificate_number, issue_date, expiry_date,
+      course_name, course_code, course_hours, group_code, group_start_date, group_end_date,
+      source_type, status, pdf_file_url, issued_by, issued_at, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      data.studentId,
+      data.certificateNumber,
+      data.issueDate,
+      data.expiryDate || null,
+      data.courseName,
+      data.courseCode || null,
+      data.courseHours || null,
+      data.groupCode || null,
+      data.groupStartDate || null,
+      data.groupEndDate || null,
+      data.sourceType,
+      data.pdfFileUrl || null,
+      data.issuedBy || null,
+      now,
+      data.notes || null,
+      now,
+      now,
+    ]
+  );
+
+  return (await getIssuedCertificateById(id))!;
+}
+
+/**
+ * Проверить существование сертификата по номеру
+ */
+export async function getCertificateByNumber(
+  certificateNumber: string
+): Promise<IssuedCertificate | null> {
+  const rows = await executeQuery<IssuedCertificateRow[]>(
+    `SELECT ic.*, 
+            s.full_name as student_full_name,
+            s.organization as student_organization,
+            s.position as student_position
+     FROM issued_certificates ic
+     LEFT JOIN students s ON ic.student_id = s.id
+     WHERE ic.certificate_number = ?
+     LIMIT 1`,
+    [certificateNumber]
+  );
+
+  return rows.length > 0 ? mapRowToIssuedCertificate(rows[0]) : null;
 }
 
 /**

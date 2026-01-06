@@ -111,26 +111,59 @@
       <!-- Информация о курсе -->
       <div class="border border-stroke dark:border-strokedark rounded-lg overflow-hidden">
         <div class="bg-gray-50 dark:bg-meta-4 px-4 py-3 border-b border-stroke dark:border-strokedark">
-          <h4 class="font-semibold text-black dark:text-white flex items-center gap-2">
-            <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            Курс
-          </h4>
+          <div class="flex items-center justify-between">
+            <h4 class="font-semibold text-black dark:text-white flex items-center gap-2">
+              <svg class="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Курс
+            </h4>
+            <!-- Бейдж источника -->
+            <span
+              v-if="certificate.sourceType === 'import'"
+              class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-info/20 text-info"
+            >
+              📥 Импортирован
+            </span>
+            <span
+              v-else-if="certificate.sourceType === 'manual'"
+              class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-500/20 text-purple-600 dark:text-purple-400"
+            >
+              ✍️ Добавлен вручную
+            </span>
+            <span
+              v-else
+              class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-success/20 text-success"
+            >
+              📋 Из журнала группы
+            </span>
+          </div>
         </div>
         <div class="p-4 space-y-3">
           <div class="grid grid-cols-2 gap-4">
             <div class="col-span-2">
               <p class="text-sm text-gray-500 dark:text-gray-400">Название курса</p>
-              <p class="font-medium text-black dark:text-white">{{ certificate.course.name }}</p>
+              <p class="font-medium text-black dark:text-white">{{ certificate.course?.name || 'Не указан' }}</p>
             </div>
-            <div>
+            <div v-if="certificate.course?.code">
               <p class="text-sm text-gray-500 dark:text-gray-400">Код курса</p>
               <p class="font-mono text-black dark:text-white">{{ certificate.course.code }}</p>
             </div>
-            <div>
+            <div v-if="certificate.course?.hours">
+              <p class="text-sm text-gray-500 dark:text-gray-400">Количество часов</p>
+              <p class="text-black dark:text-white">{{ certificate.course.hours }} ч.</p>
+            </div>
+            <div v-if="certificate.group?.code">
               <p class="text-sm text-gray-500 dark:text-gray-400">Группа</p>
               <p class="font-mono text-black dark:text-white">{{ certificate.group.code }}</p>
+            </div>
+            <div v-else-if="certificate.sourceType !== 'group_journal'">
+              <p class="text-sm text-gray-500 dark:text-gray-400">Группа</p>
+              <p class="text-gray-400 dark:text-gray-500 italic">Без группы</p>
+            </div>
+            <div v-if="certificate.expiryDate">
+              <p class="text-sm text-gray-500 dark:text-gray-400">Срок действия до</p>
+              <p class="text-black dark:text-white">{{ formatDate(certificate.expiryDate) }}</p>
             </div>
           </div>
         </div>
@@ -148,9 +181,13 @@
         </div>
         <div class="p-4 space-y-3">
           <div class="grid grid-cols-2 gap-4">
-            <div>
+            <div v-if="certificate.template">
               <p class="text-sm text-gray-500 dark:text-gray-400">Шаблон</p>
               <p class="text-black dark:text-white">{{ certificate.template.name }}</p>
+            </div>
+            <div v-else>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Шаблон</p>
+              <p class="text-gray-400 dark:text-gray-500 italic">Без шаблона (standalone)</p>
             </div>
             <div v-if="certificate.issuedBy">
               <p class="text-sm text-gray-500 dark:text-gray-400">Выдал</p>

@@ -14,8 +14,27 @@
         </p>
       </div>
 
-      <!-- Кнопки экспорта -->
+      <!-- Кнопки действий -->
       <div class="flex flex-wrap items-center gap-3">
+        <UiButton
+          variant="primary"
+          size="sm"
+          @click="openManualFormModal"
+        >
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Добавить вручную
+        </UiButton>
+        <NuxtLink
+          to="/database/import-certificates"
+          class="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          Импорт из Excel
+        </NuxtLink>
         <UiButton
           variant="secondary"
           size="sm"
@@ -110,7 +129,7 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <!-- Поиск -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -143,6 +162,23 @@
             <option value="all">Все статусы</option>
             <option value="issued">Выданные</option>
             <option value="revoked">Отозванные</option>
+          </select>
+        </div>
+
+        <!-- Источник -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Источник
+          </label>
+          <select
+            v-model="filters.sourceType"
+            class="w-full rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:text-white"
+            @change="handleFilterChange"
+          >
+            <option value="all">Все источники</option>
+            <option value="group_journal">📋 Журнал группы</option>
+            <option value="import">📥 Импорт</option>
+            <option value="manual">✍️ Ручной ввод</option>
           </select>
         </div>
 
@@ -285,9 +321,29 @@
               <!-- Курс / Группа -->
               <td class="px-4 py-4">
                 <div>
-                  <p class="font-medium text-black dark:text-white">{{ cert.course.name }}</p>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                  <div class="flex items-center gap-2">
+                    <p class="font-medium text-black dark:text-white">{{ cert.course.name }}</p>
+                    <!-- Бейдж источника -->
+                    <span
+                      v-if="cert.sourceType === 'import'"
+                      class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-info/20 text-info"
+                      title="Импортирован из Excel"
+                    >
+                      📥 Импорт
+                    </span>
+                    <span
+                      v-else-if="cert.sourceType === 'manual'"
+                      class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-600 dark:text-purple-400"
+                      title="Добавлен вручную"
+                    >
+                      ✍️ Ручной
+                    </span>
+                  </div>
+                  <p v-if="cert.group.code" class="text-sm text-gray-500 dark:text-gray-400">
                     Группа: {{ cert.group.code }}
+                  </p>
+                  <p v-else-if="cert.sourceType !== 'group_journal'" class="text-xs text-gray-400 italic">
+                    Без группы
                   </p>
                 </div>
               </td>
@@ -448,6 +504,13 @@
         </div>
       </div>
     </UiModal>
+
+    <!-- Модальное окно ручного добавления сертификата -->
+    <DatabaseCertificateManualFormModal
+      :is-open="isManualFormModalOpen"
+      @close="closeManualFormModal"
+      @created="handleCertificateCreated"
+    />
   </div>
 </template>
 
@@ -501,6 +564,7 @@ const stats = ref({
 const filters = ref({
   search: '',
   status: 'all',
+  sourceType: 'all',
   organizationName: '',
   dateFrom: '',
   dateTo: '',
@@ -514,6 +578,7 @@ const isDetailModalOpen = ref(false);
 const isRevokeModalOpen = ref(false);
 const revokeTarget = ref<any>(null);
 const revokeReason = ref('');
+const isManualFormModalOpen = ref(false);
 const isRevoking = ref(false);
 
 // Computed
@@ -521,6 +586,7 @@ const hasActiveFilters = computed(() => {
   return !!(
     filters.value.search ||
     filters.value.status !== 'all' ||
+    filters.value.sourceType !== 'all' ||
     filters.value.organizationName ||
     filters.value.dateFrom ||
     filters.value.dateTo
@@ -540,6 +606,7 @@ async function loadData() {
 
     if (filters.value.search) params.append('search', filters.value.search);
     if (filters.value.status !== 'all') params.append('status', filters.value.status);
+    if (filters.value.sourceType !== 'all') params.append('sourceType', filters.value.sourceType);
     if (filters.value.organizationName) params.append('organizationName', filters.value.organizationName);
     if (filters.value.dateFrom) params.append('dateFrom', filters.value.dateFrom);
     if (filters.value.dateTo) params.append('dateTo', filters.value.dateTo);
@@ -577,6 +644,7 @@ function resetFilters() {
   filters.value = {
     search: '',
     status: 'all',
+    sourceType: 'all',
     organizationName: '',
     dateFrom: '',
     dateTo: '',
@@ -660,6 +728,20 @@ async function confirmRevoke() {
 async function exportToExcel() {
   // TODO: Реализовать экспорт в Excel
   notification.info('В разработке', 'Функция экспорта будет доступна в следующей версии');
+}
+
+// Методы для модального окна ручного добавления
+function openManualFormModal() {
+  isManualFormModalOpen.value = true;
+}
+
+function closeManualFormModal() {
+  isManualFormModalOpen.value = false;
+}
+
+function handleCertificateCreated(certificate: any) {
+  notification.success('Сертификат создан', `Сертификат ${certificate.certificateNumber} успешно добавлен`);
+  loadData(); // Перезагрузить данные
 }
 
 // Lifecycle

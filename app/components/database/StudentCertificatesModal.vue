@@ -144,12 +144,12 @@
     </div>
 
     <!-- Модальное окно добавления сертификата -->
-    <DatabaseCertificateFormModal
+    <DatabaseCertificateManualFormModal
       v-if="isAddCertificateOpen && student"
-      :student-id="student.id"
+      :preselected-student="student"
       :is-open="isAddCertificateOpen"
       @close="closeAddCertificateForm"
-      @submit="handleAddCertificate"
+      @created="handleCertificateCreated"
     />
 
     <!-- Модальное окно подтверждения удаления -->
@@ -171,7 +171,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { Student, CreateCertificateData } from '~/types/student';
+import type { Student } from '~/types/student';
 
 // Используем authFetch для авторизованных запросов
 const { authFetch } = useAuthFetch();
@@ -204,41 +204,12 @@ const closeAddCertificateForm = () => {
   isAddCertificateOpen.value = false;
 };
 
-// Обработка добавления сертификата
-const handleAddCertificate = async (data: CreateCertificateData) => {
-  if (!props.student) return;
-
-  try {
-    const response = await authFetch<{ success: boolean; certificate: any; message?: string }>(
-      `/api/students/${props.student.id}/certificates`,
-      {
-        method: 'POST',
-        body: {
-          courseName: data.courseName,
-          certificateNumber: data.certificateNumber,
-          issueDate: data.issueDate,
-          fileUrl: data.fileUrl,
-          fileUuid: data.fileUuid,
-          expiryDate: data.expiryDate,
-        },
-      }
-    );
-
-    if (response.success) {
-      closeAddCertificateForm();
-      // Обновляем данные студента
-      emit('refresh');
-      notification.success('Сертификат успешно добавлен', 'Успех');
-    } else {
-      notification.error(response.message || 'Не удалось добавить сертификат', 'Ошибка');
-    }
-  } catch (error: any) {
-    console.error('Ошибка добавления сертификата:', error);
-    
-    // Извлекаем сообщение об ошибке
-    const errorMessage = error?.data?.message || error?.message || 'Произошла ошибка при добавлении сертификата';
-    notification.error(errorMessage, 'Ошибка');
-  }
+// Обработка успешного создания сертификата
+const handleCertificateCreated = () => {
+  closeAddCertificateForm();
+  // Обновляем данные студента
+  emit('refresh');
+  // Уведомление уже показано внутри модалки
 };
 
 // Открытие модалки подтверждения удаления

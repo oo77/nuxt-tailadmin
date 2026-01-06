@@ -102,9 +102,17 @@
               {{ cert.courseName }}
             </h3>
 
-            <!-- Группа -->
+            <!-- Номер сертификата -->
+            <p v-if="cert.certificateNumber" class="text-xs text-primary dark:text-primary/80 font-medium mb-1">
+              № {{ cert.certificateNumber }}
+            </p>
+
+            <!-- Группа / Часы -->
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
-              Группа: {{ cert.groupCode }}
+              <span v-if="cert.groupCode">Группа: {{ cert.groupCode }}</span>
+              <span v-if="cert.groupCode && cert.courseHours"> · </span>
+              <span v-if="cert.courseHours">{{ cert.courseHours }} ч.</span>
+              <span v-if="!cert.groupCode && !cert.courseHours">—</span>
             </p>
 
             <!-- Даты -->
@@ -135,8 +143,8 @@
 
             <!-- Кнопка скачивания -->
             <a
-              v-if="cert.status === 'issued'"
-              :href="`/api/certificates/download/${cert.id}`"
+              v-if="cert.status === 'issued' && (cert.fileUrl || cert.id)"
+              :href="cert.fileUrl || `/api/certificates/download/${cert.id}`"
               target="_blank"
               class="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
             >
@@ -198,11 +206,16 @@ const { error: showError } = useNotification();
 // Types
 interface StudentCertificate {
   id: string;
+  certificateNumber: string;
   courseName: string;
-  groupCode: string;
+  courseCode: string | null;
+  courseHours: number | null;
+  groupCode: string | null;
   status: 'issued' | 'revoked';
+  sourceType: 'group_journal' | 'import' | 'manual';
   issuedAt: string;
   expiresAt: string | null;
+  fileUrl: string | null;
 }
 
 // State
