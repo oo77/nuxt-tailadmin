@@ -36,5 +36,6 @@ ngrok.yml
 .env.production
 .env.*.local
 
-# SSL certificates (sensitive)
-server/certs/*.pem
+# SSL certificates (only private keys are sensitive, CA certs are public)
+server/certs/*.key
+server/certs/*-private.pem
