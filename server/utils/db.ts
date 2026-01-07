@@ -33,11 +33,8 @@ Z7dREA==
 -----END CERTIFICATE-----`;
 
 /**
- * Получить SSL конфигурацию для Aiven или других облачных провайдеров
- * 
- * Поддерживает два варианта:
- * 1. DATABASE_SSL_CA - сертификат в переменной окружения (Base64 или PEM)
- * 2. Встроенный сертификат AIVEN_CA_CERTIFICATE (fallback для Netlify)
+ * Получить SSL конфигурацию для Aiven
+ * Использует встроенный сертификат AIVEN_CA_CERTIFICATE
  */
 function getSslConfig(): mysql.SslOptions | undefined {
   const sslEnabled = process.env.DATABASE_SSL === 'true';
@@ -46,45 +43,6 @@ function getSslConfig(): mysql.SslOptions | undefined {
     return undefined;
   }
 
-  // Вариант 1: Сертификат напрямую в переменной окружения (для Netlify/Vercel)
-  const caCertEnv = process.env.DATABASE_SSL_CA;
-  if (caCertEnv) {
-    console.log('🔒 SSL enabled with CA certificate from environment variable');
-
-    try {
-      let ca: Buffer;
-
-      // Проверка на Base64 (если строка без пробелов и похожа на base64, и нет PEM заголовков)
-      const isBase64 = !caCertEnv.includes('-----BEGIN CERTIFICATE-----') && /^[A-Za-z0-9+/=]+$/.test(caCertEnv.replace(/\s/g, ''));
-
-      if (isBase64) {
-        console.log('📦 Detected Base64 encoded certificate');
-        ca = Buffer.from(caCertEnv, 'base64');
-      } else {
-        // Обычный PEM
-        let cleanCert = caCertEnv.trim();
-        if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) cleanCert = cleanCert.slice(1, -1);
-        if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) cleanCert = cleanCert.slice(1, -1);
-
-        cleanCert = cleanCert.replace(/\\n/g, '\n');
-
-        if (!cleanCert.includes('-----BEGIN CERTIFICATE-----')) {
-          console.warn('⚠️ Invalid certificate format (missing headers). Fallback to non-verified SSL.');
-          return { rejectUnauthorized: false };
-        }
-
-        ca = Buffer.from(cleanCert, 'utf-8');
-      }
-
-      console.log('🔒 CA certificate processed successfully. Size:', ca.length);
-      return { ca, rejectUnauthorized: true };
-    } catch (e: any) {
-      console.error('❌ Error processing CA certificate:', e.message);
-      return { rejectUnauthorized: false };
-    }
-  }
-
-  // Вариант 2 (fallback): Встроенный сертификат Aiven (работает везде, включая Netlify)
   console.log('🔒 SSL enabled with built-in Aiven CA certificate');
   return {
     ca: Buffer.from(AIVEN_CA_CERTIFICATE, 'utf-8'),
