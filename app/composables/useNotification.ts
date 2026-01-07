@@ -12,11 +12,23 @@ interface NotificationInstance {
 const notifications = ref<NotificationInstance[]>([]);
 let notificationId = 0;
 
+const getOrCreateContainer = () => {
+  let container = document.getElementById('notification-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notification-container';
+    container.className = 'fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 items-end pointer-events-none';
+    document.body.appendChild(container);
+  }
+  return container;
+};
+
 export const useNotification = () => {
   const show = (options: NotificationProps) => {
     const id = notificationId++;
-    const container = document.createElement('div');
-    document.body.appendChild(container);
+    const wrapper = document.createElement('div');
+    const parentContainer = getOrCreateContainer();
+    parentContainer.appendChild(wrapper);
 
     const onClose = () => {
       // Удаляем уведомление из списка
@@ -25,8 +37,13 @@ export const useNotification = () => {
         const notification = notifications.value[index];
         if (notification) {
           render(null, notification.container);
-          document.body.removeChild(notification.container);
+          // Only remove wrapper if it's still attached (safety check)
+          if (wrapper.parentElement) {
+            wrapper.parentElement.removeChild(wrapper);
+          }
           notifications.value.splice(index, 1);
+
+          // Clean up main container if empty? (Optional, skipping to avoid churn)
         }
       }
     };
@@ -36,12 +53,12 @@ export const useNotification = () => {
       onClose,
     });
 
-    render(vnode, container);
+    render(vnode, wrapper);
 
     notifications.value.push({
       id,
       vnode,
-      container,
+      container: wrapper,
     });
 
     return {
@@ -88,7 +105,9 @@ export const useNotification = () => {
   const closeAll = () => {
     notifications.value.forEach((notification) => {
       render(null, notification.container);
-      document.body.removeChild(notification.container);
+      if (notification.container.parentElement) {
+        notification.container.parentElement.removeChild(notification.container);
+      }
     });
     notifications.value = [];
   };

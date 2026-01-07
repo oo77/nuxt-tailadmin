@@ -3,7 +3,7 @@
     :is-open="isOpen"
     :title="title"
     size="sm"
-    :close-on-backdrop="!loading"
+
     @close="handleCancel"
   >
     <!-- Иконка и сообщение -->

@@ -320,7 +320,7 @@
       <Transition name="fade">
         <div 
           v-if="showViolationWarning" 
-          class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur"
         >
           <div class="bg-white dark:bg-boxdark rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 animate-shake">
             <div class="flex items-center gap-4 mb-4">

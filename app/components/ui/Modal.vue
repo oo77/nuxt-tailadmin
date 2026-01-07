@@ -16,7 +16,7 @@
       >
         <!-- Backdrop -->
         <div
-          class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+          class="fixed inset-0 bg-black/50 backdrop-blur"
           aria-hidden="true"
         ></div>
 
@@ -103,7 +103,7 @@ interface ModalProps {
 
 const props = withDefaults(defineProps<ModalProps>(), {
   size: 'md',
-  closeOnBackdrop: true,
+  closeOnBackdrop: false,
 });
 
 const emit = defineEmits<{

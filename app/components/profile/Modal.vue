@@ -12,11 +12,10 @@
       <div
         v-if="isVisible"
         class="fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto p-4"
-        @click.self="handleClose"
       >
         <!-- Backdrop -->
         <div
-          class="fixed inset-0 bg-gray-400/50 backdrop-blur-[32px]"
+          class="fixed inset-0 bg-black/50 backdrop-blur"
           aria-hidden="true"
         ></div>
 

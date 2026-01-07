@@ -1,5 +1,4 @@
 <template>
-  <Teleport to="body">
     <Transition
       enter-active-class="transition-all duration-300 ease-out"
       enter-from-class="translate-x-full opacity-0"
@@ -11,7 +10,7 @@
       <div
         v-if="visible"
         :class="[
-          'fixed right-4 top-4 z-999999 min-w-[320px] max-w-md rounded-lg shadow-xl border',
+          'pointer-events-auto w-full min-w-[320px] max-w-md rounded-lg shadow-xl border',
           typeClasses,
         ]"
         role="alert"
@@ -106,7 +105,6 @@
         </div>
       </div>
     </Transition>
-  </Teleport>
 </template>
 
 <script setup lang="ts">

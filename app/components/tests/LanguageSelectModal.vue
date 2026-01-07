@@ -3,7 +3,7 @@
     :is-open="isOpen"
     title="Выберите язык тестирования"
     size="sm"
-    :close-on-backdrop="false"
+
     @close="handleClose"
   >
     <div class="space-y-6">
