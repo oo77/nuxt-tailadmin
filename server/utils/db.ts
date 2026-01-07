@@ -22,8 +22,12 @@ function getSslConfig(): mysql.SslOptions | undefined {
   const caCertEnv = process.env.DATABASE_SSL_CA;
   if (caCertEnv) {
     console.log('🔒 SSL enabled with CA certificate from environment variable');
+    // Заменяем экранированные \n на реальные переносы строк и конвертируем в Buffer
+    const certString = caCertEnv.replace(/\\n/g, '\n');
+    const ca = Buffer.from(certString, 'utf-8');
+    console.log('🔒 CA certificate length:', ca.length, 'bytes');
     return {
-      ca: caCertEnv,
+      ca,
       rejectUnauthorized: true
     };
   }
