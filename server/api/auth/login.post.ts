@@ -21,6 +21,8 @@ export default defineEventHandler(async (event) => {
       DATABASE_USER: process.env.DATABASE_USER ? '✓ set' : '✗ missing',
       DATABASE_PASSWORD: process.env.DATABASE_PASSWORD ? '✓ set (hidden)' : '✗ missing',
       DATABASE_NAME: process.env.DATABASE_NAME ? '✓ set' : '✗ missing',
+      DATABASE_SSL: process.env.DATABASE_SSL,
+      DATABASE_SSL_CA: process.env.DATABASE_SSL_CA ? '✓ set (length: ' + process.env.DATABASE_SSL_CA.length + ')' : '✗ missing',
     },
     steps: [] as string[]
   };
