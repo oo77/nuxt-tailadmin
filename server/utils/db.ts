@@ -1,109 +1,15 @@
 import mysql from 'mysql2/promise';
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 
 /**
- * Получить SSL конфигурацию для Aiven или других облачных провайдеров
+ * Конфигурация подключения к MySQL
  * 
- * Поддерживает три варианта:
- * 1. DATABASE_SSL_CA - сертификат напрямую в переменной окружения (для serverless)
- * 2. DATABASE_SSL_CA_PATH - путь к файлу сертификата
- * 3. Встроенный файл server/certs/aiven-ca.pem
+ * Параметры читаются из переменных окружения:
+ * - DATABASE_HOST - хост БД (по умолчанию: localhost)
+ * - DATABASE_PORT - порт БД (по умолчанию: 3306)
+ * - DATABASE_USER - пользователь БД (по умолчанию: root)
+ * - DATABASE_PASSWORD - пароль БД
+ * - DATABASE_NAME - имя базы данных (по умолчанию: atc_test)
  */
-function getSslConfig(): mysql.SslOptions | undefined {
-  const sslEnabled = process.env.DATABASE_SSL === 'true';
-
-  if (!sslEnabled) {
-    return undefined;
-  }
-
-  // Вариант 1: Сертификат напрямую в переменной окружения (для Netlify/Vercel)
-  const caCertEnv = process.env.DATABASE_SSL_CA;
-  if (caCertEnv) {
-    console.log('🔒 SSL enabled with CA certificate from environment variable');
-
-    try {
-      let ca: Buffer;
-
-      // Проверка на Base64 (если строка без пробелов и похожа на base64, и нет PEM заголовков)
-      const isBase64 = !caCertEnv.includes('-----BEGIN CERTIFICATE-----') && /^[A-Za-z0-9+/=]+$/.test(caCertEnv.replace(/\s/g, ''));
-
-      if (isBase64) {
-        console.log('📦 Detected Base64 encoded certificate');
-        ca = Buffer.from(caCertEnv, 'base64');
-      } else {
-        // Обычный PEM
-        let cleanCert = caCertEnv.trim();
-        if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) cleanCert = cleanCert.slice(1, -1);
-        if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) cleanCert = cleanCert.slice(1, -1);
-
-        cleanCert = cleanCert.replace(/\\n/g, '\n');
-
-        if (!cleanCert.includes('-----BEGIN CERTIFICATE-----')) {
-          console.warn('⚠️ Invalid certificate format (missing headers). Fallback to non-verified SSL.');
-          return { rejectUnauthorized: false };
-        }
-
-        ca = Buffer.from(cleanCert, 'utf-8');
-      }
-
-      console.log('🔒 CA certificate processed successfully. Size:', ca.length);
-      return { ca, rejectUnauthorized: true };
-    } catch (e: any) {
-      console.error('❌ Error processing CA certificate:', e.message);
-      return { rejectUnauthorized: false };
-    }
-  }
-
-  // Вариант 2: Путь к CA сертификату
-  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
-  if (caCertPath) {
-    try {
-      const ca = readFileSync(caCertPath);
-      console.log('🔒 SSL enabled with custom CA certificate path');
-      return {
-        ca,
-        rejectUnauthorized: true
-      };
-    } catch (error) {
-      console.error('⚠️ Failed to read CA certificate from path:', error);
-    }
-  }
-
-  // Вариант 3: Встроенный сертификат Aiven (несколько путей для разных окружений)
-  const possiblePaths = [
-    // Для разработки
-    join(process.cwd(), 'server/certs/aiven-ca.pem'),
-    // Для Netlify Functions
-    join(dirname(fileURLToPath(import.meta.url)), '../certs/aiven-ca.pem'),
-    // Относительный путь
-    './server/certs/aiven-ca.pem',
-  ];
-
-  for (const certPath of possiblePaths) {
-    try {
-      if (existsSync(certPath)) {
-        const ca = readFileSync(certPath);
-        console.log(`🔒 SSL enabled with Aiven CA certificate from: ${certPath}`);
-        return {
-          ca,
-          rejectUnauthorized: true
-        };
-      }
-    } catch {
-      // Пробуем следующий путь
-    }
-  }
-
-  // Если сертификат не найден, используем базовый SSL без верификации
-  console.log('🔒 SSL enabled without CA verification (certificate not found)');
-  return {
-    rejectUnauthorized: false
-  };
-}
-
-// Конфигурация подключения к БД
 const dbConfig: mysql.PoolOptions = {
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '3306'),
@@ -115,7 +21,6 @@ const dbConfig: mysql.PoolOptions = {
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
-  ssl: getSslConfig(),
 };
 
 // Создание пула подключений
