@@ -1,7 +1,53 @@
 import mysql from 'mysql2/promise';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+/**
+ * Получить SSL конфигурацию для Aiven или других облачных провайдеров
+ */
+function getSslConfig(): mysql.SslOptions | undefined {
+  const sslEnabled = process.env.DATABASE_SSL === 'true';
+
+  if (!sslEnabled) {
+    return undefined;
+  }
+
+  // Путь к CA сертификату
+  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
+
+  if (caCertPath) {
+    try {
+      const ca = readFileSync(caCertPath);
+      console.log('🔒 SSL enabled with custom CA certificate');
+      return {
+        ca,
+        rejectUnauthorized: true
+      };
+    } catch (error) {
+      console.error('⚠️ Failed to read CA certificate, falling back to default SSL:', error);
+    }
+  }
+
+  // Пробуем встроенный сертификат Aiven
+  try {
+    const aivenCaPath = join(process.cwd(), 'server/certs/aiven-ca.pem');
+    const ca = readFileSync(aivenCaPath);
+    console.log('🔒 SSL enabled with Aiven CA certificate');
+    return {
+      ca,
+      rejectUnauthorized: true
+    };
+  } catch {
+    // Если сертификат не найден, используем базовый SSL
+    console.log('🔒 SSL enabled without CA verification');
+    return {
+      rejectUnauthorized: false
+    };
+  }
+}
 
 // Конфигурация подключения к БД
-const dbConfig = {
+const dbConfig: mysql.PoolOptions = {
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '3306'),
   user: process.env.DATABASE_USER || 'root',
@@ -12,6 +58,7 @@ const dbConfig = {
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  ssl: getSslConfig(),
 };
 
 // Создание пула подключений
