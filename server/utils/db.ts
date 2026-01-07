@@ -22,14 +22,40 @@ function getSslConfig(): mysql.SslOptions | undefined {
   const caCertEnv = process.env.DATABASE_SSL_CA;
   if (caCertEnv) {
     console.log('🔒 SSL enabled with CA certificate from environment variable');
-    // Заменяем экранированные \n на реальные переносы строк и конвертируем в Buffer
-    const certString = caCertEnv.replace(/\\n/g, '\n');
-    const ca = Buffer.from(certString, 'utf-8');
-    console.log('🔒 CA certificate length:', ca.length, 'bytes');
-    return {
-      ca,
-      rejectUnauthorized: true
-    };
+
+    try {
+      // 1. Убираем возможные кавычки по краям (если скопировали с ними)
+      let cleanCert = caCertEnv.trim();
+      if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) {
+        cleanCert = cleanCert.slice(1, -1);
+      }
+      if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) {
+        cleanCert = cleanCert.slice(1, -1);
+      }
+
+      // 2. Обрабатываем экранированные переносы строк (\n -> \n)
+      cleanCert = cleanCert.replace(/\\n/g, '\n');
+
+      // 3. Проверка на валидность PEM заголовков
+      if (!cleanCert.includes('-----BEGIN CERTIFICATE-----')) {
+        console.warn('⚠️ DATABASE_SSL_CA does not look like a valid PEM certificate (missing header)');
+        console.log('👀 Content start:', cleanCert.substring(0, 50));
+        // Fallback: пробуем подключиться без верификации
+        return { rejectUnauthorized: false };
+      }
+
+      const ca = Buffer.from(cleanCert, 'utf-8');
+      console.log('🔒 CA certificate processed successfully. Size:', ca.length);
+
+      return {
+        ca,
+        rejectUnauthorized: true
+      };
+    } catch (e: any) {
+      console.error('❌ Error processing CA certificate:', e.message);
+      // Fallback на небезопасный SSL при ошибке парсинга
+      return { rejectUnauthorized: false };
+    }
   }
 
   // Вариант 2: Путь к CA сертификату
