@@ -1,0 +1,57 @@
+# Netlify Configuration для Nuxt 4 проекта
+# Документация: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Команда сборки
+  command = "npm run build"
+  
+  # Директория с результатом сборки (Nuxt 4 output)
+  publish = ".output/public"
+  
+  # Директория для Netlify Functions (Nuxt server functions)
+  functions = ".output/server"
+
+[build.environment]
+  # Версия Node.js (Nuxt 4 требует 18+)
+  NODE_VERSION = "20"
+  
+  # NPM версия
+  NPM_VERSION = "10"
+  
+  # Включаем автоматические миграции при старте
+  AUTO_MIGRATE = "true"
+
+# Редиректы для SPA fallback и API
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers для безопасности и производительности
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Безопасность
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Кэширование статики
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    # API не кэшируем
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Plugins (опционально)
+# [[plugins]]
+#   package = "@netlify/plugin-lighthouse"
