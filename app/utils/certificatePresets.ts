@@ -5,9 +5,8 @@
  */
 
 import type { CertificateTemplateData, TemplateElement } from '~/types/certificate';
-import { v4 as uuidv4 } from 'uuid';
 
-// Генерация уникального ID для элементов (упрощённо без uuid на клиенте)
+// Генерация уникального ID для элементов (без внешних зависимостей)
 function generateId(): string {
   return 'el_' + Math.random().toString(36).substring(2, 11);
 }
