@@ -1,9 +1,15 @@
 import mysql from 'mysql2/promise';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Получить SSL конфигурацию для Aiven или других облачных провайдеров
+ * 
+ * Поддерживает три варианта:
+ * 1. DATABASE_SSL_CA - сертификат напрямую в переменной окружения (для serverless)
+ * 2. DATABASE_SSL_CA_PATH - путь к файлу сертификата
+ * 3. Встроенный файл server/certs/aiven-ca.pem
  */
 function getSslConfig(): mysql.SslOptions | undefined {
   const sslEnabled = process.env.DATABASE_SSL === 'true';
@@ -12,38 +18,61 @@ function getSslConfig(): mysql.SslOptions | undefined {
     return undefined;
   }
 
-  // Путь к CA сертификату
-  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
+  // Вариант 1: Сертификат напрямую в переменной окружения (для Netlify/Vercel)
+  const caCertEnv = process.env.DATABASE_SSL_CA;
+  if (caCertEnv) {
+    console.log('🔒 SSL enabled with CA certificate from environment variable');
+    return {
+      ca: caCertEnv,
+      rejectUnauthorized: true
+    };
+  }
 
+  // Вариант 2: Путь к CA сертификату
+  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
   if (caCertPath) {
     try {
       const ca = readFileSync(caCertPath);
-      console.log('🔒 SSL enabled with custom CA certificate');
+      console.log('🔒 SSL enabled with custom CA certificate path');
       return {
         ca,
         rejectUnauthorized: true
       };
     } catch (error) {
-      console.error('⚠️ Failed to read CA certificate, falling back to default SSL:', error);
+      console.error('⚠️ Failed to read CA certificate from path:', error);
     }
   }
 
-  // Пробуем встроенный сертификат Aiven
-  try {
-    const aivenCaPath = join(process.cwd(), 'server/certs/aiven-ca.pem');
-    const ca = readFileSync(aivenCaPath);
-    console.log('🔒 SSL enabled with Aiven CA certificate');
-    return {
-      ca,
-      rejectUnauthorized: true
-    };
-  } catch {
-    // Если сертификат не найден, используем базовый SSL
-    console.log('🔒 SSL enabled without CA verification');
-    return {
-      rejectUnauthorized: false
-    };
+  // Вариант 3: Встроенный сертификат Aiven (несколько путей для разных окружений)
+  const possiblePaths = [
+    // Для разработки
+    join(process.cwd(), 'server/certs/aiven-ca.pem'),
+    // Для Netlify Functions
+    join(dirname(fileURLToPath(import.meta.url)), '../certs/aiven-ca.pem'),
+    // Относительный путь
+    './server/certs/aiven-ca.pem',
+  ];
+
+  for (const certPath of possiblePaths) {
+    try {
+      if (existsSync(certPath)) {
+        const ca = readFileSync(certPath);
+        console.log(`🔒 SSL enabled with Aiven CA certificate from: ${certPath}`);
+        return {
+          ca,
+          rejectUnauthorized: true
+        };
+      }
+    } catch {
+      // Пробуем следующий путь
+    }
   }
+
+  // Если сертификат не найден, используем базовый SSL без верификации
+  console.log('🔒 SSL enabled without CA verification (certificate not found)');
+  return {
+    rejectUnauthorized: false
+  };
 }
 
 // Конфигурация подключения к БД
