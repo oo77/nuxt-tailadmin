@@ -4437,7 +4437,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "0a7a6559-713b-4d04-a5ab-784fce3f89b0",
+    "buildId": "d6084d63-c18e-4d57-b837-d22fbb7955c6",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4902,33 +4902,6 @@ function getSslConfig() {
   const sslEnabled = process.env.DATABASE_SSL === "true";
   if (!sslEnabled) {
     return void 0;
-  }
-  const caCertEnv = process.env.DATABASE_SSL_CA;
-  if (caCertEnv) {
-    console.log("\u{1F512} SSL enabled with CA certificate from environment variable");
-    try {
-      let ca;
-      const isBase64 = !caCertEnv.includes("-----BEGIN CERTIFICATE-----") && /^[A-Za-z0-9+/=]+$/.test(caCertEnv.replace(/\s/g, ""));
-      if (isBase64) {
-        console.log("\u{1F4E6} Detected Base64 encoded certificate");
-        ca = Buffer.from(caCertEnv, "base64");
-      } else {
-        let cleanCert = caCertEnv.trim();
-        if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) cleanCert = cleanCert.slice(1, -1);
-        if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) cleanCert = cleanCert.slice(1, -1);
-        cleanCert = cleanCert.replace(/\\n/g, "\n");
-        if (!cleanCert.includes("-----BEGIN CERTIFICATE-----")) {
-          console.warn("\u26A0\uFE0F Invalid certificate format (missing headers). Fallback to non-verified SSL.");
-          return { rejectUnauthorized: false };
-        }
-        ca = Buffer.from(cleanCert, "utf-8");
-      }
-      console.log("\u{1F512} CA certificate processed successfully. Size:", ca.length);
-      return { ca, rejectUnauthorized: true };
-    } catch (e) {
-      console.error("\u274C Error processing CA certificate:", e.message);
-      return { rejectUnauthorized: false };
-    }
   }
   console.log("\u{1F512} SSL enabled with built-in Aiven CA certificate");
   return {
