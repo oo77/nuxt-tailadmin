@@ -29,3 +29,12 @@ storage/uploads/
 
 # Ngrok configuration (contains authtoken)
 ngrok.yml
+
+# Environment files (contain secrets!)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# SSL certificates (sensitive)
+server/certs/*.pem
