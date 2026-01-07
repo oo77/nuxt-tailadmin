@@ -1,4 +1,4 @@
-import { d as defineEventHandler, a as getRouterParam, c as createError, r as readBody, e as executeQuery, j as hashPassword } from '../../../../nitro/nitro.mjs';
+import { d as defineEventHandler, a as getRouterParam, c as createError, r as readBody, e as executeQuery, k as hashPassword } from '../../../../nitro/nitro.mjs';
 import { z } from 'zod';
 import { a as getStudentById } from '../../../../_/studentRepository.mjs';
 import { l as logActivity } from '../../../../_/activityLogger.mjs';
@@ -12,8 +12,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'crypto';
 import 'jsonwebtoken';

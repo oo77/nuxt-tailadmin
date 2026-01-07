@@ -1,15 +1,43 @@
 import mysql from 'mysql2/promise';
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+
+/**
+ * Встроенный Aiven CA сертификат
+ * Это публичный ключ (не секретный), поэтому его безопасно хранить в коде.
+ * Срок действия: до 2035-10-28
+ */
+const AIVEN_CA_CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIIEUDCCarigAwIBAgIUTAG7gMPqpM+PfUHgMf9lLG4b+bEwDQYJKoZIhvcNAQEM
+BQAwQDE+MDwGA1UEAww1NDUyZWFmYzMtNDU4NC00Njg4LWI1NDAtODJiYWU4ZTE0
+ZDc0IEdFTiAxIFByb2plY3QgQ0EwHhcNMjUxMDMwMDcyNjUxWhcNMzUxMDI4MDcy
+NjUxWjBAMT4wPAYDVQQDDDU0NTJlYWZjMy00NTg0LTQ2ODgtYjU0MC04MmJhZThl
+MTRkNzQgR0VOIDEgUHJvamVjdCBDQTCCAaIwDQYJKoZIhvcNAQEBBQADggGPADCC
+AYoCggGBAKmKyGKzFAYjQJGdtlrtvXPuaZacnbjrde5BYQdU52IX5tJeWQ58N27o
+pDbMrZhlOCvHd57K5Oxkp6V5alnI0/ekuTN8eoIYvjtNqtE72gIN6I808+nk1K/0
+tPxrvTURAFEvxyhf77JEIWOAz+OJ0fYfDmoIIp+IY5b0wp/sLhNO1u1m2+8tDglu
+bTSO4139nJo0D8ApafMpF5sQ5Vpci6wk9u6W3XpJ/+wJuJ5Oioe/mjEv/TKCkmzn
+wX4ALgiONVI3qxPV7RaynNY/SRpBX5kcuChrP/3+WZ9QsRwyPI530Kz2nZX10XVm
+5ik/tEVJAjf08yrhAjLxZ4paBt3Pcy9egNWIeA2ixMy49qu1QkDkCrw8t4K79oAC
+By/bj5aVGbup2W+Q5hc83AQ2IhmWVWChnJI9dcg1l7T4AAqXJPBtp1AWGhHcldNH
+3Ao/aavgLE9kTcEWLO5P1izMKaYsqhpsQEx3lmWcLi4wPJn7F2f0pQ0Q5rJZ74Z6
+RNrZ80/c5wIDAQABo0IwQDAdBgNVHQ4EFgQUT+zOIhiQP49iiJ8dkJIeB0JY3JUw
+EgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAQYwDQYJKoZIhvcNAQEMBQAD
+ggGBACVlQGNrmSCfIaevjuMDqvdGB7NZYJm3Fkr4m7bAtDD0WYxgneH9HmcaWcpA
+Ctzbv64vP/wBIMRKzj3DeglUIe1hwaXQq4mcNuoGt4TMHzktdZhisgxCdjYFVIcS
+qjbsK1XOPChn/WFmEqCN+FsTdXIi4CeQPSFKFOIVxM+UKRk/nx2DV2PDwN/pt3A/
+Gq10ujVDZNTdQlBSLIf5b+qtIVQRJ66cHpIaTTWZvkw++0ULbA8dK0f7sdrd751A
+lK1uTg9e3TEeW7TTdKqsr/8F8VVrJDtKjJLSN7IbM4QmnzBC/QAkNnuPEaDwwmyj
+5XEdvDcAa+VfZXRXSjAi05fsgw5f94dqJlos2oEDmeEN4tx3y0VItPUXOZNbWg7r
+JPPGg3mrBuICcqd1h9OgyYo+siTwHITM/kL0fgLzNWHEyYQ5GLigzvXNw+WLlWsh
+iLd4pScmXlOmyIbdtAhxRwmNLBDupx/C3H8pTGl0nFKA3P3Sb/Ftw53wewc51flt
+Z7dREA==
+-----END CERTIFICATE-----`;
 
 /**
  * Получить SSL конфигурацию для Aiven или других облачных провайдеров
  * 
- * Поддерживает три варианта:
- * 1. DATABASE_SSL_CA - сертификат напрямую в переменной окружения (для serverless)
- * 2. DATABASE_SSL_CA_PATH - путь к файлу сертификата
- * 3. Встроенный файл server/certs/aiven-ca.pem
+ * Поддерживает два варианта:
+ * 1. DATABASE_SSL_CA - сертификат в переменной окружения (Base64 или PEM)
+ * 2. Встроенный сертификат AIVEN_CA_CERTIFICATE (fallback для Netlify)
  */
 function getSslConfig(): mysql.SslOptions | undefined {
   const sslEnabled = process.env.DATABASE_SSL === 'true';
@@ -56,50 +84,11 @@ function getSslConfig(): mysql.SslOptions | undefined {
     }
   }
 
-  // Вариант 2: Путь к CA сертификату
-  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
-  if (caCertPath) {
-    try {
-      const ca = readFileSync(caCertPath);
-      console.log('🔒 SSL enabled with custom CA certificate path');
-      return {
-        ca,
-        rejectUnauthorized: true
-      };
-    } catch (error) {
-      console.error('⚠️ Failed to read CA certificate from path:', error);
-    }
-  }
-
-  // Вариант 3: Встроенный сертификат Aiven (несколько путей для разных окружений)
-  const possiblePaths = [
-    // Для разработки
-    join(process.cwd(), 'server/certs/aiven-ca.pem'),
-    // Для Netlify Functions
-    join(dirname(fileURLToPath(import.meta.url)), '../certs/aiven-ca.pem'),
-    // Относительный путь
-    './server/certs/aiven-ca.pem',
-  ];
-
-  for (const certPath of possiblePaths) {
-    try {
-      if (existsSync(certPath)) {
-        const ca = readFileSync(certPath);
-        console.log(`🔒 SSL enabled with Aiven CA certificate from: ${certPath}`);
-        return {
-          ca,
-          rejectUnauthorized: true
-        };
-      }
-    } catch {
-      // Пробуем следующий путь
-    }
-  }
-
-  // Если сертификат не найден, используем базовый SSL без верификации
-  console.log('🔒 SSL enabled without CA verification (certificate not found)');
+  // Вариант 2 (fallback): Встроенный сертификат Aiven (работает везде, включая Netlify)
+  console.log('🔒 SSL enabled with built-in Aiven CA certificate');
   return {
-    rejectUnauthorized: false
+    ca: Buffer.from(AIVEN_CA_CERTIFICATE, 'utf-8'),
+    rejectUnauthorized: true
   };
 }
 

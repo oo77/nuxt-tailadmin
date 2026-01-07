@@ -1,4 +1,4 @@
-import { e as executeQuery, q as getOrCreateOrganizationByName, o as executeTransaction, u as updateStudentsCount } from '../nitro/nitro.mjs';
+import { e as executeQuery, u as getOrCreateOrganizationByName, p as executeTransaction, w as updateStudentsCount } from '../nitro/nitro.mjs';
 import { v4 } from 'uuid';
 
 function mapRowToStudent(row, certificates = []) {

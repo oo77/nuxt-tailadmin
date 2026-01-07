@@ -1,4 +1,4 @@
-import { w as testConnection, x as runMigrations, d as defineEventHandler, c as createError } from '../../../nitro/nitro.mjs';
+import { t as testConnection, x as runMigrations, d as defineEventHandler, c as createError } from '../../../nitro/nitro.mjs';
 import 'grammy';
 import 'uuid';
 import 'node:http';
@@ -9,8 +9,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'crypto';
 import 'jsonwebtoken';

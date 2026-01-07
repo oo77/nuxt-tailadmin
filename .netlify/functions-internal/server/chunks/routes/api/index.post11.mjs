@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as readBody, e as executeQuery, j as hashPassword } from '../../nitro/nitro.mjs';
+import { d as defineEventHandler, r as readBody, e as executeQuery, k as hashPassword } from '../../nitro/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { s as studentExistsByPinfl, c as createStudent, l as linkStudentToUser } from '../../_/studentRepository.mjs';
 import { l as logActivity } from '../../_/activityLogger.mjs';
@@ -13,8 +13,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'jsonwebtoken';
 import '../../_/activityLogRepository.mjs';

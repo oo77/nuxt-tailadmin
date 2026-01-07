@@ -1,4 +1,4 @@
-import { d as defineEventHandler, n as readMultipartFormData, c as createError } from '../../../../nitro/nitro.mjs';
+import { d as defineEventHandler, o as readMultipartFormData, c as createError } from '../../../../nitro/nitro.mjs';
 import { r as requireAuth, a as requireAnyPermission, P as Permission } from '../../../../_/permissions.mjs';
 import { p as parseCertificateExcel, a as analyzeCertificateImportData } from '../../../../_/certificateImportUtils.mjs';
 import { z } from 'zod';
@@ -12,8 +12,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'crypto';
 import 'jsonwebtoken';

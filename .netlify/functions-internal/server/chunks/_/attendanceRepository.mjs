@@ -1,4 +1,4 @@
-import { o as executeTransaction, e as executeQuery } from '../nitro/nitro.mjs';
+import { p as executeTransaction, e as executeQuery } from '../nitro/nitro.mjs';
 import { v4 } from 'uuid';
 
 function mapRowToAttendance(row) {

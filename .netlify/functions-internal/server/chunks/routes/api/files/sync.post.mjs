@@ -14,7 +14,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
 import 'bcryptjs';
 import 'crypto';
 import 'jsonwebtoken';

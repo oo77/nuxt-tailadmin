@@ -1,4 +1,4 @@
-import { d as defineEventHandler, c as createError, e as executeQuery, r as readBody, t as toPublicUser } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, c as createError, e as executeQuery, r as readBody, i as toPublicUser } from '../../../nitro/nitro.mjs';
 import { v as validate, u as updateProfileSchema } from '../../../_/validation.mjs';
 import { l as logActivity } from '../../../_/activityLogger.mjs';
 import 'grammy';
@@ -11,8 +11,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'crypto';
 import 'jsonwebtoken';

@@ -1,4 +1,4 @@
-import { d as defineEventHandler, r as readBody, c as createError, e as executeQuery, j as hashPassword, b as createTokenPayload, f as generateToken, h as generateRefreshToken, t as toPublicUser } from '../../../nitro/nitro.mjs';
+import { d as defineEventHandler, r as readBody, c as createError, e as executeQuery, k as hashPassword, b as createTokenPayload, f as generateToken, h as generateRefreshToken, i as toPublicUser } from '../../../nitro/nitro.mjs';
 import { randomUUID } from 'crypto';
 import { v as validate, r as registerSchema } from '../../../_/validation.mjs';
 import { a as logActivityDirect } from '../../../_/activityLogger.mjs';
@@ -12,8 +12,6 @@ import 'node:fs';
 import 'node:path';
 import 'node:crypto';
 import 'mysql2/promise';
-import 'fs';
-import 'path';
 import 'bcryptjs';
 import 'jsonwebtoken';
 import 'zod';

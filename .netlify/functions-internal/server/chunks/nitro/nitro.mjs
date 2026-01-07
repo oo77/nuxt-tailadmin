@@ -8,8 +8,6 @@ import { promises, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import mysql from 'mysql2/promise';
-import { readFileSync } from 'fs';
-import { join as join$1 } from 'path';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -4439,7 +4437,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "ed191ac1-3b5e-40a1-aecf-4490f54470f0",
+    "buildId": "14464991-54f4-4ea4-8be6-c787edc74969",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4874,38 +4872,69 @@ function defineNitroPlugin(def) {
   return def;
 }
 
+const AIVEN_CA_CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIIEUDCCarigAwIBAgIUTAG7gMPqpM+PfUHgMf9lLG4b+bEwDQYJKoZIhvcNAQEM
+BQAwQDE+MDwGA1UEAww1NDUyZWFmYzMtNDU4NC00Njg4LWI1NDAtODJiYWU4ZTE0
+ZDc0IEdFTiAxIFByb2plY3QgQ0EwHhcNMjUxMDMwMDcyNjUxWhcNMzUxMDI4MDcy
+NjUxWjBAMT4wPAYDVQQDDDU0NTJlYWZjMy00NTg0LTQ2ODgtYjU0MC04MmJhZThl
+MTRkNzQgR0VOIDEgUHJvamVjdCBDQTCCAaIwDQYJKoZIhvcNAQEBBQADggGPADCC
+AYoCggGBAKmKyGKzFAYjQJGdtlrtvXPuaZacnbjrde5BYQdU52IX5tJeWQ58N27o
+pDbMrZhlOCvHd57K5Oxkp6V5alnI0/ekuTN8eoIYvjtNqtE72gIN6I808+nk1K/0
+tPxrvTURAFEvxyhf77JEIWOAz+OJ0fYfDmoIIp+IY5b0wp/sLhNO1u1m2+8tDglu
+bTSO4139nJo0D8ApafMpF5sQ5Vpci6wk9u6W3XpJ/+wJuJ5Oioe/mjEv/TKCkmzn
+wX4ALgiONVI3qxPV7RaynNY/SRpBX5kcuChrP/3+WZ9QsRwyPI530Kz2nZX10XVm
+5ik/tEVJAjf08yrhAjLxZ4paBt3Pcy9egNWIeA2ixMy49qu1QkDkCrw8t4K79oAC
+By/bj5aVGbup2W+Q5hc83AQ2IhmWVWChnJI9dcg1l7T4AAqXJPBtp1AWGhHcldNH
+3Ao/aavgLE9kTcEWLO5P1izMKaYsqhpsQEx3lmWcLi4wPJn7F2f0pQ0Q5rJZ74Z6
+RNrZ80/c5wIDAQABo0IwQDAdBgNVHQ4EFgQUT+zOIhiQP49iiJ8dkJIeB0JY3JUw
+EgYDVR0TAQH/BAgwBgEB/wIBADALBgNVHQ8EBAMCAQYwDQYJKoZIhvcNAQEMBQAD
+ggGBACVlQGNrmSCfIaevjuMDqvdGB7NZYJm3Fkr4m7bAtDD0WYxgneH9HmcaWcpA
+Ctzbv64vP/wBIMRKzj3DeglUIe1hwaXQq4mcNuoGt4TMHzktdZhisgxCdjYFVIcS
+qjbsK1XOPChn/WFmEqCN+FsTdXIi4CeQPSFKFOIVxM+UKRk/nx2DV2PDwN/pt3A/
+Gq10ujVDZNTdQlBSLIf5b+qtIVQRJ66cHpIaTTWZvkw++0ULbA8dK0f7sdrd751A
+lK1uTg9e3TEeW7TTdKqsr/8F8VVrJDtKjJLSN7IbM4QmnzBC/QAkNnuPEaDwwmyj
+5XEdvDcAa+VfZXRXSjAi05fsgw5f94dqJlos2oEDmeEN4tx3y0VItPUXOZNbWg7r
+JPPGg3mrBuICcqd1h9OgyYo+siTwHITM/kL0fgLzNWHEyYQ5GLigzvXNw+WLlWsh
+iLd4pScmXlOmyIbdtAhxRwmNLBDupx/C3H8pTGl0nFKA3P3Sb/Ftw53wewc51flt
+Z7dREA==
+-----END CERTIFICATE-----`;
 function getSslConfig() {
   const sslEnabled = process.env.DATABASE_SSL === "true";
   if (!sslEnabled) {
     return void 0;
   }
-  const caCertPath = process.env.DATABASE_SSL_CA_PATH;
-  if (caCertPath) {
+  const caCertEnv = process.env.DATABASE_SSL_CA;
+  if (caCertEnv) {
+    console.log("\u{1F512} SSL enabled with CA certificate from environment variable");
     try {
-      const ca = readFileSync(caCertPath);
-      console.log("\u{1F512} SSL enabled with custom CA certificate");
-      return {
-        ca,
-        rejectUnauthorized: true
-      };
-    } catch (error) {
-      console.error("\u26A0\uFE0F Failed to read CA certificate, falling back to default SSL:", error);
+      let ca;
+      const isBase64 = !caCertEnv.includes("-----BEGIN CERTIFICATE-----") && /^[A-Za-z0-9+/=]+$/.test(caCertEnv.replace(/\s/g, ""));
+      if (isBase64) {
+        console.log("\u{1F4E6} Detected Base64 encoded certificate");
+        ca = Buffer.from(caCertEnv, "base64");
+      } else {
+        let cleanCert = caCertEnv.trim();
+        if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) cleanCert = cleanCert.slice(1, -1);
+        if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) cleanCert = cleanCert.slice(1, -1);
+        cleanCert = cleanCert.replace(/\\n/g, "\n");
+        if (!cleanCert.includes("-----BEGIN CERTIFICATE-----")) {
+          console.warn("\u26A0\uFE0F Invalid certificate format (missing headers). Fallback to non-verified SSL.");
+          return { rejectUnauthorized: false };
+        }
+        ca = Buffer.from(cleanCert, "utf-8");
+      }
+      console.log("\u{1F512} CA certificate processed successfully. Size:", ca.length);
+      return { ca, rejectUnauthorized: true };
+    } catch (e) {
+      console.error("\u274C Error processing CA certificate:", e.message);
+      return { rejectUnauthorized: false };
     }
   }
-  try {
-    const aivenCaPath = join$1(process.cwd(), "server/certs/aiven-ca.pem");
-    const ca = readFileSync(aivenCaPath);
-    console.log("\u{1F512} SSL enabled with Aiven CA certificate");
-    return {
-      ca,
-      rejectUnauthorized: true
-    };
-  } catch {
-    console.log("\u{1F512} SSL enabled without CA verification");
-    return {
-      rejectUnauthorized: false
-    };
-  }
+  console.log("\u{1F512} SSL enabled with built-in Aiven CA certificate");
+  return {
+    ca: Buffer.from(AIVEN_CA_CERTIFICATE, "utf-8"),
+    rejectUnauthorized: true
+  };
 }
 const dbConfig = {
   host: process.env.DATABASE_HOST || "localhost",
@@ -10104,5 +10133,5 @@ function getCacheHeaders(url) {
   return {};
 }
 
-export { destr as $, organizationCodeExists as A, updateOrganization as B, getOrganizationsPaginated as C, createOrganization as D, searchOrganizations as E, getAllOrganizations as F, getOrganizationsStats as G, getRepresentativeById as H, deleteRepresentative as I, updateRepresentative as J, approveRepresentative as K, sendMessage as L, BOT_MESSAGES as M, blockRepresentative as N, getRepresentativesPaginated as O, getPendingRepresentatives as P, getRepresentativeStats as Q, getBot as R, verifyWebhookSecret as S, handleUpdate as T, UserRole as U, getHeaders as V, joinRelativeURL as W, useRuntimeConfig as X, getResponseStatusText as Y, getResponseStatus as Z, defineRenderHandler as _, getRouterParam as a, getRouteRules as a0, useNitroApp as a1, klona as a2, hasProtocol as a3, isScriptProtocol as a4, joinURL as a5, withQuery as a6, parse as a7, getRequestHeader as a8, isEqual as a9, sanitizeStatusCode as aa, getContext as ab, setCookie as ac, getCookie as ad, deleteCookie as ae, $fetch as af, createHooks as ag, executeAsync as ah, toRouteMatcher as ai, createRouter$1 as aj, defu as ak, parseQuery as al, withTrailingSlash as am, withoutTrailingSlash as an, handler as ao, auth as ap, createTokenPayload as b, createError$1 as c, defineEventHandler as d, executeQuery as e, generateToken as f, getQuery as g, generateRefreshToken as h, verifyRefreshToken as i, hashPassword as j, getHeader as k, extractToken as l, verifyToken as m, readMultipartFormData as n, executeTransaction as o, getRequestIP as p, getOrCreateOrganizationByName as q, readBody as r, setHeader as s, toPublicUser as t, updateStudentsCount as u, verifyPassword as v, testConnection as w, runMigrations as x, getOrganizationById as y, deleteOrganization as z };
+export { destr as $, organizationCodeExists as A, updateOrganization as B, getOrganizationsPaginated as C, createOrganization as D, searchOrganizations as E, getAllOrganizations as F, getOrganizationsStats as G, getRepresentativeById as H, deleteRepresentative as I, updateRepresentative as J, approveRepresentative as K, sendMessage as L, BOT_MESSAGES as M, blockRepresentative as N, getRepresentativesPaginated as O, getPendingRepresentatives as P, getRepresentativeStats as Q, getBot as R, verifyWebhookSecret as S, handleUpdate as T, UserRole as U, getHeaders as V, joinRelativeURL as W, useRuntimeConfig as X, getResponseStatusText as Y, getResponseStatus as Z, defineRenderHandler as _, getRouterParam as a, getRouteRules as a0, useNitroApp as a1, klona as a2, hasProtocol as a3, isScriptProtocol as a4, joinURL as a5, withQuery as a6, parse as a7, getRequestHeader as a8, isEqual as a9, sanitizeStatusCode as aa, getContext as ab, setCookie as ac, getCookie as ad, deleteCookie as ae, $fetch as af, createHooks as ag, executeAsync as ah, toRouteMatcher as ai, createRouter$1 as aj, defu as ak, parseQuery as al, withTrailingSlash as am, withoutTrailingSlash as an, handler as ao, auth as ap, createTokenPayload as b, createError$1 as c, defineEventHandler as d, executeQuery as e, generateToken as f, getQuery as g, generateRefreshToken as h, toPublicUser as i, verifyRefreshToken as j, hashPassword as k, getHeader as l, extractToken as m, verifyToken as n, readMultipartFormData as o, executeTransaction as p, getRequestIP as q, readBody as r, setHeader as s, testConnection as t, getOrCreateOrganizationByName as u, verifyPassword as v, updateStudentsCount as w, runMigrations as x, getOrganizationById as y, deleteOrganization as z };
 //# sourceMappingURL=nitro.mjs.map
