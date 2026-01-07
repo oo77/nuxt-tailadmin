@@ -47,6 +47,9 @@ export default defineNuxtConfig({
   ],
 
   nitro: {
+    // Пресет для Netlify (SSR через Netlify Functions)
+    preset: 'netlify',
+
     esbuild: {
       options: {
         target: 'esnext'
