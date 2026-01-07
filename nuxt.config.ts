@@ -64,6 +64,13 @@ export default defineNuxtConfig({
     externals: {
       external: ['xlsx', 'sharp']
     },
+    // Добавляем сертификаты как серверные ассеты
+    serverAssets: [
+      {
+        baseName: 'certs',
+        dir: 'server/certs'
+      }
+    ],
     // Раздача папки storage как статических файлов
     publicAssets: [
       {

@@ -24,36 +24,34 @@ function getSslConfig(): mysql.SslOptions | undefined {
     console.log('🔒 SSL enabled with CA certificate from environment variable');
 
     try {
-      // 1. Убираем возможные кавычки по краям (если скопировали с ними)
-      let cleanCert = caCertEnv.trim();
-      if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) {
-        cleanCert = cleanCert.slice(1, -1);
-      }
-      if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) {
-        cleanCert = cleanCert.slice(1, -1);
+      let ca: Buffer;
+
+      // Проверка на Base64 (если строка без пробелов и похожа на base64, и нет PEM заголовков)
+      const isBase64 = !caCertEnv.includes('-----BEGIN CERTIFICATE-----') && /^[A-Za-z0-9+/=]+$/.test(caCertEnv.replace(/\s/g, ''));
+
+      if (isBase64) {
+        console.log('📦 Detected Base64 encoded certificate');
+        ca = Buffer.from(caCertEnv, 'base64');
+      } else {
+        // Обычный PEM
+        let cleanCert = caCertEnv.trim();
+        if (cleanCert.startsWith('"') && cleanCert.endsWith('"')) cleanCert = cleanCert.slice(1, -1);
+        if (cleanCert.startsWith("'") && cleanCert.endsWith("'")) cleanCert = cleanCert.slice(1, -1);
+
+        cleanCert = cleanCert.replace(/\\n/g, '\n');
+
+        if (!cleanCert.includes('-----BEGIN CERTIFICATE-----')) {
+          console.warn('⚠️ Invalid certificate format (missing headers). Fallback to non-verified SSL.');
+          return { rejectUnauthorized: false };
+        }
+
+        ca = Buffer.from(cleanCert, 'utf-8');
       }
 
-      // 2. Обрабатываем экранированные переносы строк (\n -> \n)
-      cleanCert = cleanCert.replace(/\\n/g, '\n');
-
-      // 3. Проверка на валидность PEM заголовков
-      if (!cleanCert.includes('-----BEGIN CERTIFICATE-----')) {
-        console.warn('⚠️ DATABASE_SSL_CA does not look like a valid PEM certificate (missing header)');
-        console.log('👀 Content start:', cleanCert.substring(0, 50));
-        // Fallback: пробуем подключиться без верификации
-        return { rejectUnauthorized: false };
-      }
-
-      const ca = Buffer.from(cleanCert, 'utf-8');
       console.log('🔒 CA certificate processed successfully. Size:', ca.length);
-
-      return {
-        ca,
-        rejectUnauthorized: true
-      };
+      return { ca, rejectUnauthorized: true };
     } catch (e: any) {
       console.error('❌ Error processing CA certificate:', e.message);
-      // Fallback на небезопасный SSL при ошибке парсинга
       return { rejectUnauthorized: false };
     }
   }
