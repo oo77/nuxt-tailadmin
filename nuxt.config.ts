@@ -64,6 +64,13 @@ export default defineNuxtConfig({
     externals: {
       external: ['xlsx', 'sharp']
     },
+    // Cron задачи
+    experimental: {
+      tasks: true
+    },
+    scheduledTasks: {
+      '0 * * * *': ['check-deadlines']
+    },
     // Добавляем сертификаты как серверные ассеты
     serverAssets: [
       {
