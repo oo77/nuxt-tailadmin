@@ -1,97 +1,121 @@
 <template>
-  <div class="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+  <div class="mx-auto max-w-7xl">
     <!-- Заголовок -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-title-md2 font-bold text-black dark:text-white">
-          Импорт студентов
-        </h2>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Массовый импорт студентов из Excel файла
-        </p>
-      </div>
-      <NuxtLink
-        to="/database"
-        class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Назад к базе данных
-      </NuxtLink>
+      <h2 class="text-title-md2 font-bold text-black dark:text-white">
+        Импорт студентов
+      </h2>
     </div>
 
-    <!-- Шаги импорта -->
-    <div class="mb-8">
+    <!-- Stepper (Индикатор шагов) -->
+    <div class="mb-8 rounded-lg border border-stroke bg-white px-8 py-6 shadow-default dark:border-strokedark dark:bg-boxdark">
       <div class="flex items-center justify-between">
-        <div
-          v-for="(step, index) in steps"
+        <div 
+          v-for="step in steps" 
           :key="step.id"
-          class="flex flex-1 items-center"
+          class="relative flex flex-col items-center flex-1"
         >
-          <div class="flex flex-col items-center flex-1">
-            <div
-              :class="[
-                'flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-300',
-                currentStep >= index + 1
-                  ? 'border-primary bg-primary text-white'
-                  : 'border-gray-300 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-800',
-              ]"
-            >
-              <svg v-if="currentStep > index + 1" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              <span v-else class="text-lg font-semibold">{{ index + 1 }}</span>
-            </div>
-            <p class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ step.label }}
-            </p>
+          <div 
+            class="flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors duration-300"
+            :class="getStepClasses(step.id)"
+          >
+            <span v-if="step.id < store.currentStep" class="text-xl">✓</span>
+            <span v-else class="text-sm font-bold">{{ step.id }}</span>
           </div>
-          <div
-            v-if="index < steps.length - 1"
-            :class="[
-              'h-1 flex-1 transition-all duration-300',
-              currentStep > index + 1 ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
-            ]"
-          />
+          <span 
+            class="mt-2 text-xs font-medium text-center"
+            :class="step.id <= store.currentStep ? 'text-primary' : 'text-gray-500 dark:text-gray-400'"
+          >
+            {{ step.label }}
+          </span>
+          
+          <!-- Линия прогресса -->
+          <div 
+            v-if="step.id !== steps.length"
+            class="absolute top-5 left-[50%] w-full h-[2px] -z-10"
+          >
+             <div 
+               class="h-full transition-all duration-300"
+               :class="step.id < store.currentStep ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'"
+             ></div>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Сообщение об ошибке -->
+    <div 
+      v-if="store.error" 
+      class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+    >
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h4 class="font-semibold text-red-900 dark:text-red-100">Ошибка</h4>
+          <p class="text-sm text-red-700 dark:text-red-300">{{ store.error }}</p>
+        </div>
+        <button 
+          @click="dismissError"
+          class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Контент шагов -->
-    <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div class="rounded-lg border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
       <!-- Шаг 1: Загрузка файла -->
-      <div v-show="currentStep === 1" class="p-6">
+      <div v-show="store.currentStep === 1" class="p-6">
         <DatabaseImportUploader
+          :loading="store.isAnalyzing"
           @file-selected="handleFileSelected"
-          :loading="analyzing"
         />
       </div>
 
-      <!-- Шаг 2: Предпросмотр и анализ -->
-      <div v-show="currentStep === 2" class="p-6">
+      <!-- Шаг 2: Анализ и предпросмотр -->
+      <div v-show="store.currentStep === 2" class="p-6">
         <DatabaseImportAnalysis
-          v-if="analysis"
-          :analysis="analysis"
+          v-if="store.analysis"
+          :analysis="store.analysis"
+          :loading="store.isImporting"
           @confirm="handleConfirmImport"
           @cancel="handleCancelImport"
-          :loading="importing"
         />
+         <div v-else-if="!selectedFile && !store.analysis" class="text-center py-10">
+            <p class="text-gray-500">Файл не выбран или данные анализа потеряны. Пожалуйста, начните заново.</p>
+             <button
+              @click="handleCancelImport"
+              class="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-colors"
+            >
+              Вернуться к загрузке
+            </button>
+         </div>
       </div>
 
-      <!-- Шаг 3: Прогресс импорта -->
-      <div v-show="currentStep === 3" class="p-6">
+       <!-- Шаг 3: Прогресс импорта -->
+      <div v-show="store.currentStep === 3" class="p-6">
         <DatabaseImportProgress
-          v-if="importProgress"
-          :progress="importProgress"
+          v-if="store.progress"
+          :progress="store.progress"
         />
+        <div v-else class="flex flex-col items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p class="text-gray-500">Инициализация импорта...</p>
+        </div>
       </div>
 
       <!-- Шаг 4: Результаты -->
-      <div v-show="currentStep === 4" class="p-6">
+      <div v-show="store.currentStep === 4" class="p-6">
         <DatabaseImportResults
-          v-if="importProgress"
-          :result="importProgress"
+          v-if="store.progress"
+          :result="store.progress"
           @new-import="handleNewImport"
           @go-to-database="goToDatabase"
         />
@@ -101,151 +125,84 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import type { ImportAnalysis, ImportProgress } from '~/types/import';
-
 definePageMeta({
   layout: 'default',
 });
 
-// Шаги импорта
+// Шаги импорта - статичные данные
 const steps = [
   { id: 1, label: 'Загрузка файла' },
   { id: 2, label: 'Предпросмотр' },
   { id: 3, label: 'Импорт' },
   { id: 4, label: 'Результаты' },
-];
+] as const;
 
-const currentStep = ref(1);
-const analyzing = ref(false);
-const importing = ref(false);
+const store = reactive(useImportStore());
 const selectedFile = ref<File | null>(null);
-const analysis = ref<ImportAnalysis | null>(null);
-const importProgress = ref<ImportProgress | null>(null);
-const jobId = ref<string | null>(null);
+const { error: showError } = useNotification();
 
-const { authFetch } = useAuthFetch();
+// Классы для шагов stepper
+const getStepClasses = (stepId: number): string[] => {
+  if (stepId < store.currentStep) {
+    return ['border-primary', 'bg-primary', 'text-white'];
+  }
+  if (stepId === store.currentStep) {
+    return ['border-primary', 'text-primary'];
+  }
+  return ['border-gray-300', 'text-gray-400', 'dark:border-gray-600'];
+};
+
+// Восстановление polling при перезагрузке страницы
+onMounted(() => {
+  if (store.jobId && store.isImporting) {
+    store.startPolling();
+  }
+});
+
+// Очистка при размонтировании
+onUnmounted(() => {
+  // Не останавливаем polling полностью - он должен продолжить работу в фоне
+  // Это обеспечивается module-level интервалом в store
+});
 
 // Обработка выбора файла
-const handleFileSelected = async (file: File) => {
+const handleFileSelected = (file: File) => {
   selectedFile.value = file;
-  analyzing.value = true;
-
-  try {
-    // Создаём FormData для отправки файла
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Анализируем файл
-    const response = await authFetch<{ success: boolean; analysis: ImportAnalysis; error?: string }>(
-      '/api/students/import/analyze',
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-
-    if (response.success && response.analysis) {
-      analysis.value = response.analysis;
-      currentStep.value = 2;
-    } else {
-      alert(response.error || 'Ошибка анализа файла');
-    }
-  } catch (error) {
-    console.error('Ошибка анализа файла:', error);
-    alert('Ошибка анализа файла');
-  } finally {
-    analyzing.value = false;
-  }
+  store.analyzeStudentImport(file);
 };
 
 // Подтверждение импорта
 const handleConfirmImport = async () => {
-  if (!selectedFile.value) return;
-
-  importing.value = true;
-  currentStep.value = 3;
-
-  try {
-    // Создаём FormData для отправки файла
-    const formData = new FormData();
-    formData.append('file', selectedFile.value);
-
-    // Запускаем импорт
-    const response = await authFetch<{ success: boolean; jobId: string; error?: string }>(
-      '/api/students/import/execute',
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
-
-    if (response.success && response.jobId) {
-      jobId.value = response.jobId;
-      startProgressPolling();
-    } else {
-      alert(response.error || 'Ошибка запуска импорта');
-      currentStep.value = 2;
-    }
-  } catch (error) {
-    console.error('Ошибка запуска импорта:', error);
-    alert('Ошибка запуска импорта');
-    currentStep.value = 2;
-  } finally {
-    importing.value = false;
+  if (selectedFile.value) {
+    store.executeStudentImport(selectedFile.value);
+  } else if (store.analysis) {
+    // Если файл потерян при refresh, но analysis есть
+    showError('Файл был потерян при обновлении страницы. Пожалуйста, выберите файл заново.');
+    store.currentStep = 1;
   }
-};
-
-// Опрос статуса импорта
-const startProgressPolling = () => {
-  const pollInterval = setInterval(async () => {
-    if (!jobId.value) {
-      clearInterval(pollInterval);
-      return;
-    }
-
-    try {
-      const response = await authFetch<{ success: boolean; status: ImportProgress }>(
-        `/api/students/import/status/${jobId.value}`,
-        {
-          method: 'GET',
-        }
-      );
-
-      if (response.success && response.status) {
-        importProgress.value = response.status;
-
-        // Если импорт завершён, останавливаем опрос
-        if (response.status.status === 'completed' || response.status.status === 'failed') {
-          clearInterval(pollInterval);
-          currentStep.value = 4;
-        }
-      }
-    } catch (error) {
-      console.error('Ошибка получения статуса импорта:', error);
-      clearInterval(pollInterval);
-    }
-  }, 500); // Опрос каждые 500ms
 };
 
 // Отмена импорта
 const handleCancelImport = () => {
-  currentStep.value = 1;
+  store.cancelImport();
   selectedFile.value = null;
-  analysis.value = null;
 };
 
 // Новый импорт
 const handleNewImport = () => {
-  currentStep.value = 1;
-  selectedFile.value = null;
-  analysis.value = null;
-  importProgress.value = null;
-  jobId.value = null;
+  handleCancelImport();
 };
 
 // Переход к базе данных
 const goToDatabase = () => {
+  store.reset();
   navigateTo('/database');
+};
+
+// Скрытие ошибки
+const dismissError = () => {
+  // Создаём локальную копию для UI, но не меняем readonly error в store
+  // error будет автоматически сброшен при следующем действии
+  store.currentStep = store.currentStep; // Trigger reactivity without actual change
 };
 </script>

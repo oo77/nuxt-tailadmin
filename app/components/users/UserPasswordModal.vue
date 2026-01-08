@@ -177,6 +177,9 @@ const close = () => {
 };
 
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (loading.value) return;
+  
   if (!password.value || password.value.length < 6) return;
 
   loading.value = true;

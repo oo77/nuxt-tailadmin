@@ -102,6 +102,9 @@ const handleClose = () => {
 
 // Submit handler
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isSubmitting.value) return;
+  
   if (!props.template) return;
 
   isSubmitting.value = true;

@@ -56,6 +56,11 @@
         <div v-show="activeTab === 'students'" class="p-6">
           <DatabaseStudentManagementPanel />
         </div>
+
+        <!-- Представители Tab (только для ADMIN) -->
+        <div v-if="isAdmin" v-show="activeTab === 'representatives'" class="p-6">
+          <RepresentativesRepresentativeManagementPanel />
+        </div>
       </div>
     </div>
   </div>
@@ -102,6 +107,11 @@ const allTabs = [
     id: 'students',
     label: 'Студенты',
     roles: ['ADMIN', 'MANAGER'], // Видна админам и модераторам
+  },
+  {
+    id: 'representatives',
+    label: 'Представители',
+    roles: ['ADMIN'], // Видна только админам
   },
 ];
 

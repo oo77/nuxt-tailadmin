@@ -113,7 +113,7 @@
           <!-- Выдать всем допущенным -->
           <UiButton 
             @click="openBulkIssueModal('eligible')" 
-            :disabled="!template || eligibleWithoutCertificate === 0 || isIssuing"
+            :disabled="!template || eligibleWithoutCertificate === 0 || isIssuing || certIssueStore.isIssuing.value"
             variant="primary"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,7 +125,7 @@
           <!-- Выдать выбранным -->
           <UiButton 
             @click="openBulkIssueModal('selected')" 
-            :disabled="!template || selectedStudentIds.length === 0 || isIssuing"
+            :disabled="!template || selectedStudentIds.length === 0 || isIssuing || certIssueStore.isIssuing.value"
             variant="outline"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,6 +133,40 @@
             </svg>
             Выдать выбранным ({{ selectedStudentIds.length }})
           </UiButton>
+        </div>
+
+        <!-- Индикатор активной фоновой выдачи -->
+        <div 
+          v-if="certIssueStore.isIssuing.value && certIssueStore.currentJob.value?.groupId === groupId"
+          class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600 dark:text-green-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-medium text-green-800 dark:text-green-200">
+                Выдача сертификатов в процессе...
+              </p>
+              <div class="flex items-center gap-2 mt-1">
+                <div class="flex-1 h-2 bg-green-200 dark:bg-green-700 rounded-full overflow-hidden">
+                  <div 
+                    class="h-full bg-green-500 rounded-full transition-all duration-300"
+                    :style="{ width: `${certIssueStore.percentage.value}%` }"
+                  ></div>
+                </div>
+                <span class="text-xs text-green-600 dark:text-green-400">
+                  {{ certIssueStore.processedCount.value }}/{{ certIssueStore.totalCount.value }}
+                </span>
+              </div>
+              <p class="text-xs text-green-600 dark:text-green-400 mt-1">
+                {{ certIssueStore.currentStudentName.value || 'Обработка...' }}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -362,6 +396,7 @@ definePageMeta({
 const route = useRoute();
 const { authFetch } = useAuthFetch();
 const { success: showSuccess, error: showError } = useNotification();
+const certIssueStore = useCertificateIssueStore();
 
 // Route params
 const groupId = computed(() => route.params.id as string);
@@ -527,7 +562,7 @@ const handleIssueWithWarnings = () => {
 // Открыть модалку массовой выдачи
 const openBulkIssueModal = (mode: 'eligible' | 'selected') => {
   // Защита от открытия во время обработки
-  if (isIssuing.value) {
+  if (isIssuing.value || certIssueStore.isIssuing.value) {
     console.warn('[Certificates] Выдача уже выполняется');
     return;
   }
@@ -557,100 +592,67 @@ const openBulkIssueModal = (mode: 'eligible' | 'selected') => {
   bulkIssueModalOpen.value = true;
 };
 
-// Выполнить массовую выдачу с прогрессом
+// Выполнить массовую выдачу с прогрессом (теперь использует глобальный store)
 const executeBulkIssue = async () => {
   // Защита от двойного вызова
-  if (isIssuing.value) {
+  if (isIssuing.value || certIssueStore.isIssuing.value) {
     console.warn('[Certificates] executeBulkIssue уже выполняется, пропускаем');
     return;
   }
   
-  if (!template.value || !bulkIssueModalRef.value) return;
+  if (!template.value || !group.value) return;
 
-  isIssuing.value = true;
-  bulkIssueModalRef.value.startProcessing();
-
-  const results: IssueCertificatesResponse['results'] = [];
-  const processedStudentIds = new Set<string>(); // Защита от дублирования
-  
   // Получаем данные студентов для отображения имён
   const studentRows = journal.value.filter(r => 
     bulkIssueStudentIds.value.includes(r.student.id)
   );
 
-  console.log(`[Certificates] Начинаем массовую выдачу: ${studentRows.length} студентов`);
+  // Формируем job для глобального store
+  const job = {
+    groupId: groupId.value,
+    groupCode: group.value.code,
+    courseName: group.value.course?.name || '',
+    templateId: template.value.id,
+    templateName: template.value.name,
+    issueDate: issueDate.value,
+    studentIds: bulkIssueStudentIds.value,
+    studentData: studentRows.map(r => ({
+      id: r.student.id,
+      fullName: r.student.fullName,
+      isEligible: r.eligibility.isEligible,
+    })),
+    expiryMode: group.value.course?.certificateValidityMonths ? 'auto' as const : 'none' as const,
+  };
 
-  for (let i = 0; i < studentRows.length; i++) {
-    const row = studentRows[i];
-    
-    // Пропускаем если уже обработали этого студента
-    if (processedStudentIds.has(row.student.id)) {
-      console.warn(`[Certificates] Студент ${row.student.fullName} уже обработан, пропускаем`);
-      continue;
-    }
-    
-    processedStudentIds.add(row.student.id);
-    
-    // Обновляем прогресс
-    bulkIssueModalRef.value.updateProgress(row.student.fullName, i + 1);
+  // Закрываем модалку и запускаем выдачу в store
+  bulkIssueModalOpen.value = false;
+  selectedStudentIds.value = [];
 
-    try {
-      const response = await authFetch<IssueCertificatesResponse>(
-        `/api/certificates/issue/${groupId.value}`,
-        {
-          method: 'POST',
-          body: {
-            templateId: template.value.id,
-            studentIds: [row.student.id],
-            issueDate: issueDate.value,
-            expiryMode: group.value?.course?.certificateValidityMonths ? 'auto' : 'none',
-            overrideWarnings: !row.eligibility.isEligible,
-          },
-        }
-      );
-
-      if (response.success && response.results.length > 0) {
-        const result = response.results[0];
-        results.push(result);
-        bulkIssueModalRef.value.addResult(result);
-      }
-    } catch (e: any) {
-      console.error(`Error issuing certificate for ${row.student.fullName}:`, e);
-      const errorResult = {
-        studentId: row.student.id,
-        studentName: row.student.fullName,
-        success: false,
-        error: e.data?.message || e.message || 'Ошибка выдачи',
-      };
-      results.push(errorResult);
-      bulkIssueModalRef.value.addResult(errorResult);
-    }
-
-    // Небольшая задержка между запросами для снижения нагрузки
-    if (i < studentRows.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-  }
-
-  // Завершаем обработку
-  bulkIssueModalRef.value.completeProcessing(results);
-  isIssuing.value = false;
+  // Запускаем выдачу через глобальный store (продолжится даже при переходе на другую страницу)
+  console.log(`[Certificates] Запускаем фоновую выдачу через store: ${job.studentIds.length} студентов`);
+  certIssueStore.startBulkIssue(job);
 };
 
-// Обработка завершения массовой выдачи
-const handleBulkIssueComplete = async (results: IssueCertificatesResponse['results']) => {
-  const successCount = results.filter(r => r.success).length;
-  
+// Обработка завершения массовой выдачи (для обратной совместимости с модалкой)
+const handleBulkIssueComplete = async (_results: IssueCertificatesResponse['results']) => {
   // Clear selection
   selectedStudentIds.value = [];
   
   // Reload data
   await loadData();
-  
-  if (successCount > 0) {
-    showSuccess(`Выдано ${successCount} сертификатов`);
-  }
 };
+
+// Отслеживаем завершение выдачи из store для обновления данных
+watch(
+  () => certIssueStore.isCompleted.value,
+  async (isCompleted) => {
+    // Если выдача завершена и это была выдача для текущей группы
+    if (isCompleted && certIssueStore.currentJob.value?.groupId === groupId.value) {
+      console.log('[Certificates] Выдача завершена, обновляем данные');
+      await loadData();
+    }
+  }
+);
 
 // Issue to students (для одиночной выдачи)
 const issueToStudents = async (studentIds: string[], overrideWarnings: boolean) => {

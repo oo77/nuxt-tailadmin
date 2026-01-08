@@ -3,13 +3,18 @@
     <button
       class="relative flex items-center justify-center text-gray-500 transition-colors bg-white border border-gray-200 rounded-full hover:text-dark-900 h-11 w-11 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
       @click.stop="toggleDropdown"
+      aria-label="Уведомления"
     >
       <span
-        :class="{ hidden: !notifying, flex: notifying }"
-        class="absolute right-0 top-0.5 z-1 h-2 w-2 rounded-full bg-orange-400"
+        :class="[
+          { hidden: !hasActiveNotification, flex: hasActiveNotification }, 
+          indicatorColor
+        ]"
+        class="absolute right-0 top-0.5 z-1 h-2 w-2 rounded-full"
       >
         <span
-          class="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 -z-1 animate-ping"
+          class="absolute inline-flex w-full h-full rounded-full opacity-75 -z-1 animate-ping"
+          :class="indicatorColor"
         ></span>
       </span>
       <svg
@@ -29,7 +34,7 @@
       </svg>
     </button>
 
-    <!-- Dropdown Start -->
+    <!-- Dropdown -->
     <Transition
       enter-active-class="transition ease-out duration-200"
       enter-from-class="opacity-0 translate-y-1"
@@ -42,205 +47,265 @@
         v-if="dropdownOpen"
         class="absolute -right-[240px] mt-[17px] flex h-[480px] w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] lg:right-0 z-99999"
       >
-      <div
-        class="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-800"
-      >
-        <h5 class="text-lg font-semibold text-gray-800 dark:text-white/90">Notification</h5>
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-800">
+          <h5 class="text-lg font-semibold text-gray-800 dark:text-white/90">Уведомления</h5>
 
-        <button @click="closeDropdown" class="text-gray-500 dark:text-gray-400">
-          <svg
-            class="fill-current"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <button @click="closeDropdown" class="text-gray-500 dark:text-gray-400">
+            <svg
+              class="fill-current"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M6.21967 7.28131C5.92678 6.98841 5.92678 6.51354 6.21967 6.22065C6.51256 5.92775 6.98744 5.92775 7.28033 6.22065L11.999 10.9393L16.7176 6.22078C17.0105 5.92789 17.4854 5.92788 17.7782 6.22078C18.0711 6.51367 18.0711 6.98855 17.7782 7.28144L13.0597 12L17.7782 16.7186C18.0711 17.0115 18.0711 17.4863 17.7782 17.7792C17.4854 18.0721 17.0105 18.0721 16.7176 17.7792L11.999 13.0607L7.28033 17.7794C6.98744 18.0722 6.51256 18.0722 6.21967 17.7794C5.92678 17.4865 5.92678 17.0116 6.21967 16.7187L10.9384 12L6.21967 7.28131Z"
+                fill=""
+              />
+            </svg>
+          </button>
+        </div>
+
+        <ul class="flex flex-col h-auto overflow-y-auto custom-scrollbar">
+          <!-- Certificate Issue Progress Item -->
+          <li 
+            v-if="showCertificateNotification" 
+            @click="handleCertificateClick" 
+            class="mb-2"
           >
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M6.21967 7.28131C5.92678 6.98841 5.92678 6.51354 6.21967 6.22065C6.51256 5.92775 6.98744 5.92775 7.28033 6.22065L11.999 10.9393L16.7176 6.22078C17.0105 5.92789 17.4854 5.92788 17.7782 6.22078C18.0711 6.51367 18.0711 6.98855 17.7782 7.28144L13.0597 12L17.7782 16.7186C18.0711 17.0115 18.0711 17.4863 17.7782 17.7792C17.4854 18.0721 17.0105 18.0721 16.7176 17.7792L11.999 13.0607L7.28033 17.7794C6.98744 18.0722 6.51256 18.0722 6.21967 17.7794C5.92678 17.4865 5.92678 17.0116 6.21967 16.7187L10.9384 12L6.21967 7.28131Z"
-              fill=""
-            />
-          </svg>
-        </button>
-      </div>
+            <a
+              :class="[
+                'flex gap-3 rounded-lg border p-3 px-4.5 py-3 cursor-pointer',
+                isCertIssueActive
+                  ? 'border-green-100 bg-green-50 hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:hover:bg-green-900/30'
+                  : certIssueStore.errorCount.value > 0
+                    ? 'border-red-100 bg-red-50 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-900/20 dark:hover:bg-red-900/30'
+                    : 'border-green-100 bg-green-50 hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:hover:bg-green-900/30'
+              ]"
+              href="#"
+            >
+              <span class="relative block w-full h-10 rounded-full z-1 max-w-10 flex items-center justify-center" :class="isCertIssueActive ? 'bg-green-100 text-green-600 dark:bg-green-800 dark:text-green-200' : 'bg-green-100 text-green-600 dark:bg-green-800 dark:text-green-200'">
+                <svg 
+                  v-if="isCertIssueActive" 
+                  class="w-6 h-6 animate-spin" 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  fill="none" 
+                  viewBox="0 0 24 24"
+                >
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                </svg>
+              </span>
 
-      <ul class="flex flex-col h-auto overflow-y-auto custom-scrollbar">
-        <li v-for="notification in notifications" :key="notification.id" @click="handleItemClick">
-          <a
-            class="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
-            href="#"
-          >
-            <span class="relative block w-full h-10 rounded-full z-1 max-w-10">
-              <img :src="notification.userImage" alt="User" class="overflow-hidden rounded-full" />
-              <span
-                :class="notification.status === 'online' ? 'bg-success-500' : 'bg-error-500'"
-                class="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white dark:border-gray-900"
-              ></span>
-            </span>
-
-            <span class="block">
-              <span class="mb-1.5 block text-theme-sm text-gray-500 dark:text-gray-400">
-                <span class="font-medium text-gray-800 dark:text-white/90">
-                  {{ notification.userName }}
+              <span class="block w-full">
+                <span class="mb-1.5 block text-theme-sm text-gray-800 dark:text-gray-200">
+                  <span class="font-medium">
+                    Выдача сертификатов
+                  </span>
+                  <span v-if="certIssueStore.currentJob.value" class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                    ({{ certIssueStore.currentJob.value.groupCode }})
+                  </span>
                 </span>
-                {{ notification.action }}
-                <span class="font-medium text-gray-800 dark:text-white/90">
-                  {{ notification.project }}
+
+                <span class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-theme-xs text-gray-500 dark:text-gray-400">
+                    <span>{{ isCertIssueActive ? certIssueStore.currentStudentName.value || 'Обработка...' : 'Выдача завершена' }}</span>
+                    <span>{{ certIssuePercentage }}%</span>
+                  </div>
+                  <div class="w-full h-1.5 bg-gray-200 rounded-full dark:bg-gray-700 overflow-hidden">
+                    <div 
+                      class="h-full rounded-full transition-all duration-300" 
+                      :class="certIssueStore.errorCount.value > 0 && !isCertIssueActive ? 'bg-orange-500' : 'bg-green-500'"
+                      :style="{ width: `${certIssuePercentage}%` }"
+                    ></div>
+                  </div>
+                  <!-- Статистика -->
+                  <div v-if="certIssueStore.processedCount.value > 0" class="flex items-center gap-2 text-theme-xs mt-1">
+                    <span class="text-green-600 dark:text-green-400">✓ {{ certIssueStore.successCount.value }}</span>
+                    <span v-if="certIssueStore.warningCount.value > 0" class="text-yellow-600 dark:text-yellow-400">⚠ {{ certIssueStore.warningCount.value }}</span>
+                    <span v-if="certIssueStore.errorCount.value > 0" class="text-red-600 dark:text-red-400">✕ {{ certIssueStore.errorCount.value }}</span>
+                  </div>
                 </span>
               </span>
 
-              <span class="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                <span>{{ notification.type }}</span>
-                <span class="w-1 h-1 bg-gray-400 rounded-full"></span>
-                <span>{{ notification.time }}</span>
+              <!-- Кнопка закрытия для завершённых -->
+              <button 
+                v-if="!isCertIssueActive"
+                @click.stop="dismissCertificateNotification"
+                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                title="Скрыть"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </a>
+          </li>
+
+          <!-- Import Progress Item -->
+          <li 
+            v-if="showImportNotification" 
+            @click="handleImportClick" 
+            class="mb-2"
+          >
+            <a
+              class="flex gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 px-4.5 py-3 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 cursor-pointer"
+              href="#"
+            >
+              <span class="relative block w-full h-10 rounded-full z-1 max-w-10 flex items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-200">
+                <svg 
+                  v-if="isImportActive" 
+                  class="w-6 h-6 animate-spin" 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  fill="none" 
+                  viewBox="0 0 24 24"
+                >
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
               </span>
-            </span>
-          </a>
-        </li>
-      </ul>
+
+              <span class="block w-full">
+                <span class="mb-1.5 block text-theme-sm text-gray-800 dark:text-gray-200">
+                  <span class="font-medium">
+                    {{ importFileName || 'Импорт данных' }}
+                  </span>
+                </span>
+
+                <span class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-theme-xs text-gray-500 dark:text-gray-400">
+                    <span>{{ isImportActive ? 'Идет импорт...' : 'Импорт завершен' }}</span>
+                    <span>{{ importPercentage }}%</span>
+                  </div>
+                  <div class="w-full h-1.5 bg-gray-200 rounded-full dark:bg-gray-700 overflow-hidden">
+                    <div 
+                      class="h-full bg-blue-500 rounded-full transition-all duration-300" 
+                      :style="{ width: `${importPercentage}%` }"
+                    ></div>
+                  </div>
+                </span>
+              </span>
+            </a>
+          </li>
+
+          <!-- Пустое состояние -->
+          <li v-if="!showImportNotification && !showCertificateNotification" class="flex flex-col items-center justify-center py-8">
+            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Нет новых уведомлений</p>
+          </li>
+        </ul>
 
         <button
           @click="handleViewAllClick"
           class="mt-3 flex justify-center rounded-lg border border-gray-300 bg-white p-3 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
         >
-          View All Notification
+          Все уведомления
         </button>
       </div>
     </Transition>
-    <!-- Dropdown End -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+const dropdownOpen = ref(false);
+const dropdownRef = ref<HTMLElement | null>(null);
+const importStore = useImportStore();
+const certIssueStore = useCertificateIssueStore();
 
-const dropdownOpen = ref(false)
-const notifying = ref(true)
-const dropdownRef = ref<HTMLElement | null>(null)
+// Import computed свойства
+const isImportActive = computed(() => importStore.isImporting.value);
+const importFileName = computed(() => importStore.fileName.value);
+const importPercentage = computed(() => importStore.percentage.value);
 
-const notifications = ref([
-  {
-    id: 1,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-02.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 2,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-03.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'offline',
-  },
-  {
-    id: 3,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-04.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 4,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-05.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 5,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-06.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'offline',
-  },
-  {
-    id: 6,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-07.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 7,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-08.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  {
-    id: 7,
-    userName: 'Terry Franci',
-    userImage: '/images/user/user-09.jpg',
-    action: 'requests permission to change',
-    project: 'Project - Nganter App',
-    type: 'Project',
-    time: '5 min ago',
-    status: 'online',
-  },
-  // Add more notifications here...
-])
+// Certificate issue computed свойства
+const isCertIssueActive = computed(() => certIssueStore.isIssuing.value);
+const certIssuePercentage = computed(() => certIssueStore.percentage.value);
+
+// Показывать уведомление об импорте
+const showImportNotification = computed(() => {
+  const hasActiveImport = importStore.isImporting.value && importStore.jobId.value;
+  const hasCompletedImport = importStore.currentStep.value === 4 && importStore.progress.value !== null;
+  return hasActiveImport || hasCompletedImport;
+});
+
+// Показывать уведомление о выдаче сертификатов
+const showCertificateNotification = computed(() => {
+  return certIssueStore.isIssuing.value || 
+    (certIssueStore.isCompleted.value && certIssueStore.results.value.length > 0);
+});
+
+// Есть ли активное уведомление
+const hasActiveNotification = computed(() => {
+  return showImportNotification.value || showCertificateNotification.value;
+});
+
+// Цвет индикатора
+const indicatorColor = computed(() => {
+  if (isCertIssueActive.value) return 'bg-green-500';
+  if (isImportActive.value) return 'bg-blue-500';
+  return 'bg-orange-400';
+});
 
 const toggleDropdown = () => {
-  dropdownOpen.value = !dropdownOpen.value
-  notifying.value = false
-}
+  dropdownOpen.value = !dropdownOpen.value;
+};
 
 const closeDropdown = () => {
-  dropdownOpen.value = false
-}
+  dropdownOpen.value = false;
+};
 
 const handleClickOutside = (event: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    closeDropdown()
+    closeDropdown();
   }
-}
+};
 
-const handleItemClick = (event: MouseEvent) => {
-  event.preventDefault()
-  // Handle the item click action here
-  console.log('Notification item clicked')
-  closeDropdown()
-}
+const handleImportClick = (event: MouseEvent) => {
+  event.preventDefault();
+  closeDropdown();
+  navigateTo('/database/import');
+};
+
+const handleCertificateClick = (event: MouseEvent) => {
+  event.preventDefault();
+  closeDropdown();
+  // Переход к странице группы для просмотра результатов
+  if (certIssueStore.currentJob.value) {
+    navigateTo(`/groups/${certIssueStore.currentJob.value.groupId}/certificates`);
+  }
+};
+
+const dismissCertificateNotification = () => {
+  certIssueStore.dismissNotification();
+};
 
 const handleViewAllClick = (event: MouseEvent) => {
-  event.preventDefault()
-  // Handle the "View All Notification" action here
-  console.log('View All Notifications clicked')
-  closeDropdown()
-}
+  event.preventDefault();
+  closeDropdown();
+  // TODO: Навигация к странице всех уведомлений когда она будет создана
+};
 
 onMounted(() => {
-  // Небольшая задержка, чтобы избежать немедленного закрытия при открытии
+  // Небольшая задержка для избежания немедленного закрытия при открытии
   setTimeout(() => {
-    document.addEventListener('click', handleClickOutside)
-  }, 100)
-})
+    document.addEventListener('click', handleClickOutside);
+  }, 100);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>

@@ -354,6 +354,9 @@ const validateForm = () => {
 
 // Handle submit
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (submitting.value) return;
+  
   if (!validateForm()) return;
 
   submitting.value = true;

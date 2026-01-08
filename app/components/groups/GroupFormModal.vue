@@ -220,6 +220,9 @@ const validateForm = (): boolean => {
 };
 
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (loading.value) return;
+  
   if (!validateForm()) return;
 
   loading.value = true;

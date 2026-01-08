@@ -112,6 +112,9 @@ const handleClose = () => {
 
 // Submit handler
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isSubmitting.value) return;
+  
   // Validate
   errors.name = '';
   if (!form.name.trim()) {

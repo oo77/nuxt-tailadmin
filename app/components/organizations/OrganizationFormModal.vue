@@ -239,6 +239,9 @@ const validate = (): boolean => {
 
 // Отправка формы
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isSubmitting.value) return;
+  
   if (!validate()) return;
 
   isSubmitting.value = true;

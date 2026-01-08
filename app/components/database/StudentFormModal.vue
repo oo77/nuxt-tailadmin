@@ -455,6 +455,9 @@ const hideDropdownWithDelay = () => {
 };
 
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isSubmitting.value) return;
+  
   // Очистка ошибок
   Object.keys(errors).forEach((key) => delete errors[key]);
 

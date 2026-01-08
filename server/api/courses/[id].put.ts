@@ -33,6 +33,7 @@ const updateCourseSchema = z.object({
   code: z.string().min(1).optional(),
   description: z.string().nullable().optional(),
   certificateTemplateId: z.string().nullable().optional(),
+  certificateValidityMonths: z.number().positive().int().nullable().optional(), // Срок действия сертификата в месяцах (null = бессрочный)
   isActive: z.boolean().optional(),
   disciplines: z.array(disciplineSchema).optional(),
 });

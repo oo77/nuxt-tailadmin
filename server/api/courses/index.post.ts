@@ -28,6 +28,7 @@ const courseSchema = z.object({
   code: z.string().min(1, 'Код курса обязателен'),
   description: z.string().optional(),
   certificateTemplateId: z.string().optional(),
+  certificateValidityMonths: z.number().positive().int().nullable().optional(), // Срок действия сертификата в месяцах (null = бессрочный)
   isActive: z.boolean().optional(),
   disciplines: z.array(disciplineSchema).optional(),
 });

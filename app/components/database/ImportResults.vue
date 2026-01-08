@@ -37,65 +37,18 @@
 
     <!-- Итоговая статистика -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <!-- Всего обработано -->
-      <div class="rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Всего обработано</p>
-            <p class="mt-2 text-4xl font-bold">{{ result.processedRows }}</p>
-          </div>
-          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Создано -->
-      <div class="rounded-xl bg-gradient-to-br from-green-500 to-green-600 p-6 text-white shadow-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Создано новых</p>
-            <p class="mt-2 text-4xl font-bold">{{ result.createdCount }}</p>
-          </div>
-          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Обновлено -->
-      <div class="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-6 text-white shadow-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Обновлено</p>
-            <p class="mt-2 text-4xl font-bold">{{ result.updatedCount }}</p>
-          </div>
-          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Ошибки -->
-      <div class="rounded-xl bg-gradient-to-br from-red-500 to-red-600 p-6 text-white shadow-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Ошибки</p>
-            <p class="mt-2 text-4xl font-bold">{{ result.errorCount }}</p>
-          </div>
-          <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <CommonStatCard
+        v-for="stat in resultStats"
+        :key="stat.label"
+        :label="stat.label"
+        :value="stat.value"
+        :variant="stat.variant"
+        large
+      >
+        <template #icon>
+          <component :is="stat.icon" />
+        </template>
+      </CommonStatCard>
     </div>
 
     <!-- Дополнительная информация -->
@@ -133,7 +86,7 @@
 
     <!-- Детали ошибок -->
     <div
-      v-if="result.errors.length > 0"
+      v-if="result.errors && result.errors.length > 0"
       class="rounded-xl border-2 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
     >
       <div class="border-b border-red-200 bg-red-100 px-6 py-4 dark:border-red-800 dark:bg-red-900/30">
@@ -149,7 +102,7 @@
                 Детали ошибок
               </h4>
               <p class="text-sm text-red-700 dark:text-red-300">
-                {{ result.errors.length }} {{ result.errors.length === 1 ? 'запись' : 'записей' }} не удалось импортировать
+                {{ pluralizeRecords(result.errors.length) }} не удалось импортировать
               </p>
             </div>
           </div>
@@ -211,27 +164,38 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { pluralizeRecords } from '~/utils/pluralize';
 import type { ImportProgress } from '~/types/import';
+
+interface ImportError {
+  rowNumber: number;
+  pinfl: string;
+  error: string;
+}
 
 const props = defineProps<{
   result: ImportProgress;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   newImport: [];
   goToDatabase: [];
 }>();
 
+// Успешность определяется отсутствием ошибок или наличием хотя бы одного успеха
 const isSuccess = computed(() => {
-  return props.result.errorCount === 0 || props.result.successCount > 0;
+  return (props.result.errorCount ?? 0) === 0;
 });
 
 const resultDescription = computed(() => {
-  if (props.result.errorCount === 0) {
-    return `Все ${props.result.processedRows} записей успешно импортированы`;
+  const processed = props.result.processedRows ?? 0;
+  const errors = props.result.errorCount ?? 0;
+  const success = props.result.successCount ?? 0;
+  
+  if (errors === 0) {
+    return `Все ${processed} записей успешно импортированы`;
   }
-  return `${props.result.successCount} из ${props.result.processedRows} записей импортированы успешно`;
+  return `${success} из ${processed} записей импортированы успешно`;
 });
 
 const duration = computed(() => {
@@ -247,29 +211,80 @@ const duration = computed(() => {
 });
 
 const successRate = computed(() => {
-  if (props.result.processedRows === 0) return 0;
-  return Math.round((props.result.successCount / props.result.processedRows) * 100);
+  const processed = props.result.processedRows ?? 0;
+  const success = props.result.successCount ?? 0;
+  
+  if (processed === 0) return 0;
+  return Math.round((success / processed) * 100);
 });
 
+// Статистические карточки результатов
+// Используем nullish coalescing для защиты от undefined значений с сервера
+const resultStats = computed(() => [
+  {
+    label: 'Всего обработано',
+    value: props.result.processedRows ?? 0,
+    variant: 'blue' as const,
+    icon: resolveComponent('CommonIconsIconDocument'),
+  },
+  {
+    label: 'Создано новых',
+    value: props.result.createdCount ?? 0,
+    variant: 'green' as const,
+    icon: resolveComponent('CommonIconsIconUserAdd'),
+  },
+  {
+    label: 'Обновлено',
+    value: props.result.updatedCount ?? 0,
+    variant: 'orange' as const,
+    icon: resolveComponent('CommonIconsIconRefresh'),
+  },
+  {
+    label: 'Ошибки',
+    value: props.result.errorCount ?? 0,
+    variant: 'red' as const,
+    icon: resolveComponent('CommonIconsIconExclamationCircle'),
+  },
+]);
+
+/**
+ * Экранирование значения для CSV
+ */
+const escapeCsvValue = (value: string | number): string => {
+  const strValue = String(value);
+  // Если значение содержит запятую, кавычки или перенос строки - оборачиваем в кавычки
+  if (strValue.includes(',') || strValue.includes('"') || strValue.includes('\n')) {
+    return `"${strValue.replace(/"/g, '""')}"`;
+  }
+  return strValue;
+};
+
+/**
+ * Скачивание отчёта об ошибках в CSV
+ */
 const downloadErrorReport = () => {
-  // Формируем CSV отчёт
   const headers = ['Строка', 'ПИНФЛ', 'Ошибка'];
-  const rows = props.result.errors.map((error: { rowNumber: number; pinfl: string; error: string }) => [
+  const rows = (props.result.errors || []).map((error: ImportError) => [
     error.rowNumber,
     error.pinfl,
     error.error,
   ]);
 
   const csv = [
-    headers.join(','),
-    ...rows.map((row: (string | number)[]) => row.map((cell: string | number) => `"${cell}"`).join(',')),
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map(row => row.map(escapeCsvValue).join(',')),
   ].join('\n');
 
-  // Создаём blob и скачиваем
+  // Создаём blob с BOM для корректного отображения кириллицы в Excel
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
+  const timestamp = new Date().toISOString().slice(0, 10);
+  
   link.href = URL.createObjectURL(blob);
-  link.download = `import-errors-${Date.now()}.csv`;
+  link.download = `import-errors-${timestamp}.csv`;
   link.click();
+  
+  // Освобождаем ресурсы
+  URL.revokeObjectURL(link.href);
 };
 </script>

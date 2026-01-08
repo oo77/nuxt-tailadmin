@@ -69,70 +69,23 @@
 
     <!-- Статистика в реальном времени -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <!-- Успешно обработано -->
-      <div class="rounded-xl bg-gradient-to-br from-green-500 to-green-600 p-6 text-white shadow-lg transform transition-transform hover:scale-105">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Успешно</p>
-            <p class="mt-2 text-3xl font-bold">{{ progress.successCount }}</p>
-          </div>
-          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Создано -->
-      <div class="rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg transform transition-transform hover:scale-105">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Создано</p>
-            <p class="mt-2 text-3xl font-bold">{{ progress.createdCount }}</p>
-          </div>
-          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Обновлено -->
-      <div class="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-6 text-white shadow-lg transform transition-transform hover:scale-105">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Обновлено</p>
-            <p class="mt-2 text-3xl font-bold">{{ progress.updatedCount }}</p>
-          </div>
-          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <!-- Ошибки -->
-      <div class="rounded-xl bg-gradient-to-br from-red-500 to-red-600 p-6 text-white shadow-lg transform transition-transform hover:scale-105">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium opacity-90">Ошибки</p>
-            <p class="mt-2 text-3xl font-bold">{{ progress.errorCount }}</p>
-          </div>
-          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
+      <CommonStatCard
+        v-for="stat in progressStats"
+        :key="stat.label"
+        :label="stat.label"
+        :value="stat.value"
+        :variant="stat.variant"
+        hover-effect
+      >
+        <template #icon>
+          <component :is="stat.icon" />
+        </template>
+      </CommonStatCard>
     </div>
 
     <!-- Ошибки в реальном времени -->
     <div
-      v-if="progress.errors.length > 0"
+      v-if="progress.errors && progress.errors.length > 0"
       class="rounded-xl border-2 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
     >
       <div class="border-b border-red-200 bg-red-100 px-6 py-4 dark:border-red-800 dark:bg-red-900/30">
@@ -147,7 +100,7 @@
               Ошибки при импорте
             </h4>
             <p class="text-sm text-red-700 dark:text-red-300">
-              {{ progress.errors.length }} {{ progress.errors.length === 1 ? 'запись' : 'записей' }} не удалось импортировать
+              {{ pluralizeRecords(progress.errors.length) }} не удалось импортировать
             </p>
           </div>
         </div>
@@ -155,7 +108,7 @@
       <div class="max-h-60 overflow-y-auto p-6">
         <div class="space-y-3">
           <div
-            v-for="(error, index) in progress.errors.slice(0, 10)"
+            v-for="(error, index) in displayedErrors"
             :key="index"
             class="rounded-lg bg-white p-4 dark:bg-gray-800"
           >
@@ -171,8 +124,8 @@
             </div>
           </div>
         </div>
-        <p v-if="progress.errors.length > 10" class="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-          И ещё {{ progress.errors.length - 10 }} {{ progress.errors.length - 10 === 1 ? 'ошибка' : 'ошибок' }}...
+        <p v-if="remainingErrors > 0" class="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          И ещё {{ pluralizeErrors(remainingErrors) }}...
         </p>
       </div>
     </div>
@@ -190,12 +143,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { pluralizeRecords, pluralizeErrors } from '~/utils/pluralize';
 import type { ImportProgress } from '~/types/import';
 
 const props = defineProps<{
   progress: ImportProgress;
 }>();
+
+const MAX_DISPLAYED_ERRORS = 10;
 
 const progressPercentage = computed(() => {
   if (props.progress.totalRows === 0) return 0;
@@ -203,28 +158,59 @@ const progressPercentage = computed(() => {
 });
 
 const statusText = computed(() => {
-  switch (props.progress.status) {
-    case 'processing':
-      return 'Импорт данных';
-    case 'completed':
-      return 'Импорт завершён';
-    case 'failed':
-      return 'Импорт не удался';
-    default:
-      return 'Ожидание';
-  }
+  const statusMap: Record<string, string> = {
+    processing: 'Импорт данных',
+    completed: 'Импорт завершён',
+    failed: 'Импорт не удался',
+  };
+  return statusMap[props.progress.status] || 'Ожидание';
 });
 
 const statusDescription = computed(() => {
-  switch (props.progress.status) {
-    case 'processing':
-      return 'Пожалуйста, подождите. Это может занять некоторое время...';
-    case 'completed':
-      return 'Все данные успешно обработаны';
-    case 'failed':
-      return 'Произошла ошибка при импорте данных';
-    default:
-      return 'Подготовка к импорту...';
-  }
+  const descriptionMap: Record<string, string> = {
+    processing: 'Пожалуйста, подождите. Это может занять некоторое время...',
+    completed: 'Все данные успешно обработаны',
+    failed: 'Произошла ошибка при импорте данных',
+  };
+  return descriptionMap[props.progress.status] || 'Подготовка к импорту...';
+});
+
+// Статистические карточки прогресса
+const progressStats = computed(() => [
+  {
+    label: 'Успешно',
+    value: props.progress.successCount,
+    variant: 'green' as const,
+    icon: resolveComponent('CommonIconsIconCheck'),
+  },
+  {
+    label: 'Создано',
+    value: props.progress.createdCount,
+    variant: 'blue' as const,
+    icon: resolveComponent('CommonIconsIconPlus'),
+  },
+  {
+    label: 'Обновлено',
+    value: props.progress.updatedCount,
+    variant: 'orange' as const,
+    icon: resolveComponent('CommonIconsIconRefresh'),
+  },
+  {
+    label: 'Ошибки',
+    value: props.progress.errorCount,
+    variant: 'red' as const,
+    icon: resolveComponent('CommonIconsIconExclamationCircle'),
+  },
+]);
+
+// Ошибки для отображения (первые N)
+const displayedErrors = computed(() => {
+  return (props.progress.errors || []).slice(0, MAX_DISPLAYED_ERRORS);
+});
+
+// Количество оставшихся ошибок
+const remainingErrors = computed(() => {
+  const total = props.progress.errors?.length || 0;
+  return Math.max(0, total - MAX_DISPLAYED_ERRORS);
 });
 </script>

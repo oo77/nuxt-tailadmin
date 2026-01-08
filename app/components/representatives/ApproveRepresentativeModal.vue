@@ -199,6 +199,9 @@ const handleClose = () => {
 };
 
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isSubmitting.value) return;
+  
   isSubmitting.value = true;
 
   try {

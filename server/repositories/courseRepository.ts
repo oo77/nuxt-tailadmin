@@ -487,8 +487,8 @@ export async function createCourse(data: CreateCourseInput): Promise<Course> {
   await executeTransaction(async (connection: PoolConnection) => {
     // Создаём курс
     await connection.execute(
-      `INSERT INTO courses (id, name, short_name, code, description, total_hours, certificate_template_id, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO courses (id, name, short_name, code, description, total_hours, certificate_template_id, certificate_validity_months, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         data.name,
@@ -497,6 +497,7 @@ export async function createCourse(data: CreateCourseInput): Promise<Course> {
         data.description || null,
         totalHours,
         data.certificateTemplateId || null,
+        data.certificateValidityMonths ?? null, // null = бессрочный сертификат
         data.isActive !== false,
         now,
         now
@@ -573,6 +574,10 @@ export async function updateCourse(id: string, data: UpdateCourseInput): Promise
   if (data.certificateTemplateId !== undefined) {
     updates.push('certificate_template_id = ?');
     params.push(data.certificateTemplateId);
+  }
+  if (data.certificateValidityMonths !== undefined) {
+    updates.push('certificate_validity_months = ?');
+    params.push(data.certificateValidityMonths);
   }
   if (data.isActive !== undefined) {
     updates.push('is_active = ?');

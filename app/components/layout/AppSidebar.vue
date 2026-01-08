@@ -150,10 +150,10 @@
             <!-- Single Link Item -->
             <NuxtLink
               v-else
-              :to="item.path"
+              :to="item.path ?? ''"
               :class="[
                 'group flex items-center px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden',
-                isActive(item.path, item.excludePaths)
+                isActive(item.path ?? '', item.excludePaths)
                   ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white',
                 !isExpanded && !isHovered ? 'justify-center' : ''
@@ -161,13 +161,13 @@
             >
               <!-- Hover Gradient Effect for inactive items -->
               <div 
-                 v-if="!isActive(item.path, item.excludePaths)"
+                 v-if="!isActive(item.path ?? '', item.excludePaths)"
                  class="absolute inset-0 bg-linear-to-r from-blue-500/0 via-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               ></div>
 
               <div :class="[
                 'relative z-10 w-6 h-6 flex items-center justify-center transition-transform duration-300 group-hover:scale-110',
-                isActive(item.path, item.excludePaths) ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'
+                isActive(item.path ?? '', item.excludePaths) ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'
               ]">
                 <component :is="item.icon" class="w-5 h-5" />
               </div>
@@ -201,6 +201,32 @@ import { useRoute } from "vue-router";
 import { useSidebar } from "~/composables/useSidebar";
 import { usePermissions } from "~/composables/usePermissions";
 import { Permission } from "~/types/permissions";
+import type { DefineComponent } from "vue";
+
+// Интерфейсы для типизации меню
+interface SubMenuItem {
+  name: string;
+  path: string;
+  permission?: Permission;
+  excludePaths?: string[];
+}
+
+interface MenuItem {
+  icon: DefineComponent<any, any, any>;
+  name: string;
+  path?: string;
+  permission?: Permission;
+  anyPermissions?: Permission[];
+  subItems?: SubMenuItem[];
+  showOnlyForRoles?: string[];
+  hideForRoles?: string[];
+  excludePaths?: string[];
+}
+
+interface MenuGroup {
+  title: string;
+  items: MenuItem[];
+}
 
 // Importing icons
 import GridIcon from "~/components/icons/GridIcon.vue";
@@ -239,7 +265,7 @@ const handleMouseLeave = () => {
 }
 
 // Menu Configuration
-const allMenuGroups = [
+const allMenuGroups: MenuGroup[] = [
   {
     title: "Главная",
     items: [
@@ -352,6 +378,7 @@ const allMenuGroups = [
              { name: "Модераторы", path: "/users?tab=manager" },
              { name: "Инструкторы", path: "/users?tab=instructors" },
              { name: "Студенты", path: "/users?tab=students" },
+             { name: "Представители", path: "/users?tab=representatives" },
         ]
       },
       {
@@ -371,66 +398,68 @@ const allMenuGroups = [
 ];
 
 // Computed Filtered Menu
-const menuGroups = computed(() => {
+const menuGroups = computed((): MenuGroup[] => {
   return allMenuGroups
     .map(group => {
-      const filteredItems = group.items.map(item => {
-        // 1. Role-based visibility
-        if (item.showOnlyForRoles) {
-          const currentRole = isAdmin.value ? 'ADMIN' 
-            : isManager.value ? 'MANAGER' 
-            : isTeacher.value ? 'TEACHER' 
-            : isStudent.value ? 'STUDENT' 
-            : null;
-          if (!currentRole || !item.showOnlyForRoles.includes(currentRole as any)) {
+      const filteredItems = group.items
+        .map((item): MenuItem | null => {
+          // 1. Role-based visibility
+          if (item.showOnlyForRoles) {
+            const currentRole = isAdmin.value ? 'ADMIN' 
+              : isManager.value ? 'MANAGER' 
+              : isTeacher.value ? 'TEACHER' 
+              : isStudent.value ? 'STUDENT' 
+              : null;
+            if (!currentRole || !item.showOnlyForRoles.includes(currentRole)) {
+              return null;
+            }
+          }
+
+          if (item.hideForRoles) {
+            const currentRole = isAdmin.value ? 'ADMIN' 
+              : isManager.value ? 'MANAGER' 
+              : isTeacher.value ? 'TEACHER' 
+              : isStudent.value ? 'STUDENT' 
+              : null;
+            if (currentRole && item.hideForRoles.includes(currentRole)) {
+              return null;
+            }
+          }
+
+          // 2. Permission based visibility
+          if (item.permission && !hasPermission(item.permission)) {
             return null;
           }
-        }
 
-        if (item.hideForRoles) {
-          const currentRole = isAdmin.value ? 'ADMIN' 
-            : isManager.value ? 'MANAGER' 
-            : isTeacher.value ? 'TEACHER' 
-            : isStudent.value ? 'STUDENT' 
-            : null;
-          if (currentRole && item.hideForRoles.includes(currentRole as any)) {
+          if (item.anyPermissions && !hasAnyPermission(item.anyPermissions)) {
             return null;
           }
-        }
 
-        // 2. Permission based visibility
-        if (item.permission && !hasPermission(item.permission)) {
-          return null;
-        }
+          // 3. Handle Subitems
+          if (item.subItems) {
+             const filteredSubItems = item.subItems.filter(subItem => {
+                if (subItem.permission && !hasPermission(subItem.permission)) {
+                  return false;
+                }
+                return true;
+             });
 
-        if (item.anyPermissions && !hasAnyPermission(item.anyPermissions)) {
-          return null;
-        }
+             if (filteredSubItems.length === 0) return null;
+             
+             // If we have subitems, we update the item to contain them
+             return { ...item, subItems: filteredSubItems };
+          }
 
-        // 3. Handle Subitems
-        if (item.subItems) {
-           const filteredSubItems = item.subItems.filter(subItem => {
-              if (subItem.permission && !hasPermission(subItem.permission)) {
-                return false;
-              }
-              return true;
-           });
-
-           if (filteredSubItems.length === 0) return null;
-           
-           // If we have subitems, we update the item to contain them
-           return { ...item, subItems: filteredSubItems };
-        }
-
-        return item;
-      }).filter(Boolean); // Remove nulls
+          return item;
+        })
+        .filter((item): item is MenuItem => item !== null);
 
       return {
         ...group,
         items: filteredItems,
       };
     })
-    .filter(group => group.items && group.items.length > 0);
+    .filter(group => group.items.length > 0);
 });
 
 // Helper functions for state
@@ -474,7 +503,7 @@ const isSubmenuOpen = (groupIndex: number, itemIndex: number) => {
   // Auto-expand if child is active (using loose match)
   const item = menuGroups.value[groupIndex]?.items[itemIndex];
   if (item?.subItems) {
-    return item.subItems.some((sub: any) => isActive(sub.path, sub.excludePaths));
+    return item.subItems.some(sub => isActive(sub.path, sub.excludePaths));
   }
   return false;
 };

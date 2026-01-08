@@ -68,6 +68,9 @@ const isLoading = ref(false);
 const error = ref('');
 
 const handleSubmit = async () => {
+  // Защита от двойного вызова при быстром клике
+  if (isLoading.value) return;
+  
   if (!folderName.value.trim()) {
     error.value = 'Введите название папки';
     return;
