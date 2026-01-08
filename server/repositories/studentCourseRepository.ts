@@ -72,29 +72,33 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
   }
 
   // Оптимизированный запрос: включаем подсчёт посещаемости в основной запрос
+  // ВАЖНО: sg.code вместо sg.name, instructor берём из schedule_events или первого занятия
   const query = `
     SELECT 
       sg.id as group_id, 
       c.id as course_id, 
       c.name as course_name, 
-      sg.name as group_name,
-      sgs.status as status,
+      sg.code as group_name,
+      'active' as status,
       sg.start_date,
       sg.end_date,
-      i.first_name as teacher_first_name,
-      i.last_name as teacher_last_name,
+      (SELECT i.first_name FROM schedule_events se 
+        JOIN instructors i ON se.instructor_id = i.id 
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_first_name,
+      (SELECT i.last_name FROM schedule_events se 
+        JOIN instructors i ON se.instructor_id = i.id 
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_last_name,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons,
       COALESCE((
         SELECT COUNT(*) 
         FROM attendance a
         JOIN schedule_events se ON a.schedule_event_id = se.id
-        WHERE a.student_id = ? AND se.group_id = sg.id AND a.status IN ('present', 'late', 'excused')
+        WHERE a.student_id = ? AND se.group_id = sg.id AND a.hours_attended > 0
       ), 0) as attended_lessons
     FROM students s
     JOIN study_group_students sgs ON s.id = sgs.student_id
     JOIN study_groups sg ON sgs.group_id = sg.id
     JOIN courses c ON sg.course_id = c.id
-    LEFT JOIN instructors i ON sg.instructor_id = i.id
     WHERE s.user_id = ?
     ORDER BY sg.start_date DESC
   `;
@@ -130,25 +134,27 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
   const studentId = await getStudentIdByUserId(userId);
   if (!studentId) return null;
 
-  // 1. Получаем инфо о курсе (переиспользуем логику getStudentCourses, но фильтруем по groupId)
-  // Для оптимизации напишем упрощенный запрос для одного курса
+  // 1. Получаем инфо о курсе
   const courseQuery = `
     SELECT 
       sg.id as group_id, 
       c.id as course_id, 
       c.name as course_name, 
-      sg.name as group_name,
-      sgs.status as status,
+      sg.code as group_name,
+      'active' as status,
       sg.start_date,
       sg.end_date,
-      i.first_name as teacher_first_name,
-      i.last_name as teacher_last_name,
+      (SELECT i.first_name FROM schedule_events se 
+        JOIN instructors i ON se.instructor_id = i.id 
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_first_name,
+      (SELECT i.last_name FROM schedule_events se 
+        JOIN instructors i ON se.instructor_id = i.id 
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_last_name,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons
     FROM students s
     JOIN study_group_students sgs ON s.id = sgs.student_id
     JOIN study_groups sg ON sgs.group_id = sg.id
     JOIN courses c ON sg.course_id = c.id
-    LEFT JOIN instructors i ON sg.instructor_id = i.id
     WHERE s.user_id = ? AND sg.id = ?
     LIMIT 1
   `;
@@ -164,7 +170,7 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
     SELECT COUNT(*) as count 
     FROM attendance a
     JOIN schedule_events se ON a.schedule_event_id = se.id
-    WHERE a.student_id = ? AND se.group_id = ? AND a.status IN ('present', 'late', 'excused')
+    WHERE a.student_id = ? AND se.group_id = ? AND a.hours_attended > 0
   `;
   const attRows = await executeQuery<RowDataPacket[]>(attendanceCountQuery, [studentId, groupId]);
   const attendedCount = attRows[0]?.count || 0;
@@ -191,10 +197,8 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
   // 2. Получаем расписание с оценками и посещаемостью
   // LEFT JOIN attendance и LEFT JOIN grades
   // Предполагаем, что grades связаны с schedule_event_id (или через attendance)
-  // Если grades это отдельная таблица, свяжем её.
-  // Пока используем attendance.status.
-  // Для оценок: если есть таблица grades, нужно проверить её структуру. Если нет - пока NULL.
-  // В миграции 020 создавалась таблица grades.
+  // Для оценок: таблица grades имеет колонку 'grade', не 'score'.
+  // attendance не имеет колонки 'status' - вычисляем на основе hours_attended.
 
   const scheduleQuery = `
     SELECT 
@@ -204,22 +208,20 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
       se.start_time,
       se.end_time,
       se.event_type,
-      a.status as attendance_status,
-      g.score as grade,
-      g.max_score as max_grade
+      CASE 
+        WHEN a.id IS NULL THEN NULL
+        WHEN a.hours_attended >= a.max_hours THEN 'present'
+        WHEN a.hours_attended > 0 THEN 'late'
+        ELSE 'absent'
+      END as attendance_status,
+      g.grade as grade,
+      100 as max_grade
     FROM schedule_events se
     LEFT JOIN attendance a ON se.id = a.schedule_event_id AND a.student_id = ?
     LEFT JOIN grades g ON se.id = g.schedule_event_id AND g.student_id = ?
     WHERE se.group_id = ?
     ORDER BY se.start_time ASC
   `;
-
-  // Примечание: Таблица grades может иметь connection через grade_column_id, нужно проверить.
-  // Если таблица grades простая (student_id, schedule_event_id, score), то ок.
-  // Если нет, то запрос может упасть.
-  // Рискованно без проверки grades.
-  // Проверим `try-catch` или используем только attendance пока что.
-  // Я добавлю grades в запрос, но если упадет - значит структура другая.
 
   try {
     const scheduleRows = await executeQuery<any[]>(scheduleQuery, [studentId, studentId, groupId]);
@@ -251,7 +253,12 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
           se.start_time,
           se.end_time,
           se.event_type,
-          a.status as attendance_status
+          CASE 
+            WHEN a.id IS NULL THEN NULL
+            WHEN a.hours_attended >= a.max_hours THEN 'present'
+            WHEN a.hours_attended > 0 THEN 'late'
+            ELSE 'absent'
+          END as attendance_status
         FROM schedule_events se
         LEFT JOIN attendance a ON se.id = a.schedule_event_id AND a.student_id = ?
         WHERE se.group_id = ?
@@ -304,7 +311,6 @@ export async function getStudentDashboardStats(userId: string) {
     LEFT JOIN classrooms cr ON se.classroom_id = cr.id
     WHERE sgs.student_id = ? 
       AND se.end_time > ?
-      AND sgs.status = 'active'
     ORDER BY se.start_time ASC
     LIMIT 3
   `;
@@ -315,14 +321,14 @@ export async function getStudentDashboardStats(userId: string) {
     SELECT 
       sg.id as group_id, 
       c.name as course_name, 
-      sg.name as group_name,
+      sg.code as group_name,
       sg.end_date,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id AND se.end_time < ?) as passed_lessons
     FROM study_group_students sgs
     JOIN study_groups sg ON sgs.group_id = sg.id
     JOIN courses c ON sg.course_id = c.id
-    WHERE sgs.student_id = ? AND sgs.status = 'active'
+    WHERE sgs.student_id = ?
   `;
   const activeCourses = await executeQuery<any[]>(activeCoursesQuery, [now, studentId]);
 
