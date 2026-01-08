@@ -22,6 +22,7 @@ import {
     createStandaloneCertificate,
 } from '../repositories/certificateTemplateRepository';
 import { getCourseById } from '../repositories/courseRepository';
+import { logActivityDirect } from './activityLogger';
 
 // Хранилище активных задач импорта сертификатов
 const certificateImportJobs = new Map<string, CertificateImportProgress>();
@@ -655,6 +656,25 @@ export async function executeCertificateImport(
             skippedDuplicates,
             errors: importErrors,
         });
+
+        // Логируем успешный импорт
+        if (createdCertificates > 0) {
+            await logActivityDirect(
+                issuedBy || 'system',
+                'IMPORT',
+                'ISSUED_CERTIFICATE',
+                jobId,
+                `Импорт сертификатов: ${courseInfo.name}`,
+                {
+                    totalRows: rows.length,
+                    createdStudents,
+                    createdCertificates,
+                    skippedDuplicates,
+                    errorsCount: importErrors.length,
+                    courseName: courseInfo.name,
+                }
+            );
+        }
     } catch (error) {
         updateCertificateJobProgress(jobId, {
             status: 'failed' as ImportStatus,

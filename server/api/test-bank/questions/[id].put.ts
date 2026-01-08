@@ -4,6 +4,7 @@
  */
 
 import { updateQuestion } from '../../../repositories/questionRepository';
+import { logActivity } from '../../../utils/activityLogger';
 import type { UpdateQuestionDTO } from '../../../types/testing';
 
 export default defineEventHandler(async (event) => {
@@ -51,6 +52,19 @@ export default defineEventHandler(async (event) => {
                 message: 'Вопрос не найден',
             };
         }
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'UPDATE',
+            'COURSE',
+            id,
+            `Вопрос: ${question.question_text?.substring(0, 50) || 'обновлён'}...`,
+            { 
+                updatedFields: Object.keys(body).filter(k => body[k] !== undefined),
+                questionType: question.question_type
+            }
+        );
 
         return {
             success: true,

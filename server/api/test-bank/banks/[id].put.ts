@@ -4,7 +4,7 @@
  */
 
 import { updateQuestionBank, questionBankCodeExists } from '../../../repositories/questionBankRepository';
-import { createActivityLog } from '../../../repositories/activityLogRepository';
+import { logActivity } from '../../../utils/activityLogger';
 import type { UpdateQuestionBankDTO } from '../../../types/testing';
 
 export default defineEventHandler(async (event) => {
@@ -47,17 +47,14 @@ export default defineEventHandler(async (event) => {
         }
 
         // Логируем действие
-        const userId = event.context.user?.id;
-        if (userId) {
-            await createActivityLog({
-                userId,
-                actionType: 'UPDATE',
-                entityType: 'COURSE',
-                entityId: bank.id,
-                entityName: bank.name,
-                details: { code: bank.code },
-            });
-        }
+        await logActivity(
+            event,
+            'UPDATE',
+            'COURSE',
+            bank.id,
+            bank.name,
+            { code: bank.code, updatedFields: Object.keys(body).filter(k => body[k] !== undefined) }
+        );
 
         return {
             success: true,

@@ -407,6 +407,9 @@ export const PAGE_PERMISSIONS: RoutePermissionConfig[] = [
   // Settings
   { path: '/settings', requiredPermissions: [Permission.SETTINGS_VIEW] },
 
+  // Activity Logs
+  { path: '/activity-logs', requiredPermissions: [Permission.LOGS_VIEW] },
+
   // Test Banks
   { path: '/test-bank', anyPermissions: [Permission.TEST_BANKS_VIEW, Permission.TEST_BANKS_MANAGE] },
   { path: '/test-bank/[id]', anyPermissions: [Permission.TEST_BANKS_VIEW, Permission.TEST_BANKS_MANAGE] },

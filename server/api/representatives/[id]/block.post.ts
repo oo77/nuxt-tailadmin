@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody, createError } from 'h3';
 import { blockRepresentative, getRepresentativeById } from '../../../repositories/representativeRepository';
-import { createActivityLog } from '../../../repositories/activityLogRepository';
+import { logActivity } from '../../../utils/activityLogger';
 import { notifyRepresentativeAboutBlock } from '../../../services/notificationService';
 
 /**
@@ -54,19 +54,19 @@ export default defineEventHandler(async (event) => {
     const updated = await blockRepresentative(id, userId, reason.trim());
 
     // Логирование действия
-    await createActivityLog({
-      userId,
-      actionType: 'UPDATE',
-      entityType: 'REPRESENTATIVE',
-      entityId: id,
-      entityName: existing.fullName,
-      details: {
-        action: 'block',
+    await logActivity(
+      event,
+      'BLOCK',
+      'REPRESENTATIVE',
+      id,
+      existing.fullName,
+      {
         reason: reason.trim(),
         organizationId: existing.organizationId,
         organizationName: existing.organizationName,
-      },
-    });
+        previousStatus: existing.status,
+      }
+    );
 
     // Отправляем уведомление в Telegram
     if (updated?.id) {

@@ -4,6 +4,7 @@
  */
 
 import { deleteDisciplineTest, getDisciplineTestById } from '../../repositories/disciplineTestRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -34,6 +35,19 @@ export default defineEventHandler(async (event) => {
                 message: 'Ошибка при удалении привязки',
             };
         }
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'DELETE',
+            'COURSE',
+            id,
+            'Удаление привязки теста к дисциплине',
+            { 
+                disciplineId: disciplineTest.discipline_id,
+                testTemplateId: disciplineTest.test_template_id
+            }
+        );
 
         return {
             success: true,

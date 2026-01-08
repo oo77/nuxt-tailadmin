@@ -63,6 +63,7 @@
         :loading="loading"
         :role="role"
         @edit="openEditModal"
+        @reset-password="openPasswordModal"
         @delete="handleDelete"
       />
     </div>
@@ -74,6 +75,16 @@
       :role="role"
       @close="closeModal"
       @save="handleSave"
+    />
+
+    <!-- Модальное окно сброса пароля -->
+    <UsersUserPasswordModal
+      v-if="showPasswordModal && selectedUser"
+      :is-open="showPasswordModal"
+      :user-id="selectedUser.id"
+      :user-name="selectedUser.name"
+      @close="closePasswordModal"
+      @success="handlePasswordResetSuccess"
     />
   </div>
 </template>
@@ -94,6 +105,7 @@ const users = ref<UserPublic[]>([]);
 const searchQuery = ref('');
 const statusFilter = ref('all');
 const showModal = ref(false);
+const showPasswordModal = ref(false);
 const selectedUser = ref<UserPublic | null>(null);
 
 // Вычисляемые свойства
@@ -164,14 +176,28 @@ const openEditModal = (user: UserPublic) => {
   showModal.value = true;
 };
 
+const openPasswordModal = (user: UserPublic) => {
+  selectedUser.value = user;
+  showPasswordModal.value = true;
+};
+
 const closeModal = () => {
   showModal.value = false;
   selectedUser.value = null;
 };
 
+const closePasswordModal = () => {
+    showPasswordModal.value = false;
+    selectedUser.value = null;
+};
+
 const handleSave = async () => {
   await fetchUsers();
   closeModal();
+};
+
+const handlePasswordResetSuccess = () => {
+    closePasswordModal();
 };
 
 const handleDelete = async (userId: string) => {

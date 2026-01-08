@@ -149,63 +149,31 @@
         <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
           <!-- Обзор -->
           <div v-show="activeTab === 'overview'" class="p-6">
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <!-- Личная информация -->
-              <div>
-                <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-                  Личная информация
-                </h3>
-                <div class="space-y-3">
-                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Полное имя</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.name }}</p>
-                  </div>
-                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Email</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.email }}</p>
-                  </div>
-                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Телефон</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ profile.phone || 'Не указан' }}</p>
-                  </div>
-                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Роль</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ getRoleLabel(profile.role) }}</p>
-                  </div>
-                  <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                    <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата регистрации</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ formatDate(profile.created_at) }}</p>
-                  </div>
+            <!-- Личная информация -->
+            <div>
+              <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+                Личная информация
+              </h3>
+              <div class="space-y-3">
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Полное имя</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ profile.name }}</p>
                 </div>
-              </div>
-
-              <!-- Последняя активность -->
-              <div>
-                <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-                  Последняя активность
-                </h3>
-                <div v-if="loadingActivity" class="flex justify-center py-8">
-                  <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Email</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ profile.email }}</p>
                 </div>
-                <div v-else-if="activities.length > 0" class="space-y-3">
-                  <div 
-                    v-for="activity in activities.slice(0, 5)" 
-                    :key="activity.id"
-                    class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50"
-                  >
-                    <div class="flex items-start gap-3">
-                      <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                        <component :is="getActivityIcon(activity.action_type)" class="h-5 w-5 text-primary" />
-                      </div>
-                      <div class="flex-1">
-                        <p class="font-medium text-gray-900 dark:text-white">{{ activity.entity_name || getActivityLabel(activity) }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ formatDate(activity.created_at) }}</p>
-                      </div>
-                    </div>
-                  </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Телефон</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ profile.phone || 'Не указан' }}</p>
                 </div>
-                <div v-else class="text-center py-8 text-gray-600 dark:text-gray-400">
-                  Нет записей об активности
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Роль</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ getRoleLabel(profile.role) }}</p>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p class="mb-1 text-sm text-gray-600 dark:text-gray-400">Дата регистрации</p>
+                  <p class="font-medium text-gray-900 dark:text-white">{{ formatDate(profile.created_at) }}</p>
                 </div>
               </div>
             </div>
@@ -353,37 +321,7 @@
             </div>
           </div>
 
-          <!-- Системная активность (только для админа) -->
-          <div v-show="activeTab === 'activity' && isAdmin" class="p-6">
-            <h3 class="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
-              Системная активность
-            </h3>
-            <div v-if="loadingActivity" class="flex justify-center py-8">
-              <div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
-            </div>
-            <div v-else-if="activities.length > 0" class="space-y-3">
-              <div 
-                v-for="activity in activities" 
-                :key="activity.id"
-                class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50"
-              >
-                <div class="flex items-start gap-3">
-                  <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <component :is="getActivityIcon(activity.action_type)" class="h-5 w-5 text-primary" />
-                  </div>
-                  <div class="flex-1">
-                    <p class="font-medium text-gray-900 dark:text-white">{{ activity.entity_name || getActivityLabel(activity) }}</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                      {{ activity.entity_type }} • {{ formatDate(activity.created_at) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-center py-8 text-gray-600 dark:text-gray-400">
-              Нет записей об активности
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -399,10 +337,6 @@ import {
   Users,
   ShieldCheck,
   AlertCircle,
-  UserPlus,
-  FileText,
-  Settings,
-  Trash2,
   GraduationCap,
   BookOpen,
   Activity,
@@ -426,8 +360,6 @@ const loading = ref(true)
 const error = ref(null)
 const profile = ref(null)
 const stats = ref(null)
-const activities = ref([])
-const loadingActivity = ref(false)
 const updatingProfile = ref(false)
 const changingPassword = ref(false)
 
@@ -453,7 +385,7 @@ const passwordForm = ref({
 const isAdmin = computed(() => profile.value?.role === 'ADMIN')
 
 const visibleTabs = computed(() => {
-  const baseTabs = [
+  return [
     {
       id: 'overview',
       label: 'Обзор',
@@ -469,18 +401,8 @@ const visibleTabs = computed(() => {
       label: 'Безопасность',
       icon: Lock,
     },
-  ]
-
-  if (isAdmin.value) {
-    baseTabs.push({
-      id: 'activity',
-      label: 'Системная активность',
-      icon: Activity,
-    })
-  }
-
-  return baseTabs
-})
+  ];
+});
 
 // Методы
 const getRoleLabel = (role) => {
@@ -504,43 +426,7 @@ const formatDate = (date) => {
   })
 }
 
-const getActivityIcon = (actionType) => {
-  const icons = {
-    CREATE: UserPlus,
-    UPDATE: Edit,
-    DELETE: Trash2,
-    VIEW: FileText,
-  }
-  return icons[actionType] || Activity
-}
 
-const getActivityLabel = (activity) => {
-  const actionLabels = {
-    CREATE: 'Создание',
-    UPDATE: 'Обновление',
-    DELETE: 'Удаление',
-    VIEW: 'Просмотр',
-    LOGIN: 'Вход в систему',
-    LOGOUT: 'Выход из системы',
-    IMPORT: 'Импорт',
-    EXPORT: 'Экспорт',
-  }
-  const entityLabels = {
-    USER: 'пользователя',
-    STUDENT: 'студента',
-    INSTRUCTOR: 'инструктора',
-    COURSE: 'курса',
-    GROUP: 'группы',
-    CERTIFICATE: 'сертификата',
-    ORGANIZATION: 'организации',
-    SCHEDULE: 'расписания',
-    ATTENDANCE: 'посещаемости',
-    GRADE: 'оценки',
-  }
-  const action = actionLabels[activity.action_type] || activity.action_type
-  const entity = entityLabels[activity.entity_type] || activity.entity_type
-  return `${action} ${entity}`
-}
 
 const loadProfile = async () => {
   try {
@@ -569,9 +455,6 @@ const loadProfile = async () => {
         stats.value = statsData.stats
       }
     }
-
-    // Загружаем активность
-    loadActivity()
   } catch (err) {
     console.error('Error loading profile:', err)
     error.value = err.message || 'Ошибка при загрузке профиля'
@@ -580,19 +463,7 @@ const loadProfile = async () => {
   }
 }
 
-const loadActivity = async () => {
-  try {
-    loadingActivity.value = true
-    const data = await authFetch('/api/profile/activity?limit=10')
-    if (data?.success) {
-      activities.value = data.activities
-    }
-  } catch (err) {
-    console.error('Error loading activity:', err)
-  } finally {
-    loadingActivity.value = false
-  }
-}
+
 
 const updateProfile = async () => {
   try {

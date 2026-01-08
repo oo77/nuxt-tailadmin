@@ -6,6 +6,7 @@
 import { defineEventHandler, readBody } from 'h3'
 import { requireAuth } from '../../utils/permissions'
 import { executeQuery } from '../../utils/db'
+import { logActivity } from '../../utils/activityLogger'
 import { z } from 'zod'
 
 // Схема валидации для обновления профиля
@@ -102,12 +103,13 @@ export default defineEventHandler(async (event) => {
         const user = users[0]
 
         // Логируем действие
-        await executeQuery(
-            `
-      INSERT INTO activity_logs (user_id, action_type, entity_type, entity_id, entity_name)
-      VALUES (?, 'UPDATE', 'USER', ?, 'Обновление профиля')
-      `,
-            [context.userId, context.userId]
+        await logActivity(
+            event,
+            'UPDATE',
+            'USER',
+            context.userId,
+            'Обновление профиля',
+            { updatedFields: Object.keys(data).filter(k => data[k] !== undefined) }
         )
 
         return {

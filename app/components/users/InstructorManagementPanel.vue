@@ -69,7 +69,7 @@
       v-if="showModal"
       :instructor="selectedInstructor"
       @close="closeModal"
-      @save="handleSave"
+      @saved="handleSave"
     />
   </div>
 </template>

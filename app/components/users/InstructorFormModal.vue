@@ -365,7 +365,7 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
-  save: [];
+  saved: [];
 }>();
 
 // Состояние
@@ -649,7 +649,7 @@ const handleSubmit = async () => {
       }
     }
 
-    emit('save');
+    emit('saved');
     handleClose();
   } catch (error: any) {
     console.error('Error saving instructor:', error);

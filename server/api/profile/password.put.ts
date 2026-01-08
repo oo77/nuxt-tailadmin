@@ -6,6 +6,7 @@
 import { defineEventHandler, readBody } from 'h3'
 import { requireAuth } from '../../utils/permissions'
 import { executeQuery } from '../../utils/db'
+import { logActivity } from '../../utils/activityLogger'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
@@ -73,12 +74,12 @@ export default defineEventHandler(async (event) => {
         )
 
         // Логируем действие
-        await executeQuery(
-            `
-      INSERT INTO activity_logs (user_id, action_type, entity_type, entity_id, entity_name)
-      VALUES (?, 'UPDATE', 'USER', ?, 'Изменение пароля')
-      `,
-            [context.userId, context.userId]
+        await logActivity(
+            event,
+            'UPDATE',
+            'USER',
+            context.userId,
+            'Изменение пароля'
         )
 
         return {

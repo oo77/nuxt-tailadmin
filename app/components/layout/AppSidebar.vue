@@ -1,11 +1,12 @@
 <template>
   <aside
     :class="[
-      'fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-99999 border-r border-gray-200',
+      'fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen z-50 transition-all duration-300 ease-in-out',
+      'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-800/50 shadow-xl shadow-gray-200/50 dark:shadow-none',
       {
-        'lg:w-[290px]': isExpanded || isMobileOpen || isHovered,
-        'lg:w-[90px]': !isExpanded && !isHovered,
-        'translate-x-0 w-[290px]': isMobileOpen,
+        'lg:w-[280px]': isExpanded || isMobileOpen || isHovered,
+        'lg:w-[80px]': !isExpanded && !isHovered,
+        'translate-x-0 w-[280px]': isMobileOpen,
         '-translate-x-full': !isMobileOpen,
         'lg:translate-x-0': true,
       },
@@ -13,243 +14,209 @@
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
   >
+    <!-- Logo Section -->
     <div
       :class="[
-        'py-6 flex items-center justify-center',
-        !isExpanded && !isHovered ? 'lg:px-0' : 'px-2',
+        'h-20 flex items-center justify-center relative border-b border-gray-100/50 dark:border-gray-800/50 mb-2',
+        !isExpanded && !isHovered ? 'lg:px-0' : 'px-6',
       ]"
     >
-      <NuxtLink to="/" class="block w-full">
-        <!-- Полный логотип при развёрнутом сайдбаре -->
-        <Transition
-          enter-active-class="transition-all duration-500 ease-out"
-          enter-from-class="opacity-0 scale-90"
-          enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition-all duration-300 ease-in"
-          leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-90"
-          mode="out-in"
-        >
-          <img
-            v-if="isExpanded || isHovered || isMobileOpen"
-            key="full-logo"
-            src="/logo.png"
-            alt="АТЦ Logo"
-            class="w-full h-auto object-contain max-h-20 transition-all duration-300"
-          />
-          <!-- Favicon при свёрнутом сайдбаре -->
-          <div
-            v-else
-            key="favicon"
-            class="flex items-center justify-center mx-auto"
-          >
-            <div class="relative group">
-              <div class="absolute -inset-1 bg-linear-to-r from-blue-500 to-purple-500 rounded-xl blur opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+      <NuxtLink to="/" class="block w-full text-center relative z-10 group">
+        <!-- Logo Display Logic -->
+        <div class="flex items-center justify-center h-full">
+            <Transition
+              enter-active-class="transition-all duration-300 ease-out"
+              enter-from-class="opacity-0 scale-90"
+              enter-to-class="opacity-100 scale-100"
+              leave-active-class="transition-all duration-200 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-90"
+              mode="out-in"
+            >
               <img
-                src="/android-chrome-192x192.png"
-                alt="АТЦ"
-                class="relative w-12 h-12 rounded-xl object-contain transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+                v-if="isExpanded || isHovered || isMobileOpen"
+                key="full-logo"
+                src="/logo.png"
+                alt="Logo"
+                class="h-10 object-contain mx-auto transition-all duration-300 group-hover:scale-105"
               />
-            </div>
-          </div>
-        </Transition>
+              <img
+                v-else
+                key="mini-logo"
+                src="/android-chrome-192x192.png"
+                alt="Logo"
+                class="h-10 w-10 object-contain mx-auto rounded-xl shadow-md transition-all duration-300 hover:rotate-6"
+              />
+            </Transition>
+        </div>
       </NuxtLink>
     </div>
+
+    <!-- Navigation -->
     <div
-      class="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar"
+      class="flex flex-col flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-4 px-3 space-y-6"
     >
-      <nav class="mb-6">
-        <div class="flex flex-col gap-4">
-          <div v-for="(menuGroup, groupIndex) in menuGroups" :key="groupIndex">
-            <h2
+      <nav v-for="(menuGroup, groupIndex) in menuGroups" :key="groupIndex">
+        <!-- Group Title -->
+        <h3
+          v-if="menuGroup.title"
+          :class="[
+            'px-4 mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 transition-opacity duration-300',
+            !isExpanded && !isHovered ? 'opacity-0 lg:hidden' : 'opacity-100',
+          ]"
+        >
+          {{ menuGroup.title }}
+        </h3>
+        
+        <!-- Divider for collapsed state instead of title -->
+        <div 
+          v-if="(!isExpanded && !isHovered) && menuGroup.title && groupIndex > 0"
+          class="h-px bg-gray-100 dark:bg-gray-800 mx-4 mb-4 mt-2"
+        ></div>
+
+        <ul class="space-y-1.5">
+          <li v-for="(item, index) in menuGroup.items" :key="item.name">
+            
+            <!-- Dropdown Menu Item -->
+            <div v-if="item.subItems && item.subItems.length > 0">
+              <button
+                @click="toggleSubmenu(groupIndex, index)"
+                :class="[
+                  'group flex items-center justify-between w-full px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200',
+                  'hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                  isSubmenuOpen(groupIndex, index) ? 'text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800/30' : 'text-gray-600 dark:text-gray-400',
+                  !isExpanded && !isHovered ? 'justify-center px-0' : ''
+                ]"
+              >
+                <div class="flex items-center gap-3 min-w-0">
+                  <div :class="[
+                    'relative flex items-center justify-center w-6 h-6 rounded-lg transition-all duration-300',
+                    isSubmenuOpen(groupIndex, index) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'
+                  ]">
+                    <component :is="item.icon" class="w-5 h-5" />
+                    <span v-if="isSubmenuOpen(groupIndex, index)" class="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 rounded-lg blur-sm scale-150 opacity-50"></span>
+                  </div>
+                  
+                  <span
+                    v-show="isExpanded || isHovered || isMobileOpen"
+                    class="truncate font-medium text-sm transition-all duration-300"
+                  >
+                    {{ item.name }}
+                  </span>
+                </div>
+                
+                <ChevronDownIcon
+                  v-show="isExpanded || isHovered || isMobileOpen"
+                  :class="[
+                    'w-4 h-4 transition-transform duration-300 opacity-50 group-hover:opacity-100',
+                    isSubmenuOpen(groupIndex, index) ? 'rotate-180 text-blue-500 opacity-100' : 'text-gray-400'
+                  ]"
+                />
+              </button>
+
+              <!-- Dropdown Content -->
+              <transition
+                enter-active-class="transition-all duration-300 ease-in-out"
+                enter-from-class="max-h-0 opacity-0"
+                enter-to-class="max-h-[400px] opacity-100"
+                leave-active-class="transition-all duration-200 ease-in-out"
+                leave-from-class="max-h-[400px] opacity-100"
+                leave-to-class="max-h-0 opacity-0"
+              >
+                <div
+                  v-show="isSubmenuOpen(groupIndex, index) && (isExpanded || isHovered || isMobileOpen)"
+                  class="overflow-hidden"
+                >
+                  <ul class="pt-1 pb-2 pl-[1.15rem] ml-3 border-l-[1.5px] border-gray-100 dark:border-gray-800 space-y-1">
+                    <li v-for="subItem in item.subItems" :key="subItem.name">
+                      <NuxtLink
+                        :to="subItem.path"
+                        :class="[
+                          'flex items-center px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 relative overflow-hidden',
+                          isActive(subItem.path, subItem.excludePaths)
+                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-500/10 translate-x-1'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'
+                        ]"
+                      >
+                         <span v-if="isActive(subItem.path, subItem.excludePaths)" class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3 bg-blue-500 rounded-r-full"></span>
+                        {{ subItem.name }}
+                      </NuxtLink>
+                    </li>
+                  </ul>
+                </div>
+              </transition>
+            </div>
+
+            <!-- Single Link Item -->
+            <NuxtLink
+              v-else
+              :to="item.path"
               :class="[
-                'mb-4 text-xs uppercase flex leading-[20px] text-gray-400',
-                !isExpanded && !isHovered
-                  ? 'lg:justify-center'
-                  : 'justify-start',
+                'group flex items-center px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden',
+                isActive(item.path, item.excludePaths)
+                  ? 'bg-linear-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white',
+                !isExpanded && !isHovered ? 'justify-center' : ''
               ]"
             >
-              <template v-if="isExpanded || isHovered || isMobileOpen">
-                {{ menuGroup.title }}
-              </template>
-              <HorizontalDots v-else />
-            </h2>
-            <ul class="flex flex-col gap-4">
-              <li v-for="(item, index) in menuGroup.items" :key="item.name">
-                <button
-                  v-if="item.subItems"
-                  @click="toggleSubmenu(groupIndex, index)"
-                  :class="[
-                    'menu-item group w-full',
-                    {
-                      'menu-item-active': isSubmenuOpen(groupIndex, index),
-                      'menu-item-inactive': !isSubmenuOpen(groupIndex, index),
-                    },
-                    !isExpanded && !isHovered
-                      ? 'lg:justify-center'
-                      : 'lg:justify-start',
-                  ]"
-                >
-                  <span
-                    :class="[
-                      isSubmenuOpen(groupIndex, index)
-                        ? 'menu-item-icon-active'
-                        : 'menu-item-icon-inactive',
-                    ]"
-                  >
-                    <component :is="item.icon" />
-                  </span>
-                  <span
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    class="menu-item-text"
-                    >{{ item.name }}</span
-                  >
-                  <ChevronDownIcon
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    :class="[
-                      'ml-auto w-5 h-5 transition-transform duration-200',
-                      {
-                        'rotate-180 text-brand-500': isSubmenuOpen(
-                          groupIndex,
-                          index
-                        ),
-                      },
-                    ]"
-                  />
-                </button>
-                <NuxtLink
-                  v-else-if="item.path"
-                  :to="item.path"
-                  :class="[
-                    'menu-item group',
-                    {
-                      'menu-item-active': isActive(item.path),
-                      'menu-item-inactive': !isActive(item.path),
-                    },
-                  ]"
-                >
-                  <span
-                    :class="[
-                      isActive(item.path)
-                        ? 'menu-item-icon-active'
-                        : 'menu-item-icon-inactive',
-                    ]"
-                  >
-                    <component :is="item.icon" />
-                  </span>
-                  <span
-                    v-if="isExpanded || isHovered || isMobileOpen"
-                    class="menu-item-text"
-                    >{{ item.name }}</span
-                  >
-                </NuxtLink>
-                <transition
-                  @enter="startTransition"
-                  @after-enter="endTransition"
-                  @before-leave="startTransition"
-                  @after-leave="endTransition"
-                >
-                  <div
-                    v-show="
-                      isSubmenuOpen(groupIndex, index) &&
-                      (isExpanded || isHovered || isMobileOpen)
-                    "
-                  >
-                    <ul class="mt-2 space-y-1 ml-9">
-                      <li v-for="subItem in item.subItems" :key="subItem.name">
-                        <NuxtLink
-                          :to="subItem.path"
-                          :class="[
-                            'menu-dropdown-item',
-                            {
-                              'menu-dropdown-item-active': isActive(
-                                subItem.path
-                              ),
-                              'menu-dropdown-item-inactive': !isActive(
-                                subItem.path
-                              ),
-                            },
-                          ]"
-                        >
-                          {{ subItem.name }}
-                          <span class="flex items-center gap-1 ml-auto">
-                            <span
-                              v-if="subItem.new"
-                              :class="[
-                                'menu-dropdown-badge',
-                                {
-                                  'menu-dropdown-badge-active': isActive(
-                                    subItem.path
-                                  ),
-                                  'menu-dropdown-badge-inactive': !isActive(
-                                    subItem.path
-                                  ),
-                                },
-                              ]"
-                            >
-                              new
-                            </span>
-                            <span
-                              v-if="subItem.pro"
-                              :class="[
-                                'menu-dropdown-badge',
-                                {
-                                  'menu-dropdown-badge-active': isActive(
-                                    subItem.path
-                                  ),
-                                  'menu-dropdown-badge-inactive': !isActive(
-                                    subItem.path
-                                  ),
-                                },
-                              ]"
-                            >
-                              pro
-                            </span>
-                          </span>
-                        </NuxtLink>
-                      </li>
-                    </ul>
-                  </div>
-                </transition>
-              </li>
-            </ul>
-          </div>
-        </div>
+              <!-- Hover Gradient Effect for inactive items -->
+              <div 
+                 v-if="!isActive(item.path, item.excludePaths)"
+                 class="absolute inset-0 bg-linear-to-r from-blue-500/0 via-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              ></div>
+
+              <div :class="[
+                'relative z-10 w-6 h-6 flex items-center justify-center transition-transform duration-300 group-hover:scale-110',
+                isActive(item.path, item.excludePaths) ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400'
+              ]">
+                <component :is="item.icon" class="w-5 h-5" />
+              </div>
+              
+              <span
+                v-show="isExpanded || isHovered || isMobileOpen"
+                class="ml-3 truncate font-medium text-sm transition-opacity duration-300 relative z-10"
+              >
+                {{ item.name }}
+              </span>
+              
+              <!-- Clean Tooltip for collapsed state -->
+              <div 
+                v-if="!isExpanded && !isHovered && !isMobileOpen"
+                class="absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-[60] shadow-xl whitespace-nowrap translate-x--2 group-hover:translate-x-0"
+              >
+                {{ item.name }}
+                <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[4px] w-2 h-2 bg-gray-900 rotate-45"></div>
+              </div>
+            </NuxtLink>
+          </li>
+        </ul>
       </nav>
     </div>
   </aside>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
+<script setup lang="ts">
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useSidebar } from "~/composables/useSidebar";
+import { usePermissions } from "~/composables/usePermissions";
+import { Permission } from "~/types/permissions";
 
+// Importing icons
 import GridIcon from "~/components/icons/GridIcon.vue";
 import CalenderIcon from "~/components/icons/CalenderIcon.vue";
-import UserCircleIcon from "~/components/icons/UserCircleIcon.vue";
 import UserGroupIcon from "~/components/icons/UserGroupIcon.vue";
-import ChatIcon from "~/components/icons/ChatIcon.vue";
-import MailIcon from "~/components/icons/MailIcon.vue";
 import DocsIcon from "~/components/icons/DocsIcon.vue";
-import PieChartIcon from "~/components/icons/PieChartIcon.vue";
 import ChevronDownIcon from "~/components/icons/ChevronDownIcon.vue";
-import HorizontalDots from "~/components/icons/HorizontalDots.vue";
-import PageIcon from "~/components/icons/PageIcon.vue";
-import TableIcon from "~/components/icons/TableIcon.vue";
-import ListIcon from "~/components/icons/ListIcon.vue";
-import PlugInIcon from "~/components/icons/PlugInIcon.vue";
-import BoxCubeIcon from "~/components/icons/BoxCubeIcon.vue";
 import DatabaseIcon from "~/components/icons/DatabaseIcon.vue";
 import AcademicCapIcon from "~/components/icons/AcademicCapIcon.vue";
 import FolderIcon from "~/components/icons/FolderIcon.vue";
 import CertificateIcon from "~/components/icons/CertificateIcon.vue";
 import ClipboardCheckIcon from "~/components/icons/ClipboardCheckIcon.vue";
-import SidebarWidget from "./SidebarWidget.vue";
-import { useSidebar } from "~/composables/useSidebar";
-import { usePermissions } from "~/composables/usePermissions";
-import { Permission } from "~/types/permissions";
+import BoxCubeIcon from "~/components/icons/BoxCubeIcon.vue";
+import UserCircleIcon from "~/components/icons/UserCircleIcon.vue";
 
 const route = useRoute();
-
 const { isExpanded, isMobileOpen, isHovered, openSubmenu, setIsHovered } = useSidebar();
 const { 
   hasPermission, 
@@ -258,10 +225,9 @@ const {
   isTeacher,
   isAdmin,
   isManager,
-  isStaff,
 } = usePermissions();
 
-// Обработчики hover эффекта для сайдбара
+// Hover Handlers
 const handleMouseEnter = () => {
   if (!isExpanded.value) {
     setIsHovered(true)
@@ -272,18 +238,36 @@ const handleMouseLeave = () => {
   setIsHovered(false)
 }
 
-/**
- * Определяем структуру меню с разрешениями для каждого пункта
- */
+// Menu Configuration
 const allMenuGroups = [
   {
-    title: "Меню",
+    title: "Главная",
+    items: [
+      {
+        icon: GridIcon,
+        name: "Обзор",
+        path: "/",
+        permission: Permission.DASHBOARD_VIEW,
+      },
+      {
+        icon: CalenderIcon,
+        name: isStudent.value || isTeacher.value ? "Моё расписание" : "Расписание",
+        path: "/schedule",
+        anyPermissions: [Permission.SCHEDULE_VIEW_ALL, Permission.SCHEDULE_VIEW_OWN],
+      },
+    ]
+  },
+  {
+    title: "Учебный процесс",
     items: [
       {
         icon: AcademicCapIcon,
         name: "Учебные программы",
-        path: "/programs",
         permission: Permission.COURSES_VIEW,
+        subItems: [
+             { name: "Список программ", path: "/programs" },
+             { name: "Создать программу", path: "/programs/create", permission: Permission.COURSES_CREATE }
+        ]
       },
       {
         icon: UserGroupIcon,
@@ -292,24 +276,83 @@ const allMenuGroups = [
         anyPermissions: [Permission.GROUPS_VIEW_ALL, Permission.GROUPS_VIEW_OWN],
       },
       {
-        icon: CalenderIcon,
-        name: isStudent.value || isTeacher.value ? "Моё расписание" : "Расписание",
-        path: "/schedule",
-        anyPermissions: [Permission.SCHEDULE_VIEW_ALL, Permission.SCHEDULE_VIEW_OWN],
+        icon: ClipboardCheckIcon,
+        name: "Банк тестирования",
+        permission: Permission.TEST_BANKS_VIEW,
+        hideForRoles: ['STUDENT', 'TEACHER'],
+        subItems: [
+             { 
+               name: "Банки вопросов", 
+               path: "/test-bank", 
+               excludePaths: ["/test-bank/templates"]
+             },
+             { 
+               name: "Шаблоны тестов", 
+               path: "/test-bank/templates", 
+               permission: Permission.TEST_TEMPLATES_VIEW 
+             }
+        ]
       },
+    ]
+  },
+  {
+    title: "База данных",
+    items: [
       {
         icon: DatabaseIcon,
         name: "База данных",
-        path: "/database",
         permission: Permission.STUDENTS_VIEW_ALL,
+         subItems: [
+             { name: "База организаций", path: "/database?tab=organizations", permission: Permission.ORGANIZATIONS_VIEW },
+             { name: "База студентов", path: "/database?tab=students" },
+             { name: "База сертификатов", path: "/database?tab=certificates", permission: Permission.CERTIFICATES_VIEW }
+        ]
       },
+    ]
+  },
+  {
+    title: "Ресурсы",
+    items: [
       {
         icon: FolderIcon,
         name: "Файловый менеджер",
         path: "/files",
         permission: Permission.FILES_VIEW,
-        // Скрываем для студентов и учителей, так как у них нет доступа
         hideForRoles: ['STUDENT'],
+      },
+    ]
+  },
+  {
+    title: "Личный кабинет",
+    items: [
+       {
+        icon: CertificateIcon,
+        name: "Мои сертификаты",
+        path: "/my-certificates",
+        permission: Permission.CERTIFICATES_VIEW_OWN,
+        showOnlyForRoles: ['STUDENT'],
+      },
+      {
+        icon: ClipboardCheckIcon,
+        name: "Мои тесты",
+        path: "/tests/my",
+        showOnlyForRoles: ['STUDENT'],
+      },
+    ]
+  },
+  {
+    title: "Администрирование",
+    items: [
+      {
+        icon: UserGroupIcon,
+        name: "Пользователи",
+        permission: Permission.USERS_VIEW,
+        subItems: [
+             { name: "Администраторы", path: "/users?tab=admin" },
+             { name: "Модераторы", path: "/users?tab=manager" },
+             { name: "Инструкторы", path: "/users?tab=instructors" },
+             { name: "Студенты", path: "/users?tab=students" },
+        ]
       },
       {
         icon: DocsIcon,
@@ -319,153 +362,120 @@ const allMenuGroups = [
       },
       {
         icon: ClipboardCheckIcon,
-        name: "Банк тестов",
-        path: "/test-bank",
-        // Доступно для админов и менеджеров
-        hideForRoles: ['STUDENT', 'TEACHER'],
-      },
-      {
-        icon: CertificateIcon,
-        name: "Мои сертификаты",
-        path: "/my-certificates",
-        permission: Permission.CERTIFICATES_VIEW_OWN,
-        // Показываем только студентам
-        showOnlyForRoles: ['STUDENT'],
-      },
-      {
-        icon: ClipboardCheckIcon,
-        name: "Мои тесты",
-        path: "/tests/my",
-        // Показываем только студентам
-        showOnlyForRoles: ['STUDENT'],
-      },
-    ],
-  },
-  {
-    title: "Управление",
-    items: [
-      {
-        icon: UserGroupIcon,
-        name: "Управление пользователями",
-        path: "/users",
-        permission: Permission.USERS_VIEW,
-      },
-      {
-        icon: ClipboardCheckIcon,
         name: "Журнал действий",
         path: "/activity-logs",
-        // Доступно только для админов
         showOnlyForRoles: ['ADMIN'],
       },
-    ],
-  },
+    ]
+  }
 ];
 
-/**
- * Фильтруем меню на основе разрешений пользователя
- */
+// Computed Filtered Menu
 const menuGroups = computed(() => {
   return allMenuGroups
     .map(group => {
-      const filteredItems = group.items.filter(item => {
-        // Проверяем showOnlyForRoles
+      const filteredItems = group.items.map(item => {
+        // 1. Role-based visibility
         if (item.showOnlyForRoles) {
           const currentRole = isAdmin.value ? 'ADMIN' 
             : isManager.value ? 'MANAGER' 
             : isTeacher.value ? 'TEACHER' 
             : isStudent.value ? 'STUDENT' 
             : null;
-          if (!currentRole || !item.showOnlyForRoles.includes(currentRole)) {
-            return false;
+          if (!currentRole || !item.showOnlyForRoles.includes(currentRole as any)) {
+            return null;
           }
         }
 
-        // Проверяем hideForRoles
         if (item.hideForRoles) {
           const currentRole = isAdmin.value ? 'ADMIN' 
             : isManager.value ? 'MANAGER' 
             : isTeacher.value ? 'TEACHER' 
             : isStudent.value ? 'STUDENT' 
             : null;
-          if (currentRole && item.hideForRoles.includes(currentRole)) {
-            return false;
+          if (currentRole && item.hideForRoles.includes(currentRole as any)) {
+            return null;
           }
         }
 
-        // Проверяем одно обязательное разрешение
+        // 2. Permission based visibility
         if (item.permission && !hasPermission(item.permission)) {
-          return false;
+          return null;
         }
 
-        // Проверяем альтернативные разрешения (OR)
         if (item.anyPermissions && !hasAnyPermission(item.anyPermissions)) {
-          return false;
+          return null;
         }
 
-        // Если есть subItems, фильтруем их тоже
+        // 3. Handle Subitems
         if (item.subItems) {
-          const filteredSubItems = item.subItems.filter(subItem => {
-            if (subItem.permission && !hasPermission(subItem.permission)) {
-              return false;
-            }
-            return true;
-          });
-          
-          // Если после фильтрации нет подпунктов — скрываем весь пункт
-          if (filteredSubItems.length === 0) {
-            return false;
-          }
-          
-          item.subItems = filteredSubItems;
+           const filteredSubItems = item.subItems.filter(subItem => {
+              if (subItem.permission && !hasPermission(subItem.permission)) {
+                return false;
+              }
+              return true;
+           });
+
+           if (filteredSubItems.length === 0) return null;
+           
+           // If we have subitems, we update the item to contain them
+           return { ...item, subItems: filteredSubItems };
         }
 
-        return true;
-      });
+        return item;
+      }).filter(Boolean); // Remove nulls
 
       return {
         ...group,
         items: filteredItems,
       };
     })
-    .filter(group => group.items.length > 0); // Убираем пустые группы
+    .filter(group => group.items && group.items.length > 0);
 });
 
-const isActive = (path) => route.path === path;
+// Helper functions for state
+const isActive = (path: string, excludePaths?: string[]) => {
+  if (path === '/') return route.path === '/';
+  
+  // Check exclusions
+  if (excludePaths && excludePaths.some(excluded => route.path.startsWith(excluded))) {
+    return false;
+  }
 
-const toggleSubmenu = (groupIndex, itemIndex) => {
+  // Check if active path includes query param if present
+  if (path.includes('?')) {
+    const [pathBase, queryString] = path.split('?');
+    const params = new URLSearchParams(queryString);
+    const tab = params.get('tab');
+    
+    return route.path === pathBase && route.query.tab === tab;
+  }
+
+  // Strict match for determining if the LINK itself is highlighted (base case)
+  return route.path === path || route.path.startsWith(path + '/');
+};
+
+const isParentActive = (path: string) => {
+   if (path === '/') return route.path === '/';
+   // Loose match for determining if a group should be open based on one of its children
+   const pathBase = path.split('?')[0];
+   return route.path.startsWith(pathBase);
+};
+
+const toggleSubmenu = (groupIndex: number, itemIndex: number) => {
   const key = `${groupIndex}-${itemIndex}`;
   openSubmenu.value = openSubmenu.value === key ? null : key;
 };
 
-const isAnySubmenuRouteActive = computed(() => {
-  return menuGroups.value.some((group) =>
-    group.items.some(
-      (item) =>
-        item.subItems && item.subItems.some((subItem) => isActive(subItem.path))
-    )
-  );
-});
-
-const isSubmenuOpen = (groupIndex, itemIndex) => {
+const isSubmenuOpen = (groupIndex: number, itemIndex: number) => {
   const key = `${groupIndex}-${itemIndex}`;
-  return (
-    openSubmenu.value === key ||
-    (isAnySubmenuRouteActive.value &&
-      menuGroups.value[groupIndex]?.items[itemIndex]?.subItems?.some((subItem) =>
-        isActive(subItem.path)
-      ))
-  );
-};
-
-const startTransition = (el) => {
-  el.style.height = "auto";
-  const height = el.scrollHeight;
-  el.style.height = "0px";
-  el.offsetHeight; // force reflow
-  el.style.height = height + "px";
-};
-
-const endTransition = (el) => {
-  el.style.height = "";
+  if (openSubmenu.value === key) return true;
+  
+  // Auto-expand if child is active (using loose match)
+  const item = menuGroups.value[groupIndex]?.items[itemIndex];
+  if (item?.subItems) {
+    return item.subItems.some((sub: any) => isActive(sub.path, sub.excludePaths));
+  }
+  return false;
 };
 </script>

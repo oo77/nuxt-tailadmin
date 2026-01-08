@@ -20,7 +20,7 @@
           <button
             v-for="tab in visibleTabs"
             :key="tab.id"
-            @click="activeTab = tab.id"
+            @click="changeTab(tab.id)"
             :class="[
               'flex-1 rounded-md px-4 py-3 text-sm font-medium transition-all duration-200 relative',
               activeTab === tab.id
@@ -62,13 +62,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { UserRole } from '~/types/auth';
 
 // Определяем мета-данные страницы
 definePageMeta({
   layout: 'default',
 });
+
+const route = useRoute();
+const router = useRouter();
 
 // Получаем информацию о текущем пользователе
 const { user } = useAuth();
@@ -107,13 +111,35 @@ const visibleTabs = computed(() => {
   return allTabs.filter(tab => tab.roles.includes(userRole));
 });
 
-// Активная вкладка — первая из видимых
+// Активная вкладка
 const activeTab = ref<string>('');
 
-// Устанавливаем первую доступную вкладку при загрузке
-watchEffect(() => {
-  if (visibleTabs.value.length > 0 && !activeTab.value) {
-    activeTab.value = visibleTabs.value[0].id;
-  }
+// Синхронизация с URL
+const syncTabWithUrl = () => {
+    const tab = route.query.tab as string;
+    if (tab && visibleTabs.value.some(t => t.id === tab)) {
+        activeTab.value = tab;
+    } else if (visibleTabs.value.length > 0 && !activeTab.value) {
+        // Если таб не указан, берем первый доступный
+        activeTab.value = visibleTabs.value[0].id;
+    }
+}
+
+watch(() => route.query.tab, () => {
+    syncTabWithUrl();
 });
+
+watchEffect(() => {
+    // Ждем пока user подгрузится и табы отфильтруются
+    if (visibleTabs.value.length > 0) {
+        syncTabWithUrl();
+    }
+});
+
+const changeTab = (id: string) => {
+    if (activeTab.value !== id) {
+        activeTab.value = id;
+        router.push({ query: { ...route.query, tab: id } });
+    }
+};
 </script>

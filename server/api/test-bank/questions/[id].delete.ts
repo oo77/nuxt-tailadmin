@@ -4,6 +4,7 @@
  */
 
 import { deleteQuestion, getQuestionById } from '../../../repositories/questionRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -34,6 +35,16 @@ export default defineEventHandler(async (event) => {
                 message: 'Ошибка при удалении вопроса',
             };
         }
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'DELETE',
+            'COURSE',
+            id,
+            `Вопрос: ${question.question_text.substring(0, 50)}...`,
+            { bankId: question.bank_id, questionType: question.question_type }
+        );
 
         return {
             success: true,

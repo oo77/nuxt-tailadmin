@@ -6,6 +6,7 @@
 import { createStandaloneCertificate, getCertificateByNumber } from '../../repositories/certificateTemplateRepository';
 import { getStudentById, getStudentByPinfl, createStudent } from '../../repositories/studentRepository';
 import { defineEventHandler, readBody, createError } from 'h3';
+import { logActivity } from '../../utils/activityLogger';
 
 interface ManualCertificateInput {
     // Данные слушателя - либо ID существующего, либо данные для создания нового
@@ -171,6 +172,22 @@ export default defineEventHandler(async (event) => {
             sourceType: 'manual',
             pdfFileUrl,
         });
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'CREATE',
+            'ISSUED_CERTIFICATE',
+            certificate.id,
+            `${certificate.certificateNumber} — ${body.courseName}`,
+            {
+                studentId,
+                certificateNumber: certificate.certificateNumber,
+                courseName: certificate.courseName,
+                sourceType: 'manual',
+                createdNewStudent: body.createNewStudent,
+            }
+        );
 
         return {
             success: true,

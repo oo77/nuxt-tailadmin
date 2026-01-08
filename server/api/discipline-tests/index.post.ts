@@ -5,6 +5,7 @@
 
 import { createDisciplineTest, disciplineTestExists } from '../../repositories/disciplineTestRepository';
 import { getTestTemplateById } from '../../repositories/testTemplateRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -55,6 +56,20 @@ export default defineEventHandler(async (event) => {
             is_required: body.is_required,
             notes: body.notes,
         });
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'CREATE',
+            'COURSE', // Используем COURSE для discipline tests
+            String(disciplineTest.id),
+            `Привязка теста к дисциплине: ${template.name}`,
+            { 
+                disciplineId: body.discipline_id,
+                testTemplateId: body.test_template_id,
+                isRequired: body.is_required
+            }
+        );
 
         return {
             success: true,

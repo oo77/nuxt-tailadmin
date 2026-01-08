@@ -5,6 +5,7 @@
 
 import { createQuestion, getNextOrderIndex } from '../../../repositories/questionRepository';
 import { getQuestionBankById } from '../../../repositories/questionBankRepository';
+import { logActivity } from '../../../utils/activityLogger';
 import type { CreateQuestionDTO } from '../../../types/testing';
 
 export default defineEventHandler(async (event) => {
@@ -74,6 +75,21 @@ export default defineEventHandler(async (event) => {
             order_index: body.order_index,
             is_active: body.is_active !== false,
         });
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'CREATE',
+            'COURSE', // Используем COURSE для вопросов банка
+            question.id,
+            `Вопрос: ${question.question_text.substring(0, 50)}...`,
+            { 
+                bankId: question.bank_id, 
+                questionType: question.question_type,
+                difficulty: question.difficulty,
+                points: question.points
+            }
+        );
 
         return {
             success: true,

@@ -4,7 +4,7 @@
  */
 
 import { deleteQuestionBank, getQuestionBankById } from '../../../repositories/questionBankRepository';
-import { createActivityLog } from '../../../repositories/activityLogRepository';
+import { logActivity } from '../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -45,16 +45,14 @@ export default defineEventHandler(async (event) => {
         }
 
         // Логируем действие
-        const userId = event.context.user?.id;
-        if (userId) {
-            await createActivityLog({
-                userId,
-                actionType: 'DELETE',
-                entityType: 'COURSE',
-                entityId: id,
-                entityName: bank.name,
-            });
-        }
+        await logActivity(
+            event,
+            'DELETE',
+            'COURSE',
+            id,
+            bank.name,
+            { code: bank.code, questionsCount: bank.questions_count }
+        );
 
         return {
             success: true,

@@ -39,14 +39,14 @@ export interface ActivityLogsResponse {
 }
 
 export function useActivityLogs() {
-  const authFetch = useAuthFetch();
-  const { showNotification } = useNotification();
+  const { authFetch } = useAuthFetch();
+  const toast = useNotification();
 
   const logs: Ref<ActivityLogItem[]> = ref([]);
   const loading = ref(false);
   const total = ref(0);
   const currentPage = ref(1);
-  const pageSize = ref(20);
+  const pageSize = ref(10);
   const totalPages = ref(0);
 
   /**
@@ -80,11 +80,7 @@ export function useActivityLogs() {
       }
     } catch (error: any) {
       console.error('Ошибка загрузки журнала действий:', error);
-      showNotification({
-        type: 'error',
-        title: 'Ошибка',
-        message: error.message || 'Не удалось загрузить журнал действий',
-      });
+      toast.error(error.message || 'Не удалось загрузить журнал действий');
     } finally {
       loading.value = false;
     }

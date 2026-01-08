@@ -15,7 +15,7 @@
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            @click="activeTab = tab.id"
+            @click="changeTab(tab.id)"
             :disabled="tab.disabled"
             :class="[
               'flex-1 rounded-md px-4 py-3 text-sm font-medium transition-all duration-200',
@@ -60,15 +60,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 // Определяем мета-данные страницы
 definePageMeta({
   layout: 'default',
 });
 
-// Активная вкладка
-const activeTab = ref<string>('students');
+const route = useRoute();
+const router = useRouter();
 
 // Конфигурация вкладок
 const tabs = [
@@ -93,5 +94,33 @@ const tabs = [
     disabled: false, // Активировано
   },
 ];
-</script>
 
+// Активная вкладка
+const activeTab = ref<string>('students');
+
+// Синхронизация с URL при загрузке и изменении
+const syncTabWithUrl = () => {
+    const tab = route.query.tab as string;
+    if (tab && tabs.some(t => t.id === tab && !t.disabled)) {
+        activeTab.value = tab;
+    } else {
+        activeTab.value = 'students';
+    }
+}
+
+watch(() => route.query.tab, () => {
+    syncTabWithUrl();
+});
+
+onMounted(() => {
+    syncTabWithUrl();
+});
+
+// При изменении вкладки меняем URL
+const changeTab = (id: string) => {
+    if (activeTab.value !== id) {
+        activeTab.value = id;
+        router.push({ query: { ...route.query, tab: id } });
+    }
+};
+</script>

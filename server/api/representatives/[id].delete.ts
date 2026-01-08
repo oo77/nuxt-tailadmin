@@ -1,6 +1,6 @@
 import { defineEventHandler, createError } from 'h3';
 import { deleteRepresentative, getRepresentativeById } from '../../repositories/representativeRepository';
-import { createActivityLog } from '../../repositories/activityLogRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 /**
  * DELETE /api/representatives/:id
@@ -28,17 +28,17 @@ export default defineEventHandler(async (event) => {
     await deleteRepresentative(id);
 
     // Логирование действия
-    await createActivityLog({
-      userId: event.context.user?.id || 'system',
-      actionType: 'DELETE',
-      entityType: 'REPRESENTATIVE',
-      entityId: id,
-      entityName: existing.fullName,
-      details: {
+    await logActivity(
+      event,
+      'DELETE',
+      'REPRESENTATIVE',
+      id,
+      existing.fullName,
+      {
         organizationId: existing.organizationId,
         organizationName: existing.organizationName,
-      },
-    });
+      }
+    );
 
     return {
       success: true,

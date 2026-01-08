@@ -4,6 +4,7 @@
  */
 
 import { updateDisciplineTest, getDisciplineTestById } from '../../repositories/disciplineTestRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
     try {
@@ -44,6 +45,19 @@ export default defineEventHandler(async (event) => {
                 message: 'Ошибка при обновлении привязки',
             };
         }
+
+        // Логируем действие
+        await logActivity(
+            event,
+            'UPDATE',
+            'COURSE',
+            id,
+            'Обновление привязки теста к дисциплине',
+            { 
+                updatedFields: Object.keys(body).filter(k => body[k] !== undefined),
+                disciplineId: existingTest.discipline_id
+            }
+        );
 
         return {
             success: true,

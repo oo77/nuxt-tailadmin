@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody, createError } from 'h3';
 import { approveRepresentative, getRepresentativeById } from '../../../repositories/representativeRepository';
-import { createActivityLog } from '../../../repositories/activityLogRepository';
+import { logActivity } from '../../../utils/activityLogger';
 import { notifyRepresentativeAboutApproval } from '../../../services/notificationService';
 
 /**
@@ -47,19 +47,19 @@ export default defineEventHandler(async (event) => {
     const updated = await approveRepresentative(id, userId, accessGroups);
 
     // Логирование действия
-    await createActivityLog({
-      userId,
-      actionType: 'UPDATE',
-      entityType: 'REPRESENTATIVE',
-      entityId: id,
-      entityName: existing.fullName,
-      details: {
-        action: 'approve',
+    await logActivity(
+      event,
+      'APPROVE',
+      'REPRESENTATIVE',
+      id,
+      existing.fullName,
+      {
         accessGroups,
         organizationId: existing.organizationId,
         organizationName: existing.organizationName,
-      },
-    });
+        previousStatus: existing.status,
+      }
+    );
 
     // Отправляем уведомление в Telegram
     if (updated?.id) {

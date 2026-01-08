@@ -74,10 +74,36 @@
                 </span>
               </div>
             </div>
+
+            <!-- Действия -->
+            <div class="flex flex-wrap items-center gap-3 mt-4 sm:mt-0">
+                <UiButton 
+                    v-if="canEdit" 
+                    variant="primary" 
+                    class="flex items-center gap-2"
+                    @click="openEditModal"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Редактировать
+                </UiButton>
+                <UiButton 
+                    v-if="canResetPassword" 
+                    variant="warning" 
+                    class="flex items-center gap-2"
+                    @click="openPasswordModal"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Сбросить пароль
+                </UiButton>
+            </div>
           </div>
 
           <!-- Stats -->
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
               <div class="flex items-center gap-3">
                 <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
@@ -95,26 +121,12 @@
             <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-success/50 dark:border-gray-700 dark:bg-gray-800/50">
               <div class="flex items-center gap-3">
                 <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                  <Activity class="h-6 w-6 text-success" />
+                  <ShieldCheck class="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400">Всего действий</p>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">Роль</p>
                   <p class="text-lg font-bold text-gray-900 dark:text-white">
-                    {{ activityStats?.totalActions || 0 }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-warning/50 dark:border-gray-700 dark:bg-gray-800/50">
-              <div class="flex items-center gap-3">
-                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
-                  <Clock class="h-6 w-6 text-warning" />
-                </div>
-                <div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400">Последняя активность</p>
-                  <p class="text-lg font-bold text-gray-900 dark:text-white">
-                    {{ activityStats?.lastActivity ? formatRelativeTime(activityStats.lastActivity) : 'Нет данных' }}
+                    {{ getRoleLabel(userData.role) }}
                   </p>
                 </div>
               </div>
@@ -216,83 +228,27 @@
             </div>
           </div>
 
-          <!-- Журнал действий (только для админа) -->
-          <div v-show="activeTab === 'activity'" class="p-6">
-            <h3 class="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Журнал действий
-            </h3>
 
-            <!-- Загрузка журнала -->
-            <div v-if="isLoadingActivity" class="flex items-center justify-center py-12">
-              <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-            </div>
-
-            <!-- Пустой журнал -->
-            <div 
-              v-else-if="activityLogs.length === 0" 
-              class="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-800/50"
-            >
-              <Activity class="mx-auto h-12 w-12 text-gray-400" />
-              <p class="mt-4 text-gray-600 dark:text-gray-400">
-                Пока нет записей в журнале
-              </p>
-            </div>
-
-            <!-- Список действий -->
-            <div v-else class="space-y-3">
-              <div 
-                v-for="log in activityLogs" 
-                :key="log.id"
-                class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50"
-              >
-                <div class="flex items-start gap-3">
-                  <div 
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                    :class="getActionIconClass(log.actionType)"
-                  >
-                    <component :is="getActionIcon(log.actionType)" class="h-5 w-5" />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="font-medium text-gray-900 dark:text-white">
-                      {{ getActionLabel(log.actionType) }} {{ getEntityLabel(log.entityType) }}
-                      <span v-if="log.entityName" class="text-primary">"{{ log.entityName }}"</span>
-                    </p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                      {{ formatRelativeTime(log.createdAt) }}
-                    </p>
-                    <p v-if="log.ipAddress" class="mt-1 text-xs text-gray-500">
-                      IP: {{ log.ipAddress }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Пагинация -->
-              <div v-if="activityTotalPages > 1" class="mt-4 flex justify-center gap-2">
-                <UiButton 
-                  variant="outline" 
-                  size="sm" 
-                  :disabled="activityPage === 1"
-                  @click="loadActivityPage(activityPage - 1)"
-                >
-                  Назад
-                </UiButton>
-                <span class="flex items-center px-4 text-sm text-gray-600 dark:text-gray-400">
-                  {{ activityPage }} из {{ activityTotalPages }}
-                </span>
-                <UiButton 
-                  variant="outline" 
-                  size="sm" 
-                  :disabled="activityPage === activityTotalPages"
-                  @click="loadActivityPage(activityPage + 1)"
-                >
-                  Далее
-                </UiButton>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
+      
+      <!-- Modals -->
+      <UsersUserFormModal
+        v-if="isEditModalOpen && userData"
+        :user="userData"
+        :role="userData.role"
+        @close="closeEditModal"
+        @save="handleUserSaved"
+      />
+
+      <UsersUserPasswordModal
+        v-if="isPasswordModalOpen && userData"
+        :is-open="isPasswordModalOpen"
+        :user-id="userData.id"
+        :user-name="userData.name"
+        @close="closePasswordModal"
+        @success="handlePasswordResetSuccess"
+      />
     </template>
   </div>
 </template>
@@ -301,28 +257,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { 
   User, 
-  Activity,
   ArrowLeft,
   AlertCircle, 
   ShieldCheck,
   Calendar,
-  Clock,
-  Plus,
-  Pencil,
-  Trash2,
-  LogIn,
-  LogOut,
-  Upload,
-  Download,
 } from 'lucide-vue-next';
 import type { UserPublic, UserRole } from '~/types/auth';
-import type { 
-  ActivityLog, 
-  ActionType, 
-  EntityType,
-  ACTION_TYPE_LABELS,
-  ENTITY_TYPE_LABELS,
-} from '~/types/activityLog';
 
 // Meta
 definePageMeta({
@@ -341,20 +281,11 @@ const error = ref<string | null>(null);
 const userData = ref<UserPublic | null>(null);
 const activeTab = ref('info');
 
-// Activity Log State
-const activityLogs = ref<ActivityLog[]>([]);
-const activityStats = ref<{
-  totalActions: number;
-  lastActivity: Date | null;
-} | null>(null);
-const activityPage = ref(1);
-const activityTotalPages = ref(1);
-const isLoadingActivity = ref(false);
+const isEditModalOpen = ref(false);
+const isPasswordModalOpen = ref(false);
 
 // Computed
 const userId = computed(() => route.params.id as string);
-
-const isAdmin = computed(() => currentUser.value?.role === 'ADMIN');
 
 const avatarUrl = computed(() => {
   if (!userData.value?.name) return '';
@@ -363,16 +294,29 @@ const avatarUrl = computed(() => {
 });
 
 const availableTabs = computed(() => {
-  const tabs = [
+  return [
     { id: 'info', label: 'Информация', icon: User },
   ];
-  
-  // Журнал действий только для админа
-  if (isAdmin.value) {
-    tabs.push({ id: 'activity', label: 'Журнал действий', icon: Activity });
-  }
-  
-  return tabs;
+});
+
+// Permissions
+const canEdit = computed(() => {
+  if (!currentUser.value || !userData.value) return false;
+  // Admin can edit all
+  if (currentUser.value.role === 'ADMIN') return true;
+  // Moderator can edit all except admins
+  if (currentUser.value.role === 'MANAGER' && userData.value.role !== 'ADMIN') return true;
+  // User can edit self (rare here, but possible)
+  return currentUser.value.id === userData.value.id;
+});
+
+const canResetPassword = computed(() => {
+    if (!currentUser.value || !userData.value) return false;
+    // Admin can reset all
+    if (currentUser.value.role === 'ADMIN') return true;
+    // Moderator can reset all except admins
+    if (currentUser.value.role === 'MANAGER' && userData.value.role !== 'ADMIN') return true;
+    return false;
 });
 
 // Methods
@@ -405,77 +349,6 @@ const formatDate = (date: Date | string): string => {
   });
 };
 
-const formatRelativeTime = (date: Date | string): string => {
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  
-  if (minutes < 1) return 'Только что';
-  if (minutes < 60) return `${minutes} мин. назад`;
-  if (hours < 24) return `${hours} ч. назад`;
-  if (days < 7) return `${days} дн. назад`;
-  
-  return formatDate(date);
-};
-
-const getActionLabel = (action: ActionType): string => {
-  const labels: Record<ActionType, string> = {
-    CREATE: 'Создал',
-    UPDATE: 'Обновил',
-    DELETE: 'Удалил',
-    LOGIN: 'Вошёл в систему',
-    LOGOUT: 'Вышел из системы',
-    IMPORT: 'Импортировал',
-    EXPORT: 'Экспортировал',
-  };
-  return labels[action] || action;
-};
-
-const getEntityLabel = (entity: EntityType): string => {
-  const labels: Record<EntityType, string> = {
-    USER: 'пользователя',
-    STUDENT: 'студента',
-    CERTIFICATE: 'сертификат',
-    COURSE: 'курс',
-    DISCIPLINE: 'дисциплину',
-    INSTRUCTOR: 'инструктора',
-    FILE: 'файл',
-    FOLDER: 'папку',
-    SYSTEM: 'системные настройки',
-  };
-  return labels[entity] || entity;
-};
-
-const getActionIcon = (action: ActionType) => {
-  const icons: Record<ActionType, any> = {
-    CREATE: Plus,
-    UPDATE: Pencil,
-    DELETE: Trash2,
-    LOGIN: LogIn,
-    LOGOUT: LogOut,
-    IMPORT: Upload,
-    EXPORT: Download,
-  };
-  return icons[action] || Activity;
-};
-
-const getActionIconClass = (action: ActionType): string => {
-  const classes: Record<ActionType, string> = {
-    CREATE: 'bg-success/10 text-success',
-    UPDATE: 'bg-primary/10 text-primary',
-    DELETE: 'bg-danger/10 text-danger',
-    LOGIN: 'bg-info/10 text-info',
-    LOGOUT: 'bg-warning/10 text-warning',
-    IMPORT: 'bg-success/10 text-success',
-    EXPORT: 'bg-info/10 text-info',
-  };
-  return classes[action] || 'bg-gray-100 text-gray-600';
-};
-
 const loadUser = async () => {
   isLoading.value = true;
   error.value = null;
@@ -487,12 +360,6 @@ const loadUser = async () => {
     
     if (response.success && response.user) {
       userData.value = response.user;
-      
-      // Загружаем статистику активности, если админ
-      if (isAdmin.value) {
-        await loadActivityStats();
-        await loadActivityLogs();
-      }
     } else {
       error.value = response.message || 'Не удалось загрузить данные пользователя';
     }
@@ -504,47 +371,29 @@ const loadUser = async () => {
   }
 };
 
-const loadActivityStats = async () => {
-  try {
-    const response = await authFetch<{
-      success: boolean;
-      stats: { totalActions: number; lastActivity: Date | null };
-    }>(`/api/activity-logs/user/${userId.value}?stats=true&limit=1`);
-    
-    if (response.success && response.stats) {
-      activityStats.value = response.stats;
-    }
-  } catch (err) {
-    console.error('Error loading activity stats:', err);
-  }
+const openEditModal = () => {
+  isEditModalOpen.value = true;
 };
 
-const loadActivityLogs = async () => {
-  isLoadingActivity.value = true;
-  
-  try {
-    const response = await authFetch<{
-      success: boolean;
-      data: ActivityLog[];
-      total: number;
-      page: number;
-      totalPages: number;
-    }>(`/api/activity-logs/user/${userId.value}?page=${activityPage.value}&limit=10`);
-    
-    if (response.success) {
-      activityLogs.value = response.data;
-      activityTotalPages.value = response.totalPages;
-    }
-  } catch (err) {
-    console.error('Error loading activity logs:', err);
-  } finally {
-    isLoadingActivity.value = false;
-  }
+const closeEditModal = () => {
+  isEditModalOpen.value = false;
 };
 
-const loadActivityPage = (page: number) => {
-  activityPage.value = page;
-  loadActivityLogs();
+const handleUserSaved = async () => {
+  await loadUser();
+  closeEditModal();
+};
+
+const openPasswordModal = () => {
+    isPasswordModalOpen.value = true;
+};
+
+const closePasswordModal = () => {
+    isPasswordModalOpen.value = false;
+};
+
+const handlePasswordResetSuccess = () => {
+    closePasswordModal();
 };
 
 // Head
