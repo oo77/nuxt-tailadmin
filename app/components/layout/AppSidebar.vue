@@ -364,6 +364,18 @@ const allMenuGroups: MenuGroup[] = [
         path: "/tests/my",
         showOnlyForRoles: ['STUDENT'],
       },
+      {
+        icon: AcademicCapIcon,
+        name: "Мои курсы",
+        path: "/my-courses",
+        showOnlyForRoles: ['STUDENT'],
+      },
+      {
+        icon: DocsIcon,
+        name: "Поддержка",
+        path: "/support",
+        showOnlyForRoles: ['STUDENT'],
+      },
     ]
   },
   {

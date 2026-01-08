@@ -25,6 +25,7 @@ import * as previewSessionsNullableStudent from './migrations/20260105_031_previ
 import * as multilangQuestions from './migrations/20260105_032_multilang_questions';
 import * as gradesFromTest from './migrations/20260106_033_grades_from_test';
 import * as certificateStandalone from './migrations/20260106_034_certificate_standalone';
+import * as studentPortalTables from './migrations/20260108_035_student_portal_tables';
 
 /**
  * ============================================================================
@@ -204,6 +205,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: certificateStandalone.up,
     down: certificateStandalone.down,
     description: certificateStandalone.description,
+  },
+  // ============================================================
+  // Миграция 035: Портал студента (Настройки и Поддержка)
+  // ============================================================
+  {
+    name: '20260108_035_student_portal_tables',
+    up: studentPortalTables.up,
+    down: studentPortalTables.down,
+    description: 'User settings and support tickets tables',
   },
   // ============================================================
   // Новые миграции добавлять ниже

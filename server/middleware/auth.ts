@@ -23,6 +23,8 @@ const ROLE_PROTECTED_ROUTES: Record<string, UserRole[]> = {
   '/api/admin': [UserRole.ADMIN],
   '/api/users': [UserRole.ADMIN, UserRole.MANAGER],
   '/api/teachers': [UserRole.ADMIN, UserRole.MANAGER],
+  '/api/students/my-courses': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER], 
+  '/api/students/dashboard': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
   '/api/students': [UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
 }
 
@@ -35,14 +37,20 @@ function isPublicRoute(path: string): boolean {
 
 /**
  * Получает требуемые роли для маршрута
+ * Использует принцип "наиболее специфичного совпадения" (longest prefix match)
  */
 function getRequiredRoles(path: string): UserRole[] | null {
+  let matchedRoles: UserRole[] | null = null
+  let longestMatch = 0
+
   for (const [route, roles] of Object.entries(ROLE_PROTECTED_ROUTES)) {
-    if (path.startsWith(route)) {
-      return roles
+    if (path.startsWith(route) && route.length > longestMatch) {
+      matchedRoles = roles
+      longestMatch = route.length
     }
   }
-  return null
+  
+  return matchedRoles
 }
 
 /**

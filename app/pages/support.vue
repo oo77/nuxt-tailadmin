@@ -9,8 +9,9 @@
 
     <!-- Основной контент -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Форма обращения -->
-      <div class="lg:col-span-2">
+      <!-- Форма обращения и История -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Форма -->
         <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
           <div class="border-b border-stroke px-6 py-4 dark:border-strokedark">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -22,14 +23,14 @@
           </div>
 
           <div class="p-6">
-            <form class="space-y-5">
+            <form @submit.prevent="submitTicket" class="space-y-5">
               <!-- Тип обращения -->
               <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Тип обращения
+                  Тип обращения <span class="text-danger">*</span>
                 </label>
-                <select class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
-                  <option value="">Выберите тип обращения</option>
+                <select v-model="ticket.ticket_type" required class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                  <option value="" disabled>Выберите тип обращения</option>
                   <option value="technical">Техническая проблема</option>
                   <option value="question">Общий вопрос</option>
                   <option value="feature">Предложение по улучшению</option>
@@ -44,16 +45,19 @@
                   Приоритет
                 </label>
                 <div class="flex gap-3">
-                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-success focus-within:border-success dark:border-gray-600 dark:bg-gray-900">
-                    <input type="radio" name="priority" value="low" class="peer sr-only" />
+                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 bg-white px-4 py-2.5 transition-all hover:border-success focus-within:border-success dark:bg-gray-900"
+                    :class="ticket.priority === 'low' ? 'border-success ring-1 ring-success' : 'border-gray-300 dark:border-gray-600'">
+                    <input type="radio" v-model="ticket.priority" value="low" class="peer sr-only" />
                     <span class="text-sm font-medium text-gray-700 peer-checked:text-success dark:text-gray-300">Низкий</span>
                   </label>
-                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-warning focus-within:border-warning dark:border-gray-600 dark:bg-gray-900">
-                    <input type="radio" name="priority" value="medium" class="peer sr-only" checked />
+                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 bg-white px-4 py-2.5 transition-all hover:border-warning focus-within:border-warning dark:bg-gray-900"
+                    :class="ticket.priority === 'medium' ? 'border-warning ring-1 ring-warning' : 'border-gray-300 dark:border-gray-600'">
+                    <input type="radio" v-model="ticket.priority" value="medium" class="peer sr-only" />
                     <span class="text-sm font-medium text-gray-700 peer-checked:text-warning dark:text-gray-300">Средний</span>
                   </label>
-                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 transition-all hover:border-danger focus-within:border-danger dark:border-gray-600 dark:bg-gray-900">
-                    <input type="radio" name="priority" value="high" class="peer sr-only" />
+                  <label class="flex flex-1 cursor-pointer items-center justify-center rounded-lg border-2 bg-white px-4 py-2.5 transition-all hover:border-danger focus-within:border-danger dark:bg-gray-900"
+                    :class="ticket.priority === 'high' ? 'border-danger ring-1 ring-danger' : 'border-gray-300 dark:border-gray-600'">
+                    <input type="radio" v-model="ticket.priority" value="high" class="peer sr-only" />
                     <span class="text-sm font-medium text-gray-700 peer-checked:text-danger dark:text-gray-300">Высокий</span>
                   </label>
                 </div>
@@ -62,10 +66,12 @@
               <!-- Тема обращения -->
               <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Тема обращения
+                  Тема обращения <span class="text-danger">*</span>
                 </label>
                 <input 
                   type="text" 
+                  v-model="ticket.subject"
+                  required
                   placeholder="Кратко опишите проблему"
                   class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" 
                 />
@@ -74,46 +80,71 @@
               <!-- Описание -->
               <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Подробное описание
+                  Подробное описание <span class="text-danger">*</span>
                 </label>
                 <textarea 
+                  v-model="ticket.description"
+                  required
                   rows="6"
                   placeholder="Опишите вашу проблему максимально подробно..."
                   class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-900 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 ></textarea>
               </div>
 
-              <!-- Прикрепить файл -->
-              <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Прикрепить файл (необязательно)
-                </label>
-                <div class="flex items-center justify-center w-full">
-                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-900 dark:border-gray-600">
-                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg class="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                        <span class="font-semibold">Нажмите для загрузки</span> или перетащите файл
-                      </p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF (MAX. 10MB)</p>
-                    </div>
-                    <input type="file" class="hidden" />
-                  </label>
-                </div>
-              </div>
-
               <!-- Кнопки -->
               <div class="flex justify-end gap-3 pt-2">
-                <UiButton variant="outline" size="md" type="button">
-                  Отмена
-                </UiButton>
-                <UiButton variant="primary" size="md" type="submit">
+                <UiButton variant="primary" size="md" type="submit" :loading="loading">
                   Отправить обращение
                 </UiButton>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- История обращений -->
+        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark flex justify-between items-center">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
+              Мои обращения
+            </h3>
+            <button @click="fetchTickets" class="text-sm text-primary hover:underline">
+              Обновить
+            </button>
+          </div>
+          <div class="p-6">
+            <div v-if="ticketsLoading" class="flex justify-center p-4">
+               <div class="h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent"></div>
+            </div>
+            <div v-else-if="tickets.length === 0" class="text-center text-gray-500 py-4">
+              У вас пока нет обращений
+            </div>
+            <div v-else class="space-y-4">
+              <div v-for="t in tickets" :key="t.id" class="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h4 class="font-bold text-gray-900 dark:text-white">{{ t.subject }}</h4>
+                    <p class="text-sm text-gray-500">{{ formatDate(t.created_at) }}</p>
+                  </div>
+                  <span :class="{
+                    'bg-blue-100 text-blue-800': t.status === 'new',
+                    'bg-yellow-100 text-yellow-800': t.status === 'in_progress',
+                    'bg-green-100 text-green-800': t.status === 'resolved',
+                    'bg-gray-100 text-gray-800': t.status === 'closed'
+                  }" class="px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {{ getStatusLabel(t.status) }}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{{ t.description }}</p>
+                <div class="flex gap-2 text-xs mt-2">
+                  <span class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {{ getTypeLabel(t.ticket_type) }}
+                  </span>
+                  <span class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
+                    Приоритет: {{ getPriorityLabel(t.priority) }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -137,8 +168,8 @@
               </div>
               <div class="flex-1">
                 <p class="text-sm font-medium text-gray-900 dark:text-white">Email</p>
-                <a href="mailto:support@example.com" class="text-sm text-primary hover:underline">
-                  support@example.com
+                <a href="mailto:support@atc.uz" class="text-sm text-primary hover:underline">
+                  support@atc.uz
                 </a>
               </div>
             </div>
@@ -188,67 +219,17 @@
                 Как сбросить пароль?
               </h4>
               <p class="text-xs text-gray-600 dark:text-gray-400">
-                Перейдите в раздел "Настройки" → "Безопасность"
+                Обратитесь к администратору системы.
               </p>
             </div>
 
             <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
               <h4 class="mb-1 text-sm font-medium text-gray-900 dark:text-white">
-                Как импортировать данные?
+                Где мои результаты тестов?
               </h4>
               <p class="text-xs text-gray-600 dark:text-gray-400">
-                Используйте раздел "База данных" → "Импорт"
+                В разделе "Мои тесты" в личном кабинете.
               </p>
-            </div>
-
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-all hover:border-primary/50 dark:border-gray-700 dark:bg-gray-800/50">
-              <h4 class="mb-1 text-sm font-medium text-gray-900 dark:text-white">
-                Как добавить пользователя?
-              </h4>
-              <p class="text-xs text-gray-600 dark:text-gray-400">
-                Перейдите в "Управление пользователями"
-              </p>
-            </div>
-
-            <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <a href="#" class="flex items-center justify-center gap-2 text-sm font-medium text-primary hover:underline">
-                Посмотреть все вопросы
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Статус системы -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              Статус системы
-            </h3>
-          </div>
-          <div class="p-6 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600 dark:text-gray-400">API</span>
-              <span class="flex items-center gap-2 text-sm font-medium text-success">
-                <span class="h-2 w-2 rounded-full bg-success animate-pulse"></span>
-                Работает
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600 dark:text-gray-400">База данных</span>
-              <span class="flex items-center gap-2 text-sm font-medium text-success">
-                <span class="h-2 w-2 rounded-full bg-success animate-pulse"></span>
-                Работает
-              </span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Email сервис</span>
-              <span class="flex items-center gap-2 text-sm font-medium text-success">
-                <span class="h-2 w-2 rounded-full bg-success animate-pulse"></span>
-                Работает
-              </span>
             </div>
           </div>
         </div>
@@ -258,6 +239,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, reactive, onMounted } from 'vue';
+
 // Определяем мета-данные страницы
 definePageMeta({
   layout: 'default',
@@ -265,5 +248,114 @@ definePageMeta({
 
 useHead({
   title: 'Поддержка | TailAdmin - Nuxt Tailwind CSS Dashboard',
+});
+
+const loading = ref(false);
+const ticketsLoading = ref(false);
+const tickets = ref<any[]>([]);
+
+const ticket = reactive({
+  ticket_type: '',
+  priority: 'medium',
+  subject: '',
+  description: ''
+});
+
+const { $toast } = useNuxtApp();
+
+// Получение списка тикетов
+const fetchTickets = async () => {
+  ticketsLoading.value = true;
+  try {
+    const { data } = await useAuthFetch('/api/support/tickets');
+    if (data.value) {
+      tickets.value = data.value;
+    }
+  } catch (error) {
+    console.error('Failed to fetch tickets:', error);
+  } finally {
+    ticketsLoading.value = false;
+  }
+};
+
+// Отправка тикета
+const submitTicket = async () => {
+  if (!ticket.ticket_type || !ticket.subject || !ticket.description) {
+    useNotification().error('Заполните все обязательные поля');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const { data, error } = await useAuthFetch('/api/support/tickets', {
+      method: 'POST',
+      body: ticket
+    });
+
+    if (error.value) throw error.value;
+
+    useNotification().success('Обращение успешно отправлено');
+    
+    // Сброс формы
+    ticket.ticket_type = '';
+    ticket.priority = 'medium';
+    ticket.subject = '';
+    ticket.description = '';
+
+    // Обновление списка
+    await fetchTickets();
+
+  } catch (error) {
+    console.error('Failed to submit ticket:', error);
+    useNotification().error('Ошибка при отправке обращения');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Форматирование даты
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Хелперы для лейблов
+const getStatusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    new: 'Новое',
+    in_progress: 'В работе',
+    resolved: 'Решено',
+    closed: 'Закрыто'
+  };
+  return map[status] || status;
+};
+
+const getTypeLabel = (type: string) => {
+   const map: Record<string, string> = {
+    technical: 'Техническая',
+    question: 'Вопрос',
+    feature: 'Предложение',
+    bug: 'Ошибка',
+    other: 'Другое'
+  };
+  return map[type] || type;
+};
+
+const getPriorityLabel = (priority: string) => {
+   const map: Record<string, string> = {
+    low: 'Низкий',
+    medium: 'Средний',
+    high: 'Высокий'
+  };
+  return map[priority] || priority;
+};
+
+onMounted(() => {
+  fetchTickets();
 });
 </script>

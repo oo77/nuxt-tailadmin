@@ -265,7 +265,10 @@ const {
   canCreateSchedule, 
   canEditSchedule, 
   canDeleteSchedule,
-  isTeacher 
+  isTeacher,
+  isStudent,
+  canViewAllGroups,
+  canViewInstructors 
 } = usePermissions();
 
 // Настройки расписания (академические пары)
@@ -1070,9 +1073,16 @@ const toggleGroupFilter = (groupId: string) => {
 
 const loadSelectData = async () => {
   try {
+    const shouldFetchGroups = canViewAllGroups.value || isTeacher.value;
+    const shouldFetchInstructors = canViewInstructors.value || isStudent.value; // Students usually need to see instructors
+
     const [groupsResponse, instructorsResponse, classroomsResponse] = await Promise.all([
-      authFetch<{ success: boolean; groups: any[] }>('/api/groups?limit=1000&isActive=true'),
-      authFetch<{ success: boolean; instructors: Instructor[] }>('/api/instructors?limit=1000&isActive=true'),
+      shouldFetchGroups 
+        ? authFetch<{ success: boolean; groups: any[] }>('/api/groups?limit=1000&isActive=true')
+        : Promise.resolve({ success: true, groups: [] }),
+      shouldFetchInstructors
+        ? authFetch<{ success: boolean; instructors: Instructor[] }>('/api/instructors?limit=1000&isActive=true')
+        : Promise.resolve({ success: true, instructors: [] }),
       authFetch<{ success: boolean; classrooms: Classroom[] }>('/api/classrooms'),
     ]);
 

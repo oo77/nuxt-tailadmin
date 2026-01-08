@@ -11,6 +11,7 @@
 
 import { getDbPool } from '../utils/db';
 import { v4 as uuidv4 } from 'uuid';
+import { pathToFileURL } from 'url';
 import type { PoolConnection } from 'mysql2/promise';
 
 // ============================================================================
@@ -24,6 +25,7 @@ interface QuestionData {
     };
     explanation?: string;
     difficulty: 'easy' | 'medium' | 'hard';
+    language?: 'ru' | 'en' | 'uz';
     tags: string[];
 }
 
@@ -46,6 +48,7 @@ interface TemplateData {
     max_attempts: number;
     shuffle_questions: boolean;
     shuffle_options: boolean;
+    allowed_languages?: string[] | null;
 }
 
 // ============================================================================
@@ -735,9 +738,9 @@ export async function seedTests() {
                 await connection.execute(
                     `INSERT INTO questions (
             id, bank_id, question_type, question_text, options,
-            points, explanation, difficulty, tags, order_index, is_active,
+            points, explanation, difficulty, language, tags, order_index, is_active,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         questionId,
                         bankId,
@@ -747,6 +750,7 @@ export async function seedTests() {
                         1,
                         q.explanation || null,
                         q.difficulty,
+                        q.language || 'ru',
                         JSON.stringify(q.tags),
                         i + 1,
                         true,
@@ -777,8 +781,8 @@ export async function seedTests() {
         id, bank_id, name, code, description, questions_mode, questions_count,
         time_limit_minutes, passing_score, max_attempts, shuffle_questions,
         shuffle_options, questions_per_page, show_results, allow_back,
-        proctoring_enabled, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        proctoring_enabled, allowed_languages, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 templateId1,
                 bankId1,
@@ -796,6 +800,7 @@ export async function seedTests() {
                 'immediately', // show_results
                 true, // allow_back
                 false, // proctoring_enabled
+                template1.allowed_languages ? JSON.stringify(template1.allowed_languages) : null,
                 true, // is_active
                 now,
                 now,
@@ -819,8 +824,8 @@ export async function seedTests() {
         id, bank_id, name, code, description, questions_mode, questions_count,
         time_limit_minutes, passing_score, max_attempts, shuffle_questions,
         shuffle_options, questions_per_page, show_results, allow_back,
-        proctoring_enabled, is_active, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        proctoring_enabled, allowed_languages, is_active, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 templateId2,
                 bankId2,
@@ -838,6 +843,7 @@ export async function seedTests() {
                 'immediately', // show_results
                 true, // allow_back
                 false, // proctoring_enabled
+                template2.allowed_languages ? JSON.stringify(template2.allowed_languages) : null,
                 true, // is_active
                 now,
                 now,
@@ -899,7 +905,7 @@ export async function seedTests() {
 // CLI EXECUTION
 // ============================================================================
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     seedTests()
         .then(() => {
             console.log('Скрипт завершён успешно.');

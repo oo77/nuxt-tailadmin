@@ -85,6 +85,11 @@ useHead({
   title: 'Расписание | TailAdmin - Nuxt Tailwind CSS Dashboard',
 });
 
+import { usePermissions } from '~/composables/usePermissions';
+
+// ...
+
+const { canViewAllGroups, isTeacher } = usePermissions();
 const { authFetch } = useAuthFetch();
 
 // Статистика
@@ -93,6 +98,7 @@ const stats = ref({
   thisWeek: 0,
   activeGroups: 0,
   classrooms: 0,
+  showGroups: false // Flag to control UI visibility if needed, or just rely on 0
 });
 
 // Загрузка статистики
@@ -110,6 +116,9 @@ const loadStats = async () => {
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
 
+    const shouldFetchGroups = canViewAllGroups.value || isTeacher.value;
+    stats.value.showGroups = shouldFetchGroups;
+
     // Запускаем все запросы параллельно
     const [todayResponse, weekResponse, groupsResponse, classroomsResponse] = await Promise.all([
       authFetch<{ success: boolean; events: any[] }>(
@@ -118,9 +127,9 @@ const loadStats = async () => {
       authFetch<{ success: boolean; events: any[] }>(
         `/api/schedule?startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`
       ),
-      authFetch<{ success: boolean; stats: { active: number } }>(
-        '/api/groups?limit=1'
-      ),
+      shouldFetchGroups 
+        ? authFetch<{ success: boolean; stats: { active: number } }>('/api/groups?limit=1')
+        : Promise.resolve({ success: true, stats: { active: 0 } }),
       authFetch<{ success: boolean; classrooms: any[] }>(
         '/api/classrooms'
       ),
