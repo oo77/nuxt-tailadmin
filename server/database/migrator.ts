@@ -26,6 +26,7 @@ import * as multilangQuestions from './migrations/20260105_032_multilang_questio
 import * as gradesFromTest from './migrations/20260106_033_grades_from_test';
 import * as certificateStandalone from './migrations/20260106_034_certificate_standalone';
 import * as studentPortalTables from './migrations/20260108_035_student_portal_tables';
+import * as studentNotifications from './migrations/20260108_036_student_notifications';
 
 /**
  * ============================================================================
@@ -214,6 +215,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: studentPortalTables.up,
     down: studentPortalTables.down,
     description: 'User settings and support tickets tables',
+  },
+  // ============================================================
+  // Миграция 036: Уведомления студентов
+  // ============================================================
+  {
+    name: '20260108_036_student_notifications',
+    up: studentNotifications.up,
+    down: studentNotifications.down,
+    description: studentNotifications.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

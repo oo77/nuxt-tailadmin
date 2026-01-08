@@ -4,7 +4,7 @@
  */
 
 import { getStudentByUserId } from '../../repositories/studentRepository';
-import { getUpcomingDeadlines } from '../../services/studentNotificationService';
+import { getUpcomingDeadlines, type UpcomingDeadline } from '../../services/studentNotificationService';
 
 export default defineEventHandler(async (event) => {
     const userId = event.context.user?.id;
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
         const allDeadlines = await getUpcomingDeadlines();
 
         // Фильтруем только дедлайны текущего студента
-        const studentDeadlines = allDeadlines.filter(d => d.student_id === student.id);
+        const studentDeadlines = allDeadlines.filter((d: UpcomingDeadline) => d.student_id === student.id);
 
         return {
             success: true,
