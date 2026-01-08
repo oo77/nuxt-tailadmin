@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { executeQuery } from '../../utils/db';
 import { hashPassword, generateToken, generateRefreshToken, toPublicUser, createTokenPayload } from '../../utils/auth';
 import { validate, registerSchema } from '../../utils/validation';
-import { logActivityDirect } from '../../utils/activityLogger';
+import { logActivity } from '../../utils/activityLogger';
 import type { User, RegisterData, AuthResponse } from '../../types/auth';
 
 /**
@@ -99,8 +99,8 @@ export default defineEventHandler(async (event) => {
     console.log(`✅ User registered: ${newUser.email} (${newUser.role})`);
 
     // Логируем регистрацию
-    await logActivityDirect(
-      newUser.id,
+    await logActivity(
+      event,
       'CREATE',
       'USER',
       newUser.id,

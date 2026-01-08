@@ -350,6 +350,13 @@ const allMenuGroups = [
         path: "/users",
         permission: Permission.USERS_VIEW,
       },
+      {
+        icon: ClipboardCheckIcon,
+        name: "Журнал действий",
+        path: "/activity-logs",
+        // Доступно только для админов
+        showOnlyForRoles: ['ADMIN'],
+      },
     ],
   },
 ];

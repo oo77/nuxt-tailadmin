@@ -4,6 +4,7 @@
  */
 
 import { removeStudentFromGroup, getGroupById } from '../../../../repositories/groupRepository';
+import { logActivity } from '../../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -42,6 +43,19 @@ export default defineEventHandler(async (event) => {
         message: 'Слушатель не найден в группе',
       };
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'GROUP',
+      groupId,
+      group.code,
+      { 
+        action: 'remove_student',
+        studentId 
+      }
+    );
 
     return {
       success: true,

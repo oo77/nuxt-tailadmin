@@ -9,6 +9,7 @@ import {
   addStudentsToGroup,
   checkStudentConflicts 
 } from '../../../../repositories/groupRepository';
+import { logActivity } from '../../../../utils/activityLogger';
 
 const addStudentsSchema = z.object({
   studentIds: z.array(z.string()).min(1, 'Выберите хотя бы одного слушателя'),
@@ -74,6 +75,22 @@ export default defineEventHandler(async (event) => {
 
     // Добавляем слушателей
     const result = await addStudentsToGroup(groupId, studentIds);
+
+    // Логируем действие
+    if (result.added.length > 0) {
+      await logActivity(
+        event,
+        'UPDATE',
+        'GROUP',
+        groupId,
+        group.code,
+        { 
+          action: 'add_students',
+          addedCount: result.added.length,
+          studentIds: result.added 
+        }
+      );
+    }
 
     return {
       success: true,

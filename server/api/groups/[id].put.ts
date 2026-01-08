@@ -11,6 +11,7 @@ import {
   courseExists,
   checkStudentConflicts 
 } from '../../repositories/groupRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 const updateGroupSchema = z.object({
   code: z.string().min(1).max(50).optional(),
@@ -116,6 +117,19 @@ export default defineEventHandler(async (event) => {
 
     // Обновляем группу
     const group = await updateGroup(id, data);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'GROUP',
+      id,
+      group.code,
+      { 
+        updatedFields: Object.keys(data),
+        courseId: group.courseId 
+      }
+    );
 
     return {
       success: true,

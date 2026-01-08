@@ -3,6 +3,7 @@
  */
 
 import { updateDiscipline } from '../../../../repositories/courseRepository';
+import { logActivity } from '../../../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
@@ -63,6 +64,16 @@ export default defineEventHandler(async (event) => {
         message: 'Дисциплина не найдена',
       });
     }
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'UPDATE',
+      'DISCIPLINE',
+      disciplineId,
+      discipline.name,
+      { updatedFields: Object.keys(body).filter(key => body[key] !== undefined) }
+    );
 
     return {
       success: true,

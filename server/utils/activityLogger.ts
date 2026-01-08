@@ -104,6 +104,15 @@ export function formatActivityDescription(
     LOGOUT: 'Вышел из системы',
     IMPORT: 'Импортировал',
     EXPORT: 'Экспортировал',
+    APPROVE: 'Одобрил',
+    REJECT: 'Отклонил',
+    BLOCK: 'Заблокировал',
+    UNBLOCK: 'Разблокировал',
+    REVOKE: 'Отозвал',
+    ISSUE: 'Выдал',
+    RESET_PASSWORD: 'Сбросил пароль',
+    ASSIGN: 'Назначил',
+    UNASSIGN: 'Снял назначение',
   };
 
   const entityLabels: Record<EntityType, string> = {

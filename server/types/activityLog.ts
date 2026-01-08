@@ -3,7 +3,24 @@
  */
 
 // Типы действий
-export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW' | 'LOGIN' | 'LOGOUT' | 'IMPORT' | 'EXPORT';
+export type ActionType = 
+  | 'CREATE' 
+  | 'UPDATE' 
+  | 'DELETE' 
+  | 'VIEW' 
+  | 'LOGIN' 
+  | 'LOGOUT' 
+  | 'IMPORT' 
+  | 'EXPORT'
+  | 'APPROVE'        // Одобрение (представителей, заявок)
+  | 'REJECT'         // Отклонение
+  | 'BLOCK'          // Блокировка
+  | 'UNBLOCK'        // Разблокировка
+  | 'REVOKE'         // Отзыв (сертификатов)
+  | 'ISSUE'          // Выдача (сертификатов)
+  | 'RESET_PASSWORD' // Сброс пароля
+  | 'ASSIGN'         // Назначение (студента в группу, инструктора на дисциплину)
+  | 'UNASSIGN';      // Снятие назначения
 
 // Типы сущностей
 export type EntityType = 
@@ -32,6 +49,8 @@ export type EntityType =
 export interface ActivityLog {
   id: number;
   userId: string;
+  userName?: string;      // Имя пользователя (из JOIN с users)
+  userEmail?: string;     // Email пользователя (из JOIN с users)
   actionType: ActionType;
   entityType: EntityType;
   entityId: string | null;

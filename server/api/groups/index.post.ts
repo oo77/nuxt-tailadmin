@@ -10,6 +10,7 @@ import {
   courseExists,
   checkStudentConflicts 
 } from '../../repositories/groupRepository';
+import { logActivity } from '../../utils/activityLogger';
 
 const createGroupSchema = z.object({
   code: z.string().min(1, 'Код группы обязателен').max(50, 'Код группы слишком длинный'),
@@ -92,6 +93,19 @@ export default defineEventHandler(async (event) => {
 
     // Создаём группу
     const group = await createGroup(data);
+
+    // Логируем действие
+    await logActivity(
+      event,
+      'CREATE',
+      'GROUP',
+      group.id,
+      group.code,
+      { 
+        courseId: group.courseId,
+        studentsCount: data.studentIds?.length || 0 
+      }
+    );
 
     return {
       success: true,

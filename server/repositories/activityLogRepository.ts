@@ -20,6 +20,8 @@ import type {
 interface ActivityLogRow extends RowDataPacket {
   id: number;
   user_id: string;
+  user_name?: string;      // Из JOIN с users
+  user_email?: string;     // Из JOIN с users
   action_type: ActionType;
   entity_type: EntityType;
   entity_id: string | null;
@@ -52,6 +54,8 @@ function mapRowToActivityLog(row: ActivityLogRow): ActivityLog {
   return {
     id: row.id,
     userId: row.user_id,
+    userName: row.user_name,
+    userEmail: row.user_email,
     actionType: row.action_type,
     entityType: row.entity_type,
     entityId: row.entity_id,
@@ -126,28 +130,28 @@ export async function getActivityLogsPaginated(
   const queryParams: any[] = [];
 
   if (userId) {
-    conditions.push('user_id = ?');
+    conditions.push('al.user_id = ?');
     queryParams.push(userId);
   }
 
   if (actionType) {
-    conditions.push('action_type = ?');
+    conditions.push('al.action_type = ?');
     queryParams.push(actionType);
   }
 
   if (entityType) {
-    conditions.push('entity_type = ?');
+    conditions.push('al.entity_type = ?');
     queryParams.push(entityType);
   }
 
   if (startDate) {
-    conditions.push('created_at >= ?');
+    conditions.push('al.created_at >= ?');
     const date = startDate instanceof Date ? startDate : new Date(startDate);
     queryParams.push(date);
   }
 
   if (endDate) {
-    conditions.push('created_at <= ?');
+    conditions.push('al.created_at <= ?');
     const date = endDate instanceof Date ? endDate : new Date(endDate);
     queryParams.push(date);
   }
@@ -155,16 +159,25 @@ export async function getActivityLogsPaginated(
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Получаем общее количество
-  const countQuery = `SELECT COUNT(*) as total FROM activity_logs ${whereClause}`;
+  const countQuery = `
+    SELECT COUNT(*) as total 
+    FROM activity_logs al
+    ${whereClause}
+  `;
   const countResult = await executeQuery<CountRow[]>(countQuery, queryParams);
   const total = countResult[0]?.total || 0;
 
-  // Получаем данные с пагинацией
+  // Получаем данные с пагинацией и JOIN с users для получения имени
   const offset = (page - 1) * limit;
   const dataQuery = `
-    SELECT * FROM activity_logs 
+    SELECT 
+      al.*,
+      u.name as user_name,
+      u.email as user_email
+    FROM activity_logs al
+    LEFT JOIN users u ON al.user_id = u.id
     ${whereClause} 
-    ORDER BY created_at DESC 
+    ORDER BY al.created_at DESC 
     LIMIT ? OFFSET ?
   `;
   const dataParams = [...queryParams, limit, offset];
@@ -257,6 +270,15 @@ export async function getUserActivityStats(userId: string): Promise<{
     LOGOUT: 0,
     IMPORT: 0,
     EXPORT: 0,
+    APPROVE: 0,
+    REJECT: 0,
+    BLOCK: 0,
+    UNBLOCK: 0,
+    REVOKE: 0,
+    ISSUE: 0,
+    RESET_PASSWORD: 0,
+    ASSIGN: 0,
+    UNASSIGN: 0,
   };
 
   for (const row of actionRows) {
