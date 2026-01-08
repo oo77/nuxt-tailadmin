@@ -140,10 +140,10 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue';
 const { user } = useAuth();
-const stats = ref<any>(null);
+const stats = ref(null);
 
 const currentDate = new Date().toLocaleDateString('ru-RU', {
   weekday: 'long',
@@ -156,7 +156,7 @@ const { authFetch } = useAuthFetch();
 
 const fetchDashboardStats = async () => {
   try {
-    const data = await authFetch<any>('/api/students/dashboard');
+    const data = await authFetch('/api/students/dashboard');
     if (data) {
       stats.value = data;
     }
@@ -166,20 +166,20 @@ const fetchDashboardStats = async () => {
 };
 
 // Utils
-const formatTime = (dateStr: string) => {
+const formatTime = (dateStr) => {
   return new Date(dateStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 };
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
    return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 };
 
-const formatDateTime = (dateStr: string) => {
+const formatDateTime = (dateStr) => {
    return new Date(dateStr).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
 
-const getEventTypeLabel = (type: string) => {
-  const map: Record<string, string> = {
+const getEventTypeLabel = (type) => {
+  const map = {
     theory: 'Лекция',
     practice: 'Практика',
     assessment: 'Тест',
@@ -192,3 +192,4 @@ onMounted(() => {
   fetchDashboardStats();
 });
 </script>
+

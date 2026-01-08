@@ -66,13 +66,12 @@ export async function getStudentIdByUserId(userId: string): Promise<string | nul
  */
 export async function getStudentCourses(userId: string): Promise<StudentCourse[]> {
   const studentId = await getStudentIdByUserId(userId);
-  
+
   if (!studentId) {
     return [];
   }
 
-  // Основной запрос для получения групп и курсов
-  // Мы также считаем общее количество занятий в расписании (schedule_events) для этой группы
+  // Оптимизированный запрос: включаем подсчёт посещаемости в основной запрос
   const query = `
     SELECT 
       sg.id as group_id, 
@@ -84,7 +83,13 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
       sg.end_date,
       i.first_name as teacher_first_name,
       i.last_name as teacher_last_name,
-      (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons
+      (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons,
+      COALESCE((
+        SELECT COUNT(*) 
+        FROM attendance a
+        JOIN schedule_events se ON a.schedule_event_id = se.id
+        WHERE a.student_id = ? AND se.group_id = sg.id AND a.status IN ('present', 'late', 'excused')
+      ), 0) as attended_lessons
     FROM students s
     JOIN study_group_students sgs ON s.id = sgs.student_id
     JOIN study_groups sg ON sgs.group_id = sg.id
@@ -94,43 +99,15 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
     ORDER BY sg.start_date DESC
   `;
 
-  const rows = await executeQuery<StudentCourseRow[]>(query, [userId]);
+  const rows = await executeQuery<any[]>(query, [studentId, userId]);
 
-  // Для каждой группы нужно посчитать посещаемость (attended_lessons)
-  // Это можно сделать отдельными запросами или одним сложным, но для читаемости сделаем циклом (N+1, но N студентов обычно мал для одного юзера)
-  // Оптимизация: можно сделать один запрос с GROUP BY, но Attendance может быть сложной таблицей
-  
-  const courses: StudentCourse[] = [];
-
-  for (const row of rows) {
-    // Считаем посещенные занятия (где статус 'present' или 'late')
-    // Таблица attendance связывает schedule_event_id и student_id
-    const attendanceQuery = `
-      SELECT COUNT(*) as count 
-      FROM attendance a
-      JOIN schedule_events se ON a.schedule_event_id = se.id
-      WHERE a.student_id = ? AND se.group_id = ? AND a.status IN ('present', 'late', 'excused')
-    `;
-    
-    const attendanceRows = await executeQuery<RowDataPacket[]>(attendanceQuery, [studentId, row.group_id]);
-    const attendedCount = attendanceRows[0]?.count || 0;
-
-    // Рассчитываем прогресс
-    // Если total_lessons = 0, то прогресс 0.
-    // Если курс завершен по дате, может быть 100? Лучше считать по факту.
-    // Но часто total_lessons заранее не известно точно, если расписание плавающее.
-    // В данном случае берем total_lessons из расписания.
-    
+  return rows.map(row => {
     let progress = 0;
     if (row.total_lessons > 0) {
-      progress = Math.round((attendedCount / row.total_lessons) * 100);
-    } 
-    
-    // Если статус 'completed', форсируем 100%? Или показываем реальность?
-    // Лучше показывать как есть, но если курс завершен, то может быть 100.
-    // Пока оставим расчетный.
+      progress = Math.round((row.attended_lessons / row.total_lessons) * 100);
+    }
 
-    courses.push({
+    return {
       group_id: row.group_id,
       course_id: row.course_id,
       course_name: row.course_name,
@@ -141,11 +118,9 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
       teacher_name: row.teacher_first_name ? `${row.teacher_first_name} ${row.teacher_last_name || ''}`.trim() : null,
       progress,
       total_lessons: row.total_lessons,
-      attended_lessons: attendedCount
-    });
-  }
-
-  return courses;
+      attended_lessons: row.attended_lessons
+    };
+  });
 }
 
 /**
@@ -177,13 +152,13 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
     WHERE s.user_id = ? AND sg.id = ?
     LIMIT 1
   `;
-  
+
   const courseRows = await executeQuery<StudentCourseRow[]>(courseQuery, [userId, groupId]);
-  
+
   if (courseRows.length === 0) return null;
 
   const courseRow = courseRows[0];
-  
+
   // Считаем прогресс
   const attendanceCountQuery = `
     SELECT COUNT(*) as count 
@@ -193,7 +168,7 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
   `;
   const attRows = await executeQuery<RowDataPacket[]>(attendanceCountQuery, [studentId, groupId]);
   const attendedCount = attRows[0]?.count || 0;
-  
+
   let progress = 0;
   if (courseRow.total_lessons > 0) {
     progress = Math.round((attendedCount / courseRow.total_lessons) * 100);
@@ -220,7 +195,7 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
   // Пока используем attendance.status.
   // Для оценок: если есть таблица grades, нужно проверить её структуру. Если нет - пока NULL.
   // В миграции 020 создавалась таблица grades.
-  
+
   const scheduleQuery = `
     SELECT 
       se.id,
@@ -238,37 +213,37 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
     WHERE se.group_id = ?
     ORDER BY se.start_time ASC
   `;
-  
+
   // Примечание: Таблица grades может иметь connection через grade_column_id, нужно проверить.
   // Если таблица grades простая (student_id, schedule_event_id, score), то ок.
   // Если нет, то запрос может упасть.
   // Рискованно без проверки grades.
   // Проверим `try-catch` или используем только attendance пока что.
   // Я добавлю grades в запрос, но если упадет - значит структура другая.
-  
-  try {
-     const scheduleRows = await executeQuery<any[]>(scheduleQuery, [studentId, studentId, groupId]);
-     
-     const schedule: CourseScheduleItem[] = scheduleRows.map(row => ({
-       id: row.id,
-       title: row.title,
-       description: row.description,
-       start_time: row.start_time,
-       end_time: row.end_time,
-       event_type: row.event_type,
-       attendance_status: row.attendance_status,
-       grade: row.grade,
-       max_grade: row.max_grade
-     }));
 
-     return {
-       info: courseInfo,
-       schedule
-     };
+  try {
+    const scheduleRows = await executeQuery<any[]>(scheduleQuery, [studentId, studentId, groupId]);
+
+    const schedule: CourseScheduleItem[] = scheduleRows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      event_type: row.event_type,
+      attendance_status: row.attendance_status,
+      grade: row.grade,
+      max_grade: row.max_grade
+    }));
+
+    return {
+      info: courseInfo,
+      schedule
+    };
   } catch (e: any) {
-     console.warn('Failed to fetch grades/attendance with simple join, trying without grades:', e.message);
-     // Fallback query without grades table if it doesn't match assumptions
-      const scheduleQuerySimple = `
+    console.warn('Failed to fetch grades/attendance with simple join, trying without grades:', e.message);
+    // Fallback query without grades table if it doesn't match assumptions
+    const scheduleQuerySimple = `
         SELECT 
           se.id,
           se.title,
@@ -282,24 +257,24 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
         WHERE se.group_id = ?
         ORDER BY se.start_time ASC
       `;
-      const scheduleRows = await executeQuery<any[]>(scheduleQuerySimple, [studentId, groupId]);
-      
-      const schedule: CourseScheduleItem[] = scheduleRows.map(row => ({
-       id: row.id,
-       title: row.title,
-       description: row.description,
-       start_time: row.start_time,
-       end_time: row.end_time,
-       event_type: row.event_type,
-       attendance_status: row.attendance_status,
-       grade: null,
-       max_grade: null
-     }));
+    const scheduleRows = await executeQuery<any[]>(scheduleQuerySimple, [studentId, groupId]);
 
-     return {
-       info: courseInfo,
-       schedule
-     };
+    const schedule: CourseScheduleItem[] = scheduleRows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      event_type: row.event_type,
+      attendance_status: row.attendance_status,
+      grade: null,
+      max_grade: null
+    }));
+
+    return {
+      info: courseInfo,
+      schedule
+    };
   }
 }
 
@@ -335,38 +310,30 @@ export async function getStudentDashboardStats(userId: string) {
   `;
   const upcomingEvents = await executeQuery<any[]>(upcomingEventsQuery, [studentId, now]);
 
-  // 2. Активные курсы (кратко)
+  // 2. Активные курсы с прогрессом (оптимизированный запрос без N+1)
   const activeCoursesQuery = `
     SELECT 
       sg.id as group_id, 
       c.name as course_name, 
       sg.name as group_name,
       sg.end_date,
-      (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons
+      (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons,
+      (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id AND se.end_time < ?) as passed_lessons
     FROM study_group_students sgs
     JOIN study_groups sg ON sgs.group_id = sg.id
     JOIN courses c ON sg.course_id = c.id
     WHERE sgs.student_id = ? AND sgs.status = 'active'
   `;
-  const activeCourses = await executeQuery<any[]>(activeCoursesQuery, [studentId]);
+  const activeCourses = await executeQuery<any[]>(activeCoursesQuery, [now, studentId]);
 
-  // Для активных курсов считаем прогресс в цикле (или упрощенно)
-  const coursesWithProgress = [];
-  for (const course of activeCourses) {
-    const passedLessonsQuery = `
-       SELECT COUNT(*) as count 
-       FROM schedule_events se 
-       WHERE se.group_id = ? AND se.end_time < ?
-    `;
-    const rows = await executeQuery<any[]>(passedLessonsQuery, [course.group_id, now]);
-    const passed = rows[0]?.count || 0;
-    
+  // Вычисляем прогресс для каждого курса
+  const coursesWithProgress = activeCourses.map(course => {
     let progress = 0;
     if (course.total_lessons > 0) {
-      progress = Math.round((passed / course.total_lessons) * 100);
+      progress = Math.round((course.passed_lessons / course.total_lessons) * 100);
     }
-    coursesWithProgress.push({ ...course, progress });
-  }
+    return { ...course, progress };
+  });
 
   // 3. Дедлайны (тесты) - если таблица test_assignments существует (миграция 028)
   let upcomingDeadlines: any[] = [];
@@ -386,7 +353,7 @@ export async function getStudentDashboardStats(userId: string) {
       WHERE sgs.student_id = ?
         AND ta.end_date > ?
         AND ta.status = 'scheduled'
-        AND (ts.id IS NULL OR ts.status = 'in_progress') -- Тест еще не сдан
+        AND (ts.id IS NULL OR ts.status = 'in_progress')
       ORDER BY ta.end_date ASC
       LIMIT 3
     `;

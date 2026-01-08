@@ -109,7 +109,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue';
 
 definePageMeta({
@@ -121,14 +121,14 @@ useHead({
 });
 
 const loading = ref(true);
-const courses = ref<any[]>([]);
+const courses = ref([]);
 
 const { authFetch } = useAuthFetch();
 
 const fetchCourses = async () => {
   loading.value = true;
   try {
-    const data = await authFetch<any[]>('/api/students/my-courses');
+    const data = await authFetch('/api/students/my-courses');
     if (data) {
       courses.value = data;
     }
@@ -140,16 +140,16 @@ const fetchCourses = async () => {
   }
 };
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
   if (!dateStr) return 'TBA';
   return new Date(dateStr).toLocaleDateString('ru-RU');
 };
 
-const getStatusLabel = (status: string) => {
-  const map: Record<string, string> = {
+const getStatusLabel = (status) => {
+  const map = {
     active: 'Активен',
     completed: 'Завершен',
-    dropped: 'Отчислен' // или Отменен
+    dropped: 'Отчислен'
   };
   return map[status] || status;
 };
@@ -158,3 +158,4 @@ onMounted(() => {
   fetchCourses();
 });
 </script>
+

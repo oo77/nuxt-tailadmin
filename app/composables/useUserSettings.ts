@@ -14,6 +14,7 @@ export interface UserSettings {
 export const useUserSettings = () => {
   const settings = useState<UserSettings | null>('user-settings', () => null);
   const loading = useState<boolean>('user-settings-loading', () => false);
+  const { authFetch } = useAuthFetch();
 
   /**
    * Загрузка настроек с сервера
@@ -21,10 +22,10 @@ export const useUserSettings = () => {
   const fetchSettings = async () => {
     loading.value = true;
     try {
-      const { data } = await useAuthFetch<UserSettings>('/api/profile/settings');
-      if (data.value) {
-        settings.value = data.value;
-        applySettings(data.value);
+      const data = await authFetch<UserSettings>('/api/profile/settings');
+      if (data) {
+        settings.value = data;
+        applySettings(data);
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -40,16 +41,14 @@ export const useUserSettings = () => {
   const updateSettings = async (newSettings: Partial<UserSettings>) => {
     loading.value = true;
     try {
-      const { data, error } = await useAuthFetch<UserSettings>('/api/profile/settings', {
+      const data = await authFetch<UserSettings>('/api/profile/settings', {
         method: 'PUT',
         body: newSettings,
       });
 
-      if (error.value) throw error.value;
-
-      if (data.value) {
-        settings.value = data.value;
-        applySettings(data.value);
+      if (data) {
+        settings.value = data;
+        applySettings(data);
         useNotification().success('Настройки сохранены');
       }
     } catch (error) {
@@ -79,7 +78,7 @@ export const useUserSettings = () => {
       } else {
         document.documentElement.classList.remove('compact-mode');
       }
-      
+
       // 3. Размер шрифта
       document.documentElement.setAttribute('data-font-size', s.font_size);
     }

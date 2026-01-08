@@ -211,7 +211,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue';
 
 definePageMeta({
@@ -219,11 +219,11 @@ definePageMeta({
 });
 
 const route = useRoute();
-const groupId = route.params.id as string;
+const groupId = route.params.id;
 
 // State
 const loading = ref(true);
-const course = ref<any>(null);
+const course = ref(null);
 const activeTab = ref('schedule');
 
 const tabs = [
@@ -234,9 +234,7 @@ const tabs = [
 // Computed
 const gradedLessons = computed(() => {
   if (!course.value || !course.value.schedule) return [];
-  // Показываем в журнале занятия, где выставлена оценка или есть статус посещаемости
-  // Либо все? Лучше все прошедшие.
-  return course.value.schedule.filter((l: any) => isPast(l.start_time) || l.grade !== null);
+  return course.value.schedule.filter((l) => isPast(l.start_time) || l.grade !== null);
 });
 
 // Fetch
@@ -245,7 +243,7 @@ const { authFetch } = useAuthFetch();
 const fetchCourseDetails = async () => {
   loading.value = true;
   try {
-    const data = await authFetch<any>(`/api/students/my-courses/${groupId}`);
+    const data = await authFetch(`/api/students/my-courses/${groupId}`);
     if (data) {
       course.value = data;
       useHead({
@@ -261,12 +259,12 @@ const fetchCourseDetails = async () => {
 };
 
 // Utils
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('ru-RU');
 };
 
-const formatDateTime = (dateStr: string) => {
+const formatDateTime = (dateStr) => {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleString('ru-RU', {
     day: 'numeric',
@@ -276,8 +274,8 @@ const formatDateTime = (dateStr: string) => {
   });
 };
 
-const getStatusLabel = (status: string) => {
-  const map: Record<string, string> = {
+const getStatusLabel = (status) => {
+  const map = {
     active: 'Активен',
     completed: 'Завершен',
     dropped: 'Отчислен'
@@ -285,8 +283,8 @@ const getStatusLabel = (status: string) => {
   return map[status] || status;
 };
 
-const getEventTypeLabel = (type: string) => {
-  const map: Record<string, string> = {
+const getEventTypeLabel = (type) => {
+  const map = {
     theory: 'Лекция',
     practice: 'Практика',
     assessment: 'Тест/Экзамен',
@@ -295,8 +293,8 @@ const getEventTypeLabel = (type: string) => {
   return map[type] || type;
 };
 
-const getAttendanceLabel = (status: string) => {
-  const map: Record<string, string> = {
+const getAttendanceLabel = (status) => {
+  const map = {
     present: 'Присутствовал',
     absent: 'Пропуск',
     late: 'Опоздание',
@@ -305,7 +303,7 @@ const getAttendanceLabel = (status: string) => {
   return map[status] || status;
 };
 
-const isPast = (dateStr: string) => {
+const isPast = (dateStr) => {
   return new Date(dateStr) < new Date();
 };
 
@@ -313,3 +311,4 @@ onMounted(() => {
   fetchCourseDetails();
 });
 </script>
+

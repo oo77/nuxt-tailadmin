@@ -265,7 +265,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, watch } from 'vue';
 import { 
   Settings, 
@@ -273,7 +273,7 @@ import {
   Palette,
   Calendar 
 } from 'lucide-vue-next';
-import { useUserSettings, type UserSettings } from '@/composables/useUserSettings';
+import { useUserSettings } from '@/composables/useUserSettings';
 
 // Определяем мета-данные страницы
 definePageMeta({
@@ -288,7 +288,7 @@ useHead({
 const { settings, loading, fetchSettings, updateSettings } = useUserSettings();
 
 // Локальная форма
-const form = ref<Partial<UserSettings>>({
+const form = ref({
   theme: 'light',
   language: 'ru',
   notifications_email: true,
@@ -343,3 +343,4 @@ const saveSettings = async () => {
   await updateSettings(form.value);
 };
 </script>
+

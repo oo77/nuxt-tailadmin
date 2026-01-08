@@ -238,7 +238,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, reactive, onMounted } from 'vue';
 
 // Определяем мета-данные страницы
@@ -252,7 +252,7 @@ useHead({
 
 const loading = ref(false);
 const ticketsLoading = ref(false);
-const tickets = ref<any[]>([]);
+const tickets = ref([]);
 
 const ticket = reactive({
   ticket_type: '',
@@ -261,15 +261,15 @@ const ticket = reactive({
   description: ''
 });
 
-const { $toast } = useNuxtApp();
+const { authFetch } = useAuthFetch();
 
 // Получение списка тикетов
 const fetchTickets = async () => {
   ticketsLoading.value = true;
   try {
-    const { data } = await useAuthFetch('/api/support/tickets');
-    if (data.value) {
-      tickets.value = data.value;
+    const data = await authFetch('/api/support/tickets');
+    if (data) {
+      tickets.value = data;
     }
   } catch (error) {
     console.error('Failed to fetch tickets:', error);
@@ -287,12 +287,10 @@ const submitTicket = async () => {
 
   loading.value = true;
   try {
-    const { data, error } = await useAuthFetch('/api/support/tickets', {
+    await authFetch('/api/support/tickets', {
       method: 'POST',
       body: ticket
     });
-
-    if (error.value) throw error.value;
 
     useNotification().success('Обращение успешно отправлено');
     
@@ -314,7 +312,7 @@ const submitTicket = async () => {
 };
 
 // Форматирование даты
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
@@ -325,8 +323,8 @@ const formatDate = (dateStr: string) => {
 };
 
 // Хелперы для лейблов
-const getStatusLabel = (status: string) => {
-  const map: Record<string, string> = {
+const getStatusLabel = (status) => {
+  const map = {
     new: 'Новое',
     in_progress: 'В работе',
     resolved: 'Решено',
@@ -335,8 +333,8 @@ const getStatusLabel = (status: string) => {
   return map[status] || status;
 };
 
-const getTypeLabel = (type: string) => {
-   const map: Record<string, string> = {
+const getTypeLabel = (type) => {
+   const map = {
     technical: 'Техническая',
     question: 'Вопрос',
     feature: 'Предложение',
@@ -346,8 +344,8 @@ const getTypeLabel = (type: string) => {
   return map[type] || type;
 };
 
-const getPriorityLabel = (priority: string) => {
-   const map: Record<string, string> = {
+const getPriorityLabel = (priority) => {
+   const map = {
     low: 'Низкий',
     medium: 'Средний',
     high: 'Высокий'
@@ -359,3 +357,4 @@ onMounted(() => {
   fetchTickets();
 });
 </script>
+
