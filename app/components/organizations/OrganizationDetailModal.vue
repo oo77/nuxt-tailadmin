@@ -1,5 +1,5 @@
 <template>
-  <UiModal :is-open="isOpen" @close="handleClose" size="lg">
+  <UiModal :is-open="isOpen" @close="handleClose" size="xl">
     <template #header>
       <div class="flex items-center gap-3">
         <div class="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -18,10 +18,10 @@
       </div>
     </template>
 
-    <template #body>
+    <template #default>
       <div v-if="organization" class="space-y-6">
         <!-- Статус -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <span
             class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium"
             :class="organization.isActive 
@@ -35,7 +35,109 @@
           </span>
         </div>
 
-        <!-- Информация -->
+        <!-- Статистика обучения -->
+        <div class="bg-gradient-to-r from-primary/5 to-success/5 dark:from-primary/10 dark:to-success/10 rounded-xl p-5 border border-primary/10 dark:border-primary/20">
+          <h4 class="text-lg font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Статистика обучения
+          </h4>
+          
+          <!-- Загрузка статистики -->
+          <div v-if="loadingStats" class="flex items-center justify-center py-6">
+            <div class="h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-t-transparent mr-2"></div>
+            <span class="text-gray-500 dark:text-gray-400">Загрузка статистики...</span>
+          </div>
+          
+          <!-- Карточки статистики -->
+          <div v-else-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white dark:bg-boxdark rounded-lg p-4 text-center shadow-sm">
+              <p class="text-3xl font-bold text-primary">{{ stats.totalStudents }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Всего сотрудников</p>
+            </div>
+            <div class="bg-white dark:bg-boxdark rounded-lg p-4 text-center shadow-sm">
+              <p class="text-3xl font-bold text-success">{{ stats.trainedLastMonth }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Обучено за месяц</p>
+            </div>
+            <div class="bg-white dark:bg-boxdark rounded-lg p-4 text-center shadow-sm">
+              <p class="text-3xl font-bold text-info">{{ stats.trainedLast3Months }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Обучено за 3 месяца</p>
+            </div>
+            <div class="bg-white dark:bg-boxdark rounded-lg p-4 text-center shadow-sm">
+              <p class="text-3xl font-bold text-warning">{{ stats.totalCertificates }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Всего сертификатов</p>
+            </div>
+          </div>
+          
+          <!-- Нет данных -->
+          <div v-else class="text-center py-4 text-gray-500 dark:text-gray-400">
+            Не удалось загрузить статистику
+          </div>
+        </div>
+
+        <!-- Популярные курсы -->
+        <div v-if="popularCourses && popularCourses.length > 0" class="bg-white dark:bg-meta-4 rounded-xl p-5 border border-stroke dark:border-strokedark">
+          <h4 class="text-lg font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Популярные курсы
+          </h4>
+          <div class="space-y-3">
+            <div 
+              v-for="(course, index) in popularCourses" 
+              :key="index"
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-boxdark rounded-lg"
+            >
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-black dark:text-white truncate">{{ course.name }}</p>
+                <p v-if="course.code" class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ course.code }}</p>
+              </div>
+              <div class="flex items-center gap-3 ml-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                  {{ course.certificatesCount }} серт.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Последние сертификаты -->
+        <div v-if="recentCertificates && recentCertificates.length > 0" class="bg-white dark:bg-meta-4 rounded-xl p-5 border border-stroke dark:border-strokedark">
+          <h4 class="text-lg font-semibold text-black dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+            Последние выданные сертификаты
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left border-b border-stroke dark:border-strokedark">
+                  <th class="pb-2 font-medium text-gray-500 dark:text-gray-400">Слушатель</th>
+                  <th class="pb-2 font-medium text-gray-500 dark:text-gray-400">Курс</th>
+                  <th class="pb-2 font-medium text-gray-500 dark:text-gray-400">Номер</th>
+                  <th class="pb-2 font-medium text-gray-500 dark:text-gray-400 text-right">Дата</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr 
+                  v-for="cert in recentCertificates" 
+                  :key="cert.id"
+                  class="border-b border-stroke dark:border-strokedark last:border-0"
+                >
+                  <td class="py-2 text-black dark:text-white">{{ cert.studentName }}</td>
+                  <td class="py-2 text-gray-600 dark:text-gray-400 max-w-[200px] truncate">{{ cert.courseName }}</td>
+                  <td class="py-2 font-mono text-xs text-gray-600 dark:text-gray-400">{{ cert.certificateNumber }}</td>
+                  <td class="py-2 text-right text-gray-600 dark:text-gray-400">{{ formatShortDate(cert.issueDate) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Контактная информация -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Краткое название -->
           <div v-if="organization.shortName">
@@ -128,33 +230,67 @@
   </UiModal>
 </template>
 
-<script setup lang="ts">
-interface Organization {
-  id: string;
-  code: string;
-  name: string;
-  shortName: string | null;
-  contactPhone: string | null;
-  contactEmail: string | null;
-  address: string | null;
-  description: string | null;
-  isActive: boolean;
-  studentsCount: number;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-}
+<script setup>
+import { ref, watch } from 'vue';
 
-defineProps<{
-  organization: Organization | null;
-  isOpen: boolean;
-}>();
+const { authFetch } = useAuthFetch();
 
-const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'edit'): void;
-}>();
+const props = defineProps({
+  organization: {
+    type: Object,
+    default: null
+  },
+  isOpen: {
+    type: Boolean,
+    default: false
+  }
+});
 
-const formatDate = (date: Date | string): string => {
+const emit = defineEmits(['close', 'edit']);
+
+// Статистика
+const loadingStats = ref(false);
+const stats = ref(null);
+const popularCourses = ref([]);
+const recentCertificates = ref([]);
+
+// Загрузка статистики
+const fetchStats = async () => {
+  if (!props.organization?.id) return;
+  
+  loadingStats.value = true;
+  try {
+    const response = await authFetch(
+      `/api/organizations/${props.organization.id}/stats`,
+      { method: 'GET' }
+    );
+    
+    if (response.success && response.data) {
+      stats.value = response.data.stats;
+      popularCourses.value = response.data.popularCourses || [];
+      recentCertificates.value = response.data.recentCertificates || [];
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки статистики организации:', error);
+  } finally {
+    loadingStats.value = false;
+  }
+};
+
+// Загрузка статистики при открытии модалки
+watch(() => props.isOpen, async (isOpen) => {
+  if (isOpen && props.organization?.id) {
+    await fetchStats();
+  } else {
+    // Сброс при закрытии
+    stats.value = null;
+    popularCourses.value = [];
+    recentCertificates.value = [];
+  }
+}, { immediate: true });
+
+const formatDate = (date) => {
+  if (!date) return '-';
   const d = new Date(date);
   return d.toLocaleDateString('ru-RU', {
     day: '2-digit',
@@ -162,6 +298,16 @@ const formatDate = (date: Date | string): string => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  });
+};
+
+const formatShortDate = (date) => {
+  if (!date) return '-';
+  const d = new Date(date);
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
 };
 

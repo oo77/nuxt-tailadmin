@@ -239,7 +239,8 @@
             <div
               v-for="certificate in student.certificates"
               :key="certificate.id"
-              class="border border-gray-200 dark:border-strokedark rounded-xl p-4 hover:border-primary dark:hover:border-primary transition-colors"
+              class="border border-gray-200 dark:border-strokedark rounded-xl p-4 hover:border-primary dark:hover:border-primary hover:shadow-md transition-all cursor-pointer"
+              @click="openCertificateDetailModal(certificate)"
             >
               <div class="flex items-start justify-between gap-4">
                 <div class="flex-1">
@@ -328,6 +329,14 @@
       @refresh="fetchStudent"
     />
 
+    <!-- Модальное окно деталей сертификата -->
+    <DatabaseCertificateDetailModal
+      v-if="isCertificateDetailModalOpen && selectedCertificate"
+      :certificate="certificateDetailData"
+      :is-open="isCertificateDetailModalOpen"
+      @close="closeCertificateDetailModal"
+    />
+
     <!-- Модальное окно подтверждения удаления -->
     <UiConfirmModal
       :is-open="isDeleteModalOpen"
@@ -343,8 +352,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import type { Student, UpdateStudentData } from '~/types/student';
+import { ref, onMounted, computed } from 'vue';
+import type { Student, UpdateStudentData, StudentCertificate } from '~/types/student';
 
 // Получаем ID студента из маршрута
 const route = useRoute();
@@ -365,6 +374,8 @@ const isEditModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
 const isCertificatesModalOpen = ref(false);
+const isCertificateDetailModalOpen = ref(false);
+const selectedCertificate = ref<StudentCertificate | null>(null);
 
 // Загрузка данных студента
 const fetchStudent = async () => {
@@ -408,6 +419,43 @@ const openCertificatesModal = () => {
 const closeCertificatesModal = () => {
   isCertificatesModalOpen.value = false;
 };
+
+// Модальное окно деталей сертификата
+const openCertificateDetailModal = (certificate: StudentCertificate) => {
+  selectedCertificate.value = certificate;
+  isCertificateDetailModalOpen.value = true;
+};
+
+const closeCertificateDetailModal = () => {
+  isCertificateDetailModalOpen.value = false;
+  selectedCertificate.value = null;
+};
+
+// Формирование данных сертификата для модального окна
+const certificateDetailData = computed(() => {
+  if (!selectedCertificate.value || !student.value) return null;
+  
+  return {
+    ...selectedCertificate.value,
+    student: {
+      fullName: student.value.fullName,
+      pinfl: student.value.pinfl,
+      organization: student.value.organization,
+      position: student.value.position,
+    },
+    course: {
+      name: selectedCertificate.value.courseName,
+      code: selectedCertificate.value.groupCode || null,
+    },
+    group: selectedCertificate.value.groupCode ? {
+      code: selectedCertificate.value.groupCode
+    } : null,
+    pdfFileUrl: selectedCertificate.value.fileUrl,
+    issuedAt: selectedCertificate.value.issueDate,
+    createdAt: selectedCertificate.value.created_at,
+    sourceType: selectedCertificate.value.groupId ? 'group_journal' : 'manual',
+  };
+});
 
 // Обработка обновления
 const handleUpdate = async (data: UpdateStudentData) => {

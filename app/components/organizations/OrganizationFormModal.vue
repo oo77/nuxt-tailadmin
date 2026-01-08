@@ -6,7 +6,7 @@
       </h3>
     </template>
 
-    <template #body>
+    <template #default>
       <form @submit.prevent="handleSubmit" class="space-y-5">
         <!-- Название -->
         <div>
