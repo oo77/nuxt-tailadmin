@@ -250,6 +250,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Courses (только просмотр)
     Permission.COURSES_VIEW,
     Permission.DISCIPLINES_VIEW,
+
+    // Settings (просмотр настроек профиля/темы)
+    Permission.SETTINGS_VIEW,
   ],
 
   // =========================================================
@@ -276,6 +279,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CERTIFICATES_VIEW,
     Permission.CERTIFICATES_VIEW_OWN,
     Permission.CERTIFICATES_DOWNLOAD,
+
+    // Settings (просмотр настроек профиля/темы)
+    Permission.SETTINGS_VIEW,
   ],
 }
 
@@ -334,7 +340,7 @@ export const PAGE_PERMISSIONS: RoutePermissionConfig[] = [
   // Users
   { path: '/users', requiredPermissions: [Permission.USERS_VIEW] },
   { path: '/users/create', requiredPermissions: [Permission.USERS_CREATE] },
-  
+
   // Programs (Courses)
   { path: '/programs', requiredPermissions: [Permission.COURSES_VIEW] },
   { path: '/programs/create', requiredPermissions: [Permission.COURSES_CREATE] },

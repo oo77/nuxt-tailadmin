@@ -487,8 +487,10 @@ export async function getStudentAssignments(
       ta.test_template_id,
       ta.group_id,
       ta.status,
+      ta.status,
       ta.start_date,
       ta.end_date,
+      sg.end_date as group_end_date,
       tt.name as template_name,
       tt.code as template_code,
       tt.max_attempts,
@@ -524,32 +526,42 @@ export async function getStudentAssignments(
     // При сериализации в JSON они станут ISO строками с 'Z' (UTC)
     // Клиент автоматически конвертирует в локальное время браузера
 
-    return rows.map((row: any) => ({
-        id: row.id,
-        schedule_event_id: row.schedule_event_id,
-        test_template_id: row.test_template_id,
-        group_id: row.group_id,
-        template_name: row.template_name || '',
-        template_code: row.template_code || '',
-        group_name: row.group_name || '',
-        discipline_name: row.discipline_name || null,
-        event_date: row.event_date || null,
-        event_time: row.event_time || null,
-        status: row.status,
-        // Date объекты сериализуются в ISO UTC строки ("2026-01-06T09:40:00.000Z")
-        // Клиент должен использовать new Date() для парсинга
-        start_date: row.start_date || null,
-        end_date: row.end_date || null,
-        time_limit: row.time_limit || null,
-        passing_score: row.passing_score || 60,
-        max_attempts: row.max_attempts || 1,
-        questions_count: row.questions_count || 0,
-        attempts_used: row.attempts_used || 0,
-        best_score: row.best_score !== null ? parseFloat(row.best_score) : null,
-        passed: Boolean(row.passed),
-        has_active_session: !!row.active_session_id,
-        active_session_id: row.active_session_id || null,
-    }));
+    return rows.map((row: any) => {
+        let endDate = row.end_date ? new Date(row.end_date) : null;
+        const groupEndDate = row.group_end_date ? new Date(row.group_end_date) : null;
+
+        // Если курс завершен раньше дедлайна теста (или дедлайна нет), используем дату завершения курса
+        if (groupEndDate && (!endDate || groupEndDate < endDate)) {
+            endDate = groupEndDate;
+        }
+
+        return {
+            id: row.id,
+            schedule_event_id: row.schedule_event_id,
+            test_template_id: row.test_template_id,
+            group_id: row.group_id,
+            template_name: row.template_name || '',
+            template_code: row.template_code || '',
+            group_name: row.group_name || '',
+            discipline_name: row.discipline_name || null,
+            event_date: row.event_date || null,
+            event_time: row.event_time || null,
+            status: row.status,
+            // Date объекты сериализуются в ISO UTC строки ("2026-01-06T09:40:00.000Z")
+            // Клиент должен использовать new Date() для парсинга
+            start_date: row.start_date || null,
+            end_date: endDate,
+            time_limit: row.time_limit || null,
+            passing_score: row.passing_score || 60,
+            max_attempts: row.max_attempts || 1,
+            questions_count: row.questions_count || 0,
+            attempts_used: row.attempts_used || 0,
+            best_score: row.best_score !== null ? parseFloat(row.best_score) : null,
+            passed: Boolean(row.passed),
+            has_active_session: !!row.active_session_id,
+            active_session_id: row.active_session_id || null,
+        };
+    });
 }
 
 /**

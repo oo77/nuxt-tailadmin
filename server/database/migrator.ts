@@ -27,6 +27,7 @@ import * as gradesFromTest from './migrations/20260106_033_grades_from_test';
 import * as certificateStandalone from './migrations/20260106_034_certificate_standalone';
 import * as studentPortalTables from './migrations/20260108_035_student_portal_tables';
 import * as studentNotifications from './migrations/20260108_036_student_notifications';
+import * as activityLogActionTypes from './migrations/20260109_037_activity_log_action_types';
 
 /**
  * ============================================================================
@@ -224,6 +225,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: studentNotifications.up,
     down: studentNotifications.down,
     description: studentNotifications.description,
+  },
+  // ============================================================
+  // Миграция 037: Расширение action_type ENUM для activity_logs
+  // ============================================================
+  {
+    name: '20260109_037_activity_log_action_types',
+    up: activityLogActionTypes.up,
+    down: activityLogActionTypes.down,
+    description: activityLogActionTypes.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

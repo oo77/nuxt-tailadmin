@@ -12,7 +12,7 @@
     </div>
 
     <!-- Пустой список -->
-    <div v-else-if="courses.length === 0" class="rounded-sm border border-stroke bg-white px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    <div v-else-if="courses.length === 0" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white px-5 pt-6 pb-2.5 shadow-md dark:bg-boxdark sm:px-7.5 xl:pb-1">
       <div class="flex flex-col items-center justify-center py-12">
         <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
           <svg class="h-8 w-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,7 +31,7 @@
       <div 
         v-for="course in courses" 
         :key="course.group_id"
-        class="group relative flex flex-col rounded-sm border border-stroke bg-white shadow-default transition-all hover:shadow-lg dark:border-strokedark dark:bg-boxdark"
+        class="group relative flex flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md transition-all hover:shadow-lg dark:bg-boxdark"
       >
         <!-- Статус курса (бэдж) -->
         <div class="absolute top-4 right-4 z-10">
@@ -82,7 +82,7 @@
               <span class="text-sm font-medium text-black dark:text-white">Прогресс</span>
               <span class="text-sm font-medium text-primary">{{ course.progress }}%</span>
             </div>
-            <div class="relative h-2.5 w-full rounded-full bg-stroke dark:bg-strokedark">
+            <div class="relative h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700">
               <div 
                 class="absolute left-0 h-full rounded-full bg-primary transition-all duration-500"
                 :style="{ width: `${course.progress}%` }"
@@ -97,7 +97,7 @@
         <!-- Кнопка действия -->
         <NuxtLink 
           :to="`/my-courses/${course.group_id}`"
-          class="flex items-center justify-center border-t border-stroke bg-gray-50 p-4 font-medium text-black transition hover:bg-gray-100 hover:text-primary dark:border-strokedark dark:bg-meta-4 dark:text-white dark:hover:bg-opacity-90"
+          class="flex items-center justify-center border-t border-gray-200 dark:border-gray-700 bg-gray-50 p-4 font-medium text-black transition hover:bg-gray-100 hover:text-primary dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
         >
           Перейти к обучению
           <svg class="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

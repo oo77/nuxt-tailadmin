@@ -12,8 +12,8 @@
       <!-- Форма обращения и История -->
       <div class="lg:col-span-2 space-y-6">
         <!-- Форма -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
+          <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
               Обратиться в поддержку
             </h3>
@@ -102,8 +102,8 @@
         </div>
 
         <!-- История обращений -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark flex justify-between items-center">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
+          <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-between items-center">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
               Мои обращения
             </h3>
@@ -152,8 +152,8 @@
       <!-- Боковая панель с информацией -->
       <div class="space-y-6">
         <!-- Контактная информация -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
+          <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
               Контактная информация
             </h3>
@@ -207,8 +207,8 @@
         </div>
 
         <!-- FAQ -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-          <div class="border-b border-stroke px-6 py-4 dark:border-strokedark">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
+          <div class="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
               Часто задаваемые вопросы
             </h3>
@@ -280,8 +280,18 @@ const fetchTickets = async () => {
 
 // Отправка тикета
 const submitTicket = async () => {
-  if (!ticket.ticket_type || !ticket.subject || !ticket.description) {
-    useNotification().error('Заполните все обязательные поля');
+  if (!ticket.ticket_type) {
+    useNotification().error('Выберите тип обращения');
+    return;
+  }
+  
+  if (!ticket.subject || ticket.subject.length < 3) {
+    useNotification().error('Тема должна содержать минимум 3 символа');
+    return;
+  }
+
+  if (!ticket.description || ticket.description.length < 10) {
+    useNotification().error('Описание должно содержать минимум 10 символов');
     return;
   }
 
@@ -305,6 +315,24 @@ const submitTicket = async () => {
 
   } catch (error) {
     console.error('Failed to submit ticket:', error);
+    
+    // Обработка ошибок валидации от сервера
+    if (error.response?._data?.data) {
+      const errors = error.response._data.data;
+      if (Array.isArray(errors)) {
+        errors.forEach(e => {
+          // Перевод сообщений Zod (базовый)
+          let message = e.message;
+          if (e.code === 'too_small') {
+            if (e.path.includes('subject')) message = 'Тема слишком короткая';
+            if (e.path.includes('description')) message = 'Описание слишком короткое';
+          }
+          useNotification().error(message);
+        });
+        return;
+      }
+    }
+    
     useNotification().error('Ошибка при отправке обращения');
   } finally {
     loading.value = false;

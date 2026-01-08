@@ -37,7 +37,7 @@
       </div>
 
       <!-- Tab Content -->
-      <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+      <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
         <!-- Общие настройки -->
         <div v-show="activeTab === 'general'" class="p-6">
           <div class="space-y-6">
@@ -303,28 +303,42 @@ const form = ref({
 const activeTab = ref('general');
 
 // Конфигурация вкладок
-const tabs = [
-  {
-    id: 'general',
-    label: 'Общие',
-    icon: Settings,
-  },
-  {
-    id: 'schedule',
-    label: 'Расписание',
-    icon: Calendar,
-  },
-  {
-    id: 'notifications',
-    label: 'Уведомления',
-    icon: Bell,
-  },
-  {
-    id: 'appearance',
-    label: 'Внешний вид',
-    icon: Palette,
-  },
-];
+const { user } = useAuth();
+import { Permission, roleHasPermission } from '~/types/permissions';
+
+// Конфигурация вкладок
+const tabs = computed(() => {
+  const allTabs = [
+    {
+      id: 'general',
+      label: 'Общие',
+      icon: Settings,
+    },
+    {
+      id: 'schedule',
+      label: 'Расписание',
+      icon: Calendar,
+      permission: Permission.SETTINGS_MANAGE
+    },
+    {
+      id: 'notifications',
+      label: 'Уведомления',
+      icon: Bell,
+    },
+    {
+      id: 'appearance',
+      label: 'Внешний вид',
+      icon: Palette,
+    },
+  ];
+
+  return allTabs.filter(tab => {
+    if (tab.permission) {
+      return user.value && roleHasPermission(user.value.role, tab.permission);
+    }
+    return true;
+  });
+});
 
 // Загрузка настроек при монтировании
 onMounted(async () => {

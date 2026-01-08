@@ -1,9 +1,18 @@
 <template>
   <div>
     <!-- Student Dashboard -->
-    <DashboardStudentDashboard v-if="isStudent" />
+    <DashboardStudent v-if="isStudent" />
 
-    <!-- Admin/Default Dashboard -->
+    <!-- Teacher Dashboard -->
+    <DashboardTeacher v-else-if="isTeacher" />
+
+    <!-- Manager Dashboard -->
+    <DashboardManager v-else-if="isManager" />
+
+    <!-- Admin Dashboard -->
+    <DashboardAdmin v-else-if="isAdmin" />
+
+    <!-- Default Dashboard (fallback) -->
     <div v-else class="grid grid-cols-12 gap-4 md:gap-6">
       <div class="col-span-12">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
@@ -49,6 +58,6 @@ useHead({
   title: 'Панель управления'
 })
 
-const { isStudent } = usePermissions();
+const { isStudent, isTeacher, isManager, isAdmin } = usePermissions();
 </script>
 

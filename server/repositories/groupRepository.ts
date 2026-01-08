@@ -181,7 +181,7 @@ function mapRowToGroup(row: StudyGroupRow): StudyGroup {
     endDate: formatDateLocal(row.end_date),
     classroom: row.classroom,
     description: row.description,
-    isActive: row.is_active,
+    isActive: Boolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -550,7 +550,7 @@ export async function checkStudentConflicts(
   }
 
   const placeholders = studentIds.map(() => '?').join(', ');
-  
+
   let query = `
     SELECT 
       sgs.student_id,
@@ -566,7 +566,7 @@ export async function checkStudentConflicts(
       AND sg.start_date <= ?
       AND sg.end_date >= ?
   `;
-  
+
   const params: any[] = [...studentIds, endDate, startDate];
 
   if (excludeGroupId) {
@@ -715,7 +715,7 @@ export async function getGroupsStats(groupIds?: string[]): Promise<{
   // Формируем условие фильтрации по groupIds
   let groupCondition = '';
   let groupParams: string[] = [];
-  
+
   if (groupIds && groupIds.length > 0) {
     const placeholders = groupIds.map(() => '?').join(', ');
     groupCondition = `AND id IN (${placeholders})`;
@@ -743,7 +743,7 @@ export async function getGroupsStats(groupIds?: string[]): Promise<{
   // Считаем студентов только в указанных группах
   let studentsQuery = 'SELECT COUNT(DISTINCT student_id) as total FROM study_group_students';
   let studentsParams: string[] = [];
-  
+
   if (groupIds && groupIds.length > 0) {
     const placeholders = groupIds.map(() => '?').join(', ');
     studentsQuery += ` WHERE group_id IN (${placeholders})`;

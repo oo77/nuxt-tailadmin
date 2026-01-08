@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   try {
     // Получаем текущего пользователя из контекста
     const currentUser = event.context.user;
-    
+
     if (!currentUser) {
       throw createError({
         statusCode: 401,
@@ -86,9 +86,9 @@ export default defineEventHandler(async (event) => {
     // Хешируем новый пароль
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Обновляем пароль (сбрасываем refresh_token для выхода со всех устройств)
+    // Обновляем пароль
     await executeQuery(
-      'UPDATE users SET password_hash = ?, refresh_token = NULL, updated_at = NOW() WHERE id = ?',
+      'UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?',
       [passwordHash, targetUserId]
     );
 
@@ -112,6 +112,8 @@ export default defineEventHandler(async (event) => {
     };
   } catch (error: any) {
     console.error('Error resetting password:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error message:', error?.message);
 
     if (error.statusCode) {
       throw error;
@@ -119,7 +121,7 @@ export default defineEventHandler(async (event) => {
 
     throw createError({
       statusCode: 500,
-      message: 'Ошибка при сбросе пароля',
+      message: error?.message || 'Ошибка при сбросе пароля',
     });
   }
 });

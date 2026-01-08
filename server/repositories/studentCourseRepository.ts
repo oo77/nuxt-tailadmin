@@ -79,15 +79,15 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
       c.id as course_id, 
       c.name as course_name, 
       sg.code as group_name,
-      'active' as status,
+      CASE 
+        WHEN sg.end_date < NOW() THEN 'completed' 
+        ELSE 'active' 
+      END as status,
       sg.start_date,
       sg.end_date,
-      (SELECT i.first_name FROM schedule_events se 
+      (SELECT i.full_name FROM schedule_events se 
         JOIN instructors i ON se.instructor_id = i.id 
-        WHERE se.group_id = sg.id LIMIT 1) as teacher_first_name,
-      (SELECT i.last_name FROM schedule_events se 
-        JOIN instructors i ON se.instructor_id = i.id 
-        WHERE se.group_id = sg.id LIMIT 1) as teacher_last_name,
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_name,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons,
       COALESCE((
         SELECT COUNT(*) 
@@ -119,7 +119,7 @@ export async function getStudentCourses(userId: string): Promise<StudentCourse[]
       status: row.status as any,
       start_date: row.start_date,
       end_date: row.end_date,
-      teacher_name: row.teacher_first_name ? `${row.teacher_first_name} ${row.teacher_last_name || ''}`.trim() : null,
+      teacher_name: row.teacher_name || null,
       progress,
       total_lessons: row.total_lessons,
       attended_lessons: row.attended_lessons
@@ -141,15 +141,15 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
       c.id as course_id, 
       c.name as course_name, 
       sg.code as group_name,
-      'active' as status,
+      CASE 
+        WHEN sg.end_date < NOW() THEN 'completed' 
+        ELSE 'active' 
+      END as status,
       sg.start_date,
       sg.end_date,
-      (SELECT i.first_name FROM schedule_events se 
+      (SELECT i.full_name FROM schedule_events se 
         JOIN instructors i ON se.instructor_id = i.id 
-        WHERE se.group_id = sg.id LIMIT 1) as teacher_first_name,
-      (SELECT i.last_name FROM schedule_events se 
-        JOIN instructors i ON se.instructor_id = i.id 
-        WHERE se.group_id = sg.id LIMIT 1) as teacher_last_name,
+        WHERE se.group_id = sg.id LIMIT 1) as teacher_name,
       (SELECT COUNT(*) FROM schedule_events se WHERE se.group_id = sg.id) as total_lessons
     FROM students s
     JOIN study_group_students sgs ON s.id = sgs.student_id
@@ -188,7 +188,7 @@ export async function getStudentCourseDetails(userId: string, groupId: string): 
     status: courseRow.status as any,
     start_date: courseRow.start_date,
     end_date: courseRow.end_date,
-    teacher_name: courseRow.teacher_first_name ? `${courseRow.teacher_first_name} ${courseRow.teacher_last_name || ''}`.trim() : null,
+    teacher_name: courseRow.teacher_name || null,
     progress,
     total_lessons: courseRow.total_lessons,
     attended_lessons: attendedCount
@@ -328,7 +328,7 @@ export async function getStudentDashboardStats(userId: string) {
     FROM study_group_students sgs
     JOIN study_groups sg ON sgs.group_id = sg.id
     JOIN courses c ON sg.course_id = c.id
-    WHERE sgs.student_id = ?
+    WHERE sgs.student_id = ? AND sg.end_date >= NOW()
   `;
   const activeCourses = await executeQuery<any[]>(activeCoursesQuery, [now, studentId]);
 
@@ -358,20 +358,47 @@ export async function getStudentDashboardStats(userId: string) {
       LEFT JOIN test_sessions ts ON ta.id = ts.assignment_id AND ts.student_id = ?
       WHERE sgs.student_id = ?
         AND ta.end_date > ?
+        AND (sg.end_date IS NULL OR sg.end_date >= ?)
         AND ta.status = 'scheduled'
         AND (ts.id IS NULL OR ts.status = 'in_progress')
       ORDER BY ta.end_date ASC
       LIMIT 3
     `;
-    upcomingDeadlines = await executeQuery<any[]>(deadlinesQuery, [studentId, studentId, now]);
+    upcomingDeadlines = await executeQuery<any[]>(deadlinesQuery, [studentId, studentId, now, now]);
   } catch (e) {
     // Таблица не существует или ошибка - игнорируем
+  }
+
+  // 4. Последние оценки студента (top 5)
+  let recentGrades: any[] = [];
+  try {
+    const gradesQuery = `
+      SELECT 
+        g.id,
+        g.grade,
+        g.comment,
+        g.graded_at,
+        se.title as event_title,
+        c.name as course_name,
+        100 as max_grade
+      FROM grades g
+      JOIN schedule_events se ON g.schedule_event_id = se.id
+      JOIN study_groups sg ON se.group_id = sg.id
+      JOIN courses c ON sg.course_id = c.id
+      WHERE g.student_id = ?
+      ORDER BY g.graded_at DESC
+      LIMIT 5
+    `;
+    recentGrades = await executeQuery<any[]>(gradesQuery, [studentId]);
+  } catch (e) {
+    // Таблица grades может не существовать
   }
 
   return {
     upcomingEvents,
     activeCourses: coursesWithProgress,
-    upcomingDeadlines
+    upcomingDeadlines,
+    recentGrades
   };
 }
 

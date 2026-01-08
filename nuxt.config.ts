@@ -42,7 +42,7 @@ export default defineNuxtConfig({
     },
     {
       path: '~/components/icons',
-      pathPrefix: false, // Иконки доступны без префикса (EyeIcon вместо IconsEyeIcon)
+      prefix: 'Icons', // Иконки доступны с префиксом Icons (IconsPlusIcon, IconsUserGroupIcon и т.д.)
     },
   ],
 

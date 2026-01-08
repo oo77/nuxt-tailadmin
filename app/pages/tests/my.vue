@@ -267,6 +267,52 @@ definePageMeta({
 
 const { authFetch } = useAuthFetch();
 
+// Utils (Moved up for usage in computed)
+const parseLocalDateTime = (dateStr) => {
+  if (!dateStr) return null;
+  
+  // Если есть 'Z' — это UTC время, используем стандартный парсинг
+  if (dateStr.includes('Z') || dateStr.includes('+')) {
+    return new Date(dateStr);
+  }
+  
+  // Если нет 'Z' — это локальное время (формат MySQL)
+  const normalized = dateStr.replace('T', ' ').trim();
+  const parts = normalized.split(/[- :]/);
+  
+  if (parts.length >= 5) {
+    return new Date(
+      parseInt(parts[0]),      // год
+      parseInt(parts[1]) - 1,  // месяц (0-indexed)
+      parseInt(parts[2]),      // день
+      parseInt(parts[3]) || 0, // часы
+      parseInt(parts[4]) || 0, // минуты
+      parseInt(parts[5]) || 0  // секунды
+    );
+  }
+  
+  return new Date(dateStr);
+};
+
+const formatDate = (date) => {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '';
+  const parsed = parseLocalDateTime(dateTimeStr);
+  if (!parsed) return '';
+  return parsed.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 // Состояние
 const loading = ref(false);
 const assignments = ref([]);
@@ -295,19 +341,27 @@ const tabs = computed(() => [
 ]);
 
 // Статистика
+// Статистика
 const stats = computed(() => {
-  const pending = assignments.value.filter(a => 
-    a.status === 'scheduled' && !a.has_active_session && (a.attempts_used || 0) < (a.max_attempts || 1)
-  ).length;
+  const now = new Date();
+  
+  const pending = assignments.value.filter(a => {
+    const isExpired = a.end_date && parseLocalDateTime(a.end_date) < now;
+    return a.status === 'scheduled' && !a.has_active_session && (a.attempts_used || 0) < (a.max_attempts || 1) && !isExpired;
+  }).length;
   
   const inProgress = assignments.value.filter(a => 
     a.has_active_session || a.status === 'in_progress'
   ).length;
   
   const passed = assignments.value.filter(a => a.passed).length;
-  const failed = assignments.value.filter(a => 
-    a.best_score !== null && !a.passed && (a.attempts_used || 0) >= (a.max_attempts || 1)
-  ).length;
+  
+  // Failed includes: explicitly failed tests OR expired tests that were not passed
+  const failed = assignments.value.filter(a => {
+    const isExpired = a.end_date && parseLocalDateTime(a.end_date) < now;
+    const attemptsExhausted = (a.attempts_used || 0) >= (a.max_attempts || 1);
+    return !a.passed && (attemptsExhausted || isExpired) && !a.has_active_session;
+  }).length;
 
   return { pending, inProgress, passed, failed };
 });
@@ -331,7 +385,13 @@ const filteredAssignments = computed(() => {
   }
   
   if (activeTab.value === 'completed') {
-    return assignments.value.filter(a => a.best_score !== null);
+    // Show passed OR failed (including expired)
+    return assignments.value.filter(a => {
+        const isExpired = a.end_date && parseLocalDateTime(a.end_date) < new Date();
+        const attemptsExhausted = (a.attempts_used || 0) >= (a.max_attempts || 1);
+        const isFailed = !a.passed && (attemptsExhausted || isExpired) && !a.has_active_session;
+        return a.passed || isFailed;
+    });
   }
   
   return assignments.value;
@@ -426,45 +486,7 @@ const handleLanguageConfirm = async (language) => {
   }
 };
 
-// Функция для парсинга даты
-// Обрабатывает два формата:
-// 1. "2026-01-05 14:40:00" (MySQL/локальное время) — парсим как локальное
-// 2. "2026-01-05T09:40:00.000Z" (ISO UTC) — парсим как UTC, браузер конвертирует в локальное
-const parseLocalDateTime = (dateStr) => {
-  if (!dateStr) return null;
-  
-  console.log(`[parseLocalDateTime] Вход: "${dateStr}"`);
-  
-  // Если есть 'Z' — это UTC время, используем стандартный парсинг
-  // JavaScript автоматически конвертирует в локальное время
-  if (dateStr.includes('Z') || dateStr.includes('+')) {
-    const date = new Date(dateStr);
-    console.log(`[parseLocalDateTime] UTC формат → Локальное: ${date.toLocaleString()}`);
-    return date;
-  }
-  
-  // Если нет 'Z' — это локальное время (формат MySQL)
-  // Парсим вручную, чтобы избежать интерпретации как UTC
-  const normalized = dateStr.replace('T', ' ').trim();
-  const parts = normalized.split(/[- :]/);
-  
-  if (parts.length >= 5) {
-    const date = new Date(
-      parseInt(parts[0]),      // год
-      parseInt(parts[1]) - 1,  // месяц (0-indexed)
-      parseInt(parts[2]),      // день
-      parseInt(parts[3]) || 0, // часы
-      parseInt(parts[4]) || 0, // минуты
-      parseInt(parts[5]) || 0  // секунды
-    );
-    console.log(`[parseLocalDateTime] Локальный формат → ${date.toLocaleString()}`);
-    return date;
-  }
-  
-  // Fallback
-  console.log(`[parseLocalDateTime] Fallback парсинг`);
-  return new Date(dateStr);
-};
+// Функции парсинга перемещены вверх
 
 // Проверка возможности пройти тест
 const canTakeTest = (assignment) => {
@@ -540,23 +562,25 @@ const getStatusLabel = (assignment) => {
   // Тест сдан
   if (assignment.passed) return 'Сдан';
   
-  // Тест не сдан (есть попытка, но не прошёл)
-  if (assignment.best_score !== null && !assignment.passed) return 'Не сдан';
+  // Тест не сдан (если просрочен или попытки кончились и не сдан)
+  // Проверяем срок
+  if (assignment.end_date) {
+    const endDate = parseLocalDateTime(assignment.end_date);
+    if (endDate && endDate < now && !assignment.passed) {
+      return 'Не сдан';
+    }
+  }
+  
+  // Проверяем попытки (если кончились и не сдан)
+  if ((assignment.attempts_used || 0) >= (assignment.max_attempts || 1) && !assignment.passed) {
+      return 'Не сдан';
+  }
   
   // Тест отменён
   if (assignment.status === 'cancelled') return 'Отменён';
   
   // Тест завершён админом
   if (assignment.status === 'completed') return 'Завершён';
-  
-  // Проверяем даты
-  if (assignment.end_date) {
-    const endDate = parseLocalDateTime(assignment.end_date);
-    if (endDate && endDate < now) {
-      // Попытки исчерпаны или просто время вышло
-      return 'Просрочен';
-    }
-  }
   
   if (assignment.start_date) {
     const startDate = parseLocalDateTime(assignment.start_date);
@@ -571,24 +595,14 @@ const getStatusLabel = (assignment) => {
 
 const getStatusBadgeClass = (assignment) => {
   const base = 'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium';
-  const now = new Date();
+  const label = getStatusLabel(assignment);
   
-  if (assignment.has_active_session) return `${base} bg-primary/10 text-primary`;
-  if (assignment.passed) return `${base} bg-success/10 text-success`;
-  if (assignment.best_score !== null && !assignment.passed) return `${base} bg-danger/10 text-danger`;
-  if (assignment.status === 'cancelled') return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400`;
-  
-  // Просрочен
-  if (assignment.end_date) {
-    const endDate = parseLocalDateTime(assignment.end_date);
-    if (endDate && endDate < now) return `${base} bg-danger/10 text-danger`;
-  }
-  
-  // Ожидает начала
-  if (assignment.start_date) {
-    const startDate = parseLocalDateTime(assignment.start_date);
-    if (startDate && startDate > now) return `${base} bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400`;
-  }
+  if (label === 'В процессе') return `${base} bg-primary/10 text-primary`;
+  if (label === 'Сдан') return `${base} bg-success/10 text-success`;
+  if (label === 'Не сдан') return `${base} bg-danger/10 text-danger`;
+  if (label === 'Отменён') return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400`;
+  if (label === 'Ожидает начала') return `${base} bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400`;
+  if (label === 'Завершён') return `${base} bg-primary/10 text-primary`;
   
   // Доступен
   return `${base} bg-success/10 text-success`;
@@ -597,14 +611,16 @@ const getStatusBadgeClass = (assignment) => {
 const getStatusBgClass = (assignment) => {
   if (assignment.has_active_session) return 'bg-primary/10';
   if (assignment.passed) return 'bg-success/10';
-  if (assignment.best_score !== null && !assignment.passed) return 'bg-danger/10';
+  const label = getStatusLabel(assignment);
+  if (label === 'Не сдан') return 'bg-danger/10';
   return 'bg-warning/10';
 };
 
 const getStatusIconClass = (assignment) => {
   if (assignment.has_active_session) return 'text-primary';
   if (assignment.passed) return 'text-success';
-  if (assignment.best_score !== null && !assignment.passed) return 'text-danger';
+  const label = getStatusLabel(assignment);
+  if (label === 'Не сдан') return 'text-danger';
   return 'text-warning';
 };
 
@@ -617,29 +633,7 @@ const getEmptyMessage = () => {
   }
 };
 
-// Форматирование даты
-const formatDate = (date) => {
-  if (!date) return '';
-  return new Date(date).toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
-// Форматирование времени из строки даты
-const formatTime = (dateTimeStr) => {
-  if (!dateTimeStr) return '';
-  
-  // Парсим дату без учёта часового пояса
-  const parsed = parseLocalDateTime(dateTimeStr);
-  if (!parsed) return '';
-  
-  return parsed.toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+// Функции форматирования даты перемещены вверх
 
 // Уведомления
 const showNotification = (type, title, message) => {

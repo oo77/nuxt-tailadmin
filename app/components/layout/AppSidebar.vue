@@ -2,7 +2,8 @@
   <aside
     :class="[
       'fixed mt-16 flex flex-col lg:mt-0 top-0 left-0 h-screen z-50 transition-all duration-300 ease-in-out',
-      'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-gray-200/50 dark:border-gray-800/50 shadow-xl shadow-gray-200/50 dark:shadow-none',
+      sidebarColorClass,
+      'backdrop-blur-xl border-r shadow-xl dark:shadow-none',
       {
         'lg:w-[280px]': isExpanded || isMobileOpen || isHovered,
         'lg:w-[80px]': !isExpanded && !isHovered,
@@ -17,7 +18,8 @@
     <!-- Logo Section -->
     <div
       :class="[
-        'h-20 flex items-center justify-center relative border-b border-gray-100/50 dark:border-gray-800/50 mb-2',
+        'flex items-center justify-center relative border-b border-gray-100/50 dark:border-gray-800/50 mb-2 transition-all duration-300',
+        isExpanded || isHovered || isMobileOpen ? 'h-32 py-4' : 'h-20',
         !isExpanded && !isHovered ? 'lg:px-0' : 'px-6',
       ]"
     >
@@ -38,7 +40,7 @@
                 key="full-logo"
                 src="/logo.png"
                 alt="Logo"
-                class="h-10 object-contain mx-auto transition-all duration-300 group-hover:scale-105"
+                class="h-24 object-contain mx-auto transition-all duration-300 group-hover:scale-105"
               />
               <img
                 v-else
@@ -264,6 +266,24 @@ const handleMouseLeave = () => {
   setIsHovered(false)
 }
 
+// Sidebar Color based on user settings
+const userSettings = useState<{ sidebar_color?: string } | null>('user-settings');
+
+const sidebarColorClass = computed(() => {
+  const color = userSettings.value?.sidebar_color || 'default';
+  
+  switch (color) {
+    case 'primary':
+      return 'bg-blue-600/95 dark:bg-blue-700/95 border-blue-500/50 dark:border-blue-600/50 shadow-blue-500/20 text-white sidebar-primary';
+    case 'success':
+      return 'bg-emerald-600/95 dark:bg-emerald-700/95 border-emerald-500/50 dark:border-emerald-600/50 shadow-emerald-500/20 text-white sidebar-success';
+    case 'purple':
+      return 'bg-purple-600/95 dark:bg-purple-700/95 border-purple-500/50 dark:border-purple-600/50 shadow-purple-500/20 text-white sidebar-purple';
+    default:
+      return 'bg-white/95 dark:bg-gray-900/95 border-gray-200/50 dark:border-gray-800/50 shadow-gray-200/50';
+  }
+});
+
 // Menu Configuration
 const allMenuGroups: MenuGroup[] = [
   {
@@ -291,7 +311,11 @@ const allMenuGroups: MenuGroup[] = [
         name: "Учебные программы",
         permission: Permission.COURSES_VIEW,
         subItems: [
-             { name: "Список программ", path: "/programs" },
+             { 
+               name: "Список программ", 
+               path: "/programs",
+               excludePaths: ["/programs/create"]
+             },
              { name: "Создать программу", path: "/programs/create", permission: Permission.COURSES_CREATE }
         ]
       },
@@ -305,7 +329,7 @@ const allMenuGroups: MenuGroup[] = [
         icon: ClipboardCheckIcon,
         name: "Банк тестирования",
         permission: Permission.TEST_BANKS_VIEW,
-        hideForRoles: ['STUDENT', 'TEACHER'],
+        hideForRoles: ['STUDENT'],
         subItems: [
              { 
                name: "Банки вопросов", 
@@ -386,8 +410,8 @@ const allMenuGroups: MenuGroup[] = [
         name: "Пользователи",
         permission: Permission.USERS_VIEW,
         subItems: [
-             { name: "Администраторы", path: "/users?tab=admin" },
-             { name: "Модераторы", path: "/users?tab=manager" },
+             { name: "Администраторы", path: "/users?tab=admin", permission: Permission.USERS_MANAGE_ROLES },
+             { name: "Модераторы", path: "/users?tab=manager", permission: Permission.USERS_MANAGE_ROLES },
              { name: "Инструкторы", path: "/users?tab=instructors" },
              { name: "Студенты", path: "/users?tab=students" },
              { name: "Представители", path: "/users?tab=representatives" },
@@ -403,7 +427,7 @@ const allMenuGroups: MenuGroup[] = [
         icon: ClipboardCheckIcon,
         name: "Журнал действий",
         path: "/activity-logs",
-        showOnlyForRoles: ['ADMIN'],
+        permission: Permission.LOGS_VIEW,
       },
     ]
   }
@@ -520,3 +544,66 @@ const isSubmenuOpen = (groupIndex: number, itemIndex: number) => {
   return false;
 };
 </script>
+
+<style scoped>
+/* Стили для цветных вариантов sidebar */
+.sidebar-primary :deep(.text-gray-400),
+.sidebar-primary :deep(.text-gray-500),
+.sidebar-primary :deep(.text-gray-600),
+.sidebar-success :deep(.text-gray-400),
+.sidebar-success :deep(.text-gray-500),
+.sidebar-success :deep(.text-gray-600),
+.sidebar-purple :deep(.text-gray-400),
+.sidebar-purple :deep(.text-gray-500),
+.sidebar-purple :deep(.text-gray-600) {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.sidebar-primary :deep(.text-gray-900),
+.sidebar-primary :deep(.dark\:text-white),
+.sidebar-success :deep(.text-gray-900),
+.sidebar-success :deep(.dark\:text-white),
+.sidebar-purple :deep(.text-gray-900),
+.sidebar-purple :deep(.dark\:text-white) {
+  color: white !important;
+}
+
+.sidebar-primary :deep(.border-gray-100),
+.sidebar-primary :deep(.border-gray-200),
+.sidebar-primary :deep(.dark\:border-gray-800),
+.sidebar-success :deep(.border-gray-100),
+.sidebar-success :deep(.border-gray-200),
+.sidebar-success :deep(.dark\:border-gray-800),
+.sidebar-purple :deep(.border-gray-100),
+.sidebar-purple :deep(.border-gray-200),
+.sidebar-purple :deep(.dark\:border-gray-800) {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.sidebar-primary :deep(.bg-gray-50),
+.sidebar-primary :deep(.hover\:bg-gray-50:hover),
+.sidebar-primary :deep(.dark\:hover\:bg-gray-800\/50:hover),
+.sidebar-success :deep(.bg-gray-50),
+.sidebar-success :deep(.hover\:bg-gray-50:hover),
+.sidebar-success :deep(.dark\:hover\:bg-gray-800\/50:hover),
+.sidebar-purple :deep(.bg-gray-50),
+.sidebar-purple :deep(.hover\:bg-gray-50:hover),
+.sidebar-purple :deep(.dark\:hover\:bg-gray-800\/50:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.sidebar-primary :deep(.bg-blue-50\/80),
+.sidebar-success :deep(.bg-blue-50\/80),
+.sidebar-purple :deep(.bg-blue-50\/80) {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.sidebar-primary :deep(.group-hover\:text-blue-500),
+.sidebar-primary :deep(.group-hover\:text-blue-400),
+.sidebar-success :deep(.group-hover\:text-blue-500),
+.sidebar-success :deep(.group-hover\:text-blue-400),
+.sidebar-purple :deep(.group-hover\:text-blue-500),
+.sidebar-purple :deep(.group-hover\:text-blue-400) {
+  color: white !important;
+}
+</style>

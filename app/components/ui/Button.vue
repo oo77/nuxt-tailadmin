@@ -34,8 +34,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
@@ -44,7 +42,6 @@ interface ButtonProps {
   variant?: ButtonVariant
   startIcon?: object
   endIcon?: object
-  onClick?: () => void
   className?: string
   disabled?: boolean
   loading?: boolean
@@ -82,9 +79,6 @@ const variantClasses = {
 
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled && !props.loading) {
-    if (props.onClick) {
-      props.onClick()
-    }
     emit('click', event)
   }
 }

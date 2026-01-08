@@ -13,7 +13,7 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark p-8">
+    <div v-else-if="error" class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark p-8">
       <div class="text-center">
         <AlertCircle class="h-16 w-16 text-danger mx-auto mb-4" />
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Ошибка загрузки</h3>
@@ -27,9 +27,9 @@
     <!-- Profile Content -->
     <div v-else-if="profile">
       <!-- Профиль Header -->
-      <div class="mb-6 rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+      <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
         <!-- Cover Image -->
-        <div class="relative h-48 overflow-hidden rounded-t-sm bg-linear-to-r from-primary to-primary-600">
+        <div class="relative h-48 overflow-hidden rounded-t-lg bg-linear-to-r from-primary to-primary-600">
           <div class="absolute inset-0 bg-black/10"></div>
         </div>
 
@@ -146,7 +146,7 @@
         </div>
 
         <!-- Tab Content -->
-        <div class="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white shadow-md dark:bg-boxdark">
           <!-- Обзор -->
           <div v-show="activeTab === 'overview'" class="p-6">
             <!-- Личная информация -->

@@ -23,10 +23,14 @@ const ROLE_PROTECTED_ROUTES: Record<string, UserRole[]> = {
   '/api/admin': [UserRole.ADMIN],
   '/api/users': [UserRole.ADMIN, UserRole.MANAGER],
   '/api/teachers': [UserRole.ADMIN, UserRole.MANAGER],
-  '/api/students/my-courses': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER], 
+  '/api/students/my-courses': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
+  '/api/students/notifications': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
   '/api/students/dashboard': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
   '/api/students': [UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
+  '/api/schedule/settings': [UserRole.ADMIN],
+  '/api/schedule/periods': [UserRole.ADMIN],
 }
+
 
 /**
  * Проверяет, является ли маршрут публичным
@@ -49,7 +53,7 @@ function getRequiredRoles(path: string): UserRole[] | null {
       longestMatch = route.length
     }
   }
-  
+
   return matchedRoles
 }
 

@@ -303,7 +303,7 @@ const fillFormFromGroup = (group: StudyGroup) => {
     endDate: formatDateForInput(group.endDate),
     classroom: group.classroom || '',
     description: group.description || '',
-    isActive: group.isActive,
+    isActive: Boolean(group.isActive),
   };
 };
 
