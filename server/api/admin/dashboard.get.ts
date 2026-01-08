@@ -189,6 +189,136 @@ export default defineEventHandler(async (event) => {
             }
         }
 
+        // 7. Распределение студентов по организациям (для круговой диаграммы)
+        let studentsByOrganization: { name: string; count: number }[] = [];
+        try {
+            const orgQuery = `
+                SELECT 
+                    COALESCE(o.short_name, o.name, s.organization, 'Не указано') as name,
+                    COUNT(s.id) as count
+                FROM students s
+                LEFT JOIN organizations o ON s.organization_id = o.id
+                GROUP BY COALESCE(o.id, s.organization)
+                ORDER BY count DESC
+                LIMIT 10
+            `;
+            studentsByOrganization = await executeQuery<any[]>(orgQuery);
+        } catch (e) {
+            console.error('Failed to get students by organization:', e);
+        }
+
+        // 8. Сертификаты по месяцам (за последние 12 месяцев)
+        let certificatesByMonth: { month: string; count: number }[] = [];
+        try {
+            const yearAgo = new Date(now);
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+
+            const certMonthQuery = `
+                SELECT 
+                    DATE_FORMAT(issue_date, '%Y-%m') as month,
+                    COUNT(*) as count
+                FROM issued_certificates
+                WHERE issue_date >= ?
+                GROUP BY DATE_FORMAT(issue_date, '%Y-%m')
+                ORDER BY month ASC
+            `;
+            const rawCertData = await executeQuery<any[]>(certMonthQuery, [yearAgo]);
+
+            // Заполняем все 12 месяцев
+            for (let i = 11; i >= 0; i--) {
+                const date = new Date(now);
+                date.setMonth(date.getMonth() - i);
+                const monthStr = date.toISOString().slice(0, 7); // YYYY-MM
+                const existing = rawCertData.find(d => d.month === monthStr);
+                certificatesByMonth.push({
+                    month: monthStr,
+                    count: existing?.count || 0
+                });
+            }
+        } catch (e) {
+            console.error('Failed to get certificates by month:', e);
+            // Создаём пустой массив за 12 месяцев
+            for (let i = 11; i >= 0; i--) {
+                const date = new Date(now);
+                date.setMonth(date.getMonth() - i);
+                certificatesByMonth.push({
+                    month: date.toISOString().slice(0, 7),
+                    count: 0
+                });
+            }
+        }
+
+        // 9. Топ инструкторов по проведённым часам
+        let topInstructors: { id: string; name: string; hours: number; lessonsCount: number }[] = [];
+        try {
+            const instructorsQuery = `
+                SELECT 
+                    i.id,
+                    i.full_name as name,
+                    COALESCE(SUM(TIMESTAMPDIFF(MINUTE, se.start_time, se.end_time) / 60), 0) as hours,
+                    COUNT(se.id) as lessons_count
+                FROM instructors i
+                LEFT JOIN schedule_events se ON se.instructor_id = i.id 
+                    AND se.start_time < NOW()
+                WHERE i.is_active = 1
+                GROUP BY i.id, i.full_name
+                ORDER BY hours DESC
+                LIMIT 10
+            `;
+            const rawInstructors = await executeQuery<any[]>(instructorsQuery);
+            topInstructors = rawInstructors.map(row => ({
+                id: row.id,
+                name: row.name,
+                hours: Math.round(row.hours * 10) / 10,
+                lessonsCount: row.lessons_count
+            }));
+        } catch (e) {
+            console.error('Failed to get top instructors:', e);
+        }
+
+        // 10. Топ курсов по количеству групп
+        let topCoursesByGroups: { id: string; name: string; code: string; groupsCount: number }[] = [];
+        try {
+            const coursesByGroupsQuery = `
+                SELECT 
+                    c.id,
+                    c.name,
+                    c.code,
+                    COUNT(sg.id) as groups_count
+                FROM courses c
+                LEFT JOIN study_groups sg ON sg.course_id = c.id
+                WHERE c.is_active = 1
+                GROUP BY c.id, c.name, c.code
+                ORDER BY groups_count DESC
+                LIMIT 10
+            `;
+            topCoursesByGroups = await executeQuery<any[]>(coursesByGroupsQuery);
+        } catch (e) {
+            console.error('Failed to get top courses by groups:', e);
+        }
+
+        // 11. Топ курсов по количеству слушателей
+        let topCoursesByStudents: { id: string; name: string; code: string; studentsCount: number }[] = [];
+        try {
+            const coursesByStudentsQuery = `
+                SELECT 
+                    c.id,
+                    c.name,
+                    c.code,
+                    COUNT(DISTINCT sgs.student_id) as students_count
+                FROM courses c
+                LEFT JOIN study_groups sg ON sg.course_id = c.id
+                LEFT JOIN study_group_students sgs ON sgs.group_id = sg.id
+                WHERE c.is_active = 1
+                GROUP BY c.id, c.name, c.code
+                ORDER BY students_count DESC
+                LIMIT 10
+            `;
+            topCoursesByStudents = await executeQuery<any[]>(coursesByStudentsQuery);
+        } catch (e) {
+            console.error('Failed to get top courses by students:', e);
+        }
+
         return {
             isAdmin: true,
             totalStudents: stats.total_students,
@@ -202,7 +332,13 @@ export default defineEventHandler(async (event) => {
             todayLogs,
             systemAlerts,
             recentActivities,
-            weeklyActivity
+            weeklyActivity,
+            // Новые данные для чартов
+            studentsByOrganization,
+            certificatesByMonth,
+            topInstructors,
+            topCoursesByGroups,
+            topCoursesByStudents
         };
 
     } catch (error: any) {
