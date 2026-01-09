@@ -48,7 +48,21 @@ export default defineEventHandler(async (event) => {
     // Проверяем доступ
     const accessCheck = await checkMarkingAccess(scheduleEventId, userId!, role!, instructorId);
     
+    // Если требуется одобрение — возвращаем специальный ответ вместо ошибки
     if (!accessCheck.allowed) {
+      if (accessCheck.status === 'requires_approval' || accessCheck.requiresApproval) {
+        // Можно создать запрос на одобрение
+        return {
+          success: false,
+          requiresApproval: true,
+          message: accessCheck.message || 'Срок отметки истёк. Требуется одобрение администратора',
+          scheduleEventId,
+          deadline: accessCheck.deadline,
+          lateDeadline: accessCheck.lateDeadline,
+        };
+      }
+      
+      // Полный запрет — ошибка 403
       throw createError({
         statusCode: 403,
         message: accessCheck.message || 'Доступ к отметке посещаемости запрещён',

@@ -9,8 +9,8 @@ import { getInstructorByUserId } from '../../../../repositories/instructorReposi
 export default defineEventHandler(async (event) => {
   try {
     const eventId = getRouterParam(event, 'eventId');
-    const userId = event.context.auth?.userId;
-    const role = event.context.auth?.role;
+    const userId = event.context.user?.id;
+    const role = event.context.user?.role;
 
     console.log(`[Attendance Marking] GET /api/attendance/marking/check/${eventId} - User: ${userId}, Role: ${role}`);
 

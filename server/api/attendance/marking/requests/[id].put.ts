@@ -10,8 +10,8 @@ export default defineEventHandler(async (event) => {
   try {
     const requestId = getRouterParam(event, 'id');
     const body = await readBody(event);
-    const userId = event.context.auth?.userId;
-    const role = event.context.auth?.role;
+    const userId = event.context.user?.id;
+    const role = event.context.user?.role;
 
     console.log(`[Attendance Marking] PUT /api/attendance/marking/requests/${requestId} - User: ${userId}, Role: ${role}`);
 

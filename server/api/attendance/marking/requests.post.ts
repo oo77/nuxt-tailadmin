@@ -10,8 +10,8 @@ import { logActivity } from '../../../utils/activityLogger';
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
-    const userId = event.context.auth?.userId;
-    const role = event.context.auth?.role;
+    const userId = event.context.user?.id;
+    const role = event.context.user?.role;
 
     console.log(`[Attendance Marking] POST /api/attendance/marking/requests - User: ${userId}, Role: ${role}`);
 

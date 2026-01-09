@@ -7,8 +7,8 @@ import { getOverdueMarkings, getMarkingStatistics } from '../../../repositories/
 
 export default defineEventHandler(async (event) => {
   try {
-    const userId = event.context.auth?.userId;
-    const role = event.context.auth?.role;
+    const userId = event.context.user?.id;
+    const role = event.context.user?.role;
 
     console.log(`[Attendance Marking] GET /api/attendance/marking/overdue - User: ${userId}, Role: ${role}`);
 

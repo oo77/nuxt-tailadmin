@@ -169,7 +169,9 @@ watch(activeFilter, () => {
                border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium
                hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
-        <Icon name="heroicons:arrow-path" class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+        <svg class="w-4 h-4" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
         Обновить
       </button>
     </div>
@@ -239,7 +241,9 @@ watch(activeFilter, () => {
       v-else-if="requests.length === 0" 
       class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center"
     >
-      <Icon name="heroicons:inbox" class="w-16 h-16 mx-auto mb-4 text-gray-400" />
+      <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+      </svg>
       <p class="text-lg font-medium text-gray-900 dark:text-white mb-2">
         {{ activeFilter === 'pending' ? 'Нет ожидающих запросов' : 'Запросов не найдено' }}
       </p>
@@ -262,8 +266,10 @@ watch(activeFilter, () => {
           <!-- Информация о запросе -->
           <div class="flex-1">
             <div class="flex items-start gap-4">
-              <div class="flex-shrink-0 w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                <Icon name="heroicons:user" class="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <div class="shrink-0 w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
               </div>
               
               <div class="flex-1 min-w-0">
@@ -328,11 +334,12 @@ watch(activeFilter, () => {
                      bg-green-600 hover:bg-green-700 disabled:bg-green-400
                      text-white text-sm font-medium rounded-lg transition-colors"
             >
-              <Icon 
-                :name="processingId === request.id ? 'heroicons:arrow-path' : 'heroicons:check'" 
-                :class="{ 'animate-spin': processingId === request.id }"
-                class="w-4 h-4" 
-              />
+              <svg v-if="processingId === request.id" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
               Одобрить
             </button>
             <button
@@ -342,7 +349,9 @@ watch(activeFilter, () => {
                      bg-red-600 hover:bg-red-700 disabled:bg-red-400
                      text-white text-sm font-medium rounded-lg transition-colors"
             >
-              <Icon name="heroicons:x-mark" class="w-4 h-4" />
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
               Отклонить
             </button>
           </div>

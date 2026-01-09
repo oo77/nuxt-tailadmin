@@ -184,7 +184,7 @@
               <!-- Clean Tooltip for collapsed state -->
               <div 
                 v-if="!isExpanded && !isHovered && !isMobileOpen"
-                class="absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-[60] shadow-xl whitespace-nowrap translate-x--2 group-hover:translate-x-0"
+                class="absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-60 shadow-xl whitespace-nowrap translate-x--2 group-hover:translate-x-0"
               >
                 {{ item.name }}
                 <div class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[4px] w-2 h-2 bg-gray-900 rotate-45"></div>
@@ -435,6 +435,7 @@ const allMenuGroups: MenuGroup[] = [
         name: "Запросы на отметку",
         path: "/admin/attendance-requests",
         permission: Permission.ATTENDANCE_MANAGE,
+        showOnlyForRoles: ['ADMIN', 'MANAGER'],
       },
       {
         icon: ClipboardCheckIcon,
@@ -536,7 +537,7 @@ const isActive = (path: string, excludePaths?: string[]) => {
 const isParentActive = (path: string) => {
    if (path === '/') return route.path === '/';
    // Loose match for determining if a group should be open based on one of its children
-   const pathBase = path.split('?')[0];
+   const pathBase = path.split('?')[0] || '';
    return route.path.startsWith(pathBase);
 };
 

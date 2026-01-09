@@ -271,6 +271,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   update: [data: { studentId: string; scheduleEventId: string; type: 'attendance' | 'grade' }];
+  requireApproval: [data: { scheduleEventId: string; message?: string }];
 }>();
 
 const { authFetch } = useAuthFetch();
@@ -392,7 +393,12 @@ const saveAttendance = async () => {
   
   saving.value = true;
   try {
-    const response = await authFetch<{ success: boolean; message?: string }>('/api/attendance', {
+    const response = await authFetch<{ 
+      success: boolean; 
+      message?: string;
+      requiresApproval?: boolean;
+      scheduleEventId?: string;
+    }>('/api/attendance', {
       method: 'POST',
       body: {
         studentId: props.studentId,
@@ -402,6 +408,18 @@ const saveAttendance = async () => {
         notes: attendanceNotes.value || undefined,
       },
     });
+    
+    // Если требуется одобрение администратора
+    if (response.requiresApproval) {
+      showAttendanceModal.value = false;
+      toast.warning(response.message || 'Срок отметки истёк. Требуется одобрение администратора');
+      // Эмитим событие чтобы родитель показал модальное окно запроса
+      emit('requireApproval', { 
+        scheduleEventId: props.column.scheduleEvent.id,
+        message: response.message,
+      });
+      return;
+    }
     
     if (response.success) {
       toast.success('Посещаемость сохранена');
@@ -415,7 +433,20 @@ const saveAttendance = async () => {
       toast.error(response.message || 'Ошибка сохранения');
     }
   } catch (error: any) {
-    toast.error(error.message || 'Ошибка сохранения');
+    // Обработка ошибки 403 с требованием одобрения
+    if (error?.statusCode === 403 || error?.status === 403) {
+      const message = error.data?.message || error.message || 'Доступ запрещён';
+      if (message.includes('одобрение') || message.includes('Требуется одобрение')) {
+        showAttendanceModal.value = false;
+        toast.warning(message);
+        emit('requireApproval', { 
+          scheduleEventId: props.column.scheduleEvent.id,
+          message,
+        });
+        return;
+      }
+    }
+    toast.error(error.data?.message || error.message || 'Ошибка сохранения');
   } finally {
     saving.value = false;
   }

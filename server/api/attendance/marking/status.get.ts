@@ -10,8 +10,8 @@ import type { MarkingStatusFilters } from '../../../types/attendanceMarking';
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event);
-    const userId = event.context.auth?.userId;
-    const role = event.context.auth?.role;
+    const userId = event.context.user?.id;
+    const role = event.context.user?.role;
 
     console.log(`[Attendance Marking] GET /api/attendance/marking/status - User: ${userId}, Role: ${role}`);
 

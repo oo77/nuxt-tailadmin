@@ -300,6 +300,7 @@
                     :column="columns[cellIndex]!"
                     :student-id="row.student.id"
                     @update="handleCellUpdate"
+                    @require-approval="handleRequireApproval"
                   />
                 </td>
                 <!-- Процент посещаемости -->
@@ -765,6 +766,19 @@ const getAttendanceColor = (percent: number) => {
 // Event handlers
 const handleCellUpdate = async (_data: { studentId: string; scheduleEventId: string; type: 'attendance' | 'grade' }) => {
   await loadJournal();
+};
+
+// Обработка требования одобрения при одиночной отметке
+const handleRequireApproval = (data: { scheduleEventId: string; message?: string }) => {
+  // Устанавливаем выбранное занятие
+  selectedEventId.value = data.scheduleEventId;
+  // Обновляем статус доступа
+  if (markingAccess.value) {
+    markingAccess.value.status = 'requires_approval';
+    markingAccess.value.requiresApproval = true;
+  }
+  // Открываем модальное окно для создания запроса
+  showLateMarkingModal.value = true;
 };
 
 const handleFinalGradeUpdate = async () => {

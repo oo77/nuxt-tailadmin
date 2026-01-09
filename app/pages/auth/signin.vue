@@ -8,7 +8,7 @@
             <!-- Логотип -->
             <div class="flex justify-center mb-6">
               <div class="relative group">
-                <div class="absolute -inset-2 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+                <div class="absolute -inset-2 bg-linear-to-r from-blue-500 via-purple-500 to-blue-500 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
                 <div class="relative p-4 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
                   <img
                     src="/logo.png"

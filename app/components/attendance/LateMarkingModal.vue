@@ -79,7 +79,7 @@ const isReasonValid = computed(() => {
     >
       <div 
         v-if="modelValue" 
-        class="fixed inset-0 z-[999] flex items-center justify-center p-4"
+        class="fixed inset-0 z-999 flex items-center justify-center p-4"
       >
         <!-- Backdrop -->
         <div 
@@ -97,7 +97,7 @@ const isReasonValid = computed(() => {
               :class="isLateMode 
                 ? 'bg-yellow-100 dark:bg-yellow-900/30' 
                 : 'bg-red-100 dark:bg-red-900/30'"
-              class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+              class="shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
             >
               <component 
                 :is="isLateMode ? AlertTriangle : Lock" 

@@ -85,6 +85,7 @@ export enum Permission {
   ATTENDANCE_VIEW = 'attendance:view',
   ATTENDANCE_MARK = 'attendance:mark',
   ATTENDANCE_EDIT = 'attendance:edit',
+  ATTENDANCE_MANAGE = 'attendance:manage',
 
   // ========== GRADES ==========
   GRADES_VIEW = 'grades:view',
@@ -204,6 +205,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.ATTENDANCE_VIEW,
     Permission.ATTENDANCE_MARK,
     Permission.ATTENDANCE_EDIT,
+    Permission.ATTENDANCE_MANAGE,
 
     // Grades
     Permission.GRADES_VIEW,
