@@ -154,7 +154,7 @@ watch(activeFilter, () => {
                border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium
                hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
-        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+        <Icon name="heroicons:arrow-path" class="w-4 h-4" :class="{ 'animate-spin': loading }" />
         Обновить
       </button>
     </div>
@@ -164,7 +164,7 @@ watch(activeFilter, () => {
       <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-            <Clock class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <Icon name="heroicons:clock" class="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </div>
           <div>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ statistics.pending }}</p>
@@ -176,7 +176,7 @@ watch(activeFilter, () => {
       <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-red-200 dark:border-red-800">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-            <XCircle class="w-5 h-5 text-red-600" />
+            <Icon name="heroicons:x-circle" class="w-5 h-5 text-red-600" />
           </div>
           <div>
             <p class="text-2xl font-bold text-red-600">{{ statistics.overdue }}</p>
@@ -188,7 +188,7 @@ watch(activeFilter, () => {
       <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-yellow-200 dark:border-yellow-800">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-            <AlertTriangle class="w-5 h-5 text-yellow-600" />
+            <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-yellow-600" />
           </div>
           <div>
             <p class="text-2xl font-bold text-yellow-600">{{ statistics.late }}</p>
@@ -200,7 +200,7 @@ watch(activeFilter, () => {
       <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-green-200 dark:border-green-800">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-            <CheckCircle class="w-5 h-5 text-green-600" />
+            <Icon name="heroicons:check-circle" class="w-5 h-5 text-green-600" />
           </div>
           <div>
             <p class="text-2xl font-bold text-green-600">{{ statistics.onTime }}</p>
@@ -249,7 +249,7 @@ watch(activeFilter, () => {
       v-else-if="events.length === 0" 
       class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center"
     >
-      <CheckCircle class="w-16 h-16 mx-auto mb-4 text-green-500" />
+      <Icon name="heroicons:check-circle" class="w-16 h-16 mx-auto mb-4 text-green-500" />
       <p class="text-lg font-medium text-gray-900 dark:text-white mb-2">
         Все занятия отмечены
       </p>
@@ -271,7 +271,7 @@ watch(activeFilter, () => {
           <div class="flex-1 min-w-0">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0 w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                <component :is="statusIconComponents[event.status]" class="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <Icon :name="MARKING_STATUS_ICONS[event.status]" class="w-6 h-6 text-gray-600 dark:text-gray-400" />
               </div>
               
               <div class="flex-1 min-w-0">
@@ -309,7 +309,7 @@ watch(activeFilter, () => {
                 :class="MARKING_STATUS_COLORS[event.status]"
                 class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full"
               >
-                <component :is="statusIconComponents[event.status]" class="w-3 h-3" />
+                <Icon :name="MARKING_STATUS_ICONS[event.status]" class="w-3 h-3" />
                 {{ MARKING_STATUS_LABELS[event.status] }}
               </span>
               <p 
@@ -329,7 +329,7 @@ watch(activeFilter, () => {
               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 
                      text-white text-sm font-medium rounded-lg transition-colors"
             >
-              <PencilLine class="w-4 h-4" />
+              <Icon name="heroicons:pencil-square" class="w-4 h-4" />
               Отметить
             </NuxtLink>
           </div>
