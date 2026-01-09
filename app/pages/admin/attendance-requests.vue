@@ -16,8 +16,8 @@ definePageMeta({
   layout: 'default',
 });
 
-const { $authFetch } = useNuxtApp();
-const { showSuccess, showError } = useNotification();
+const { authFetch } = useAuthFetch();
+const { success: showSuccess, error: showError } = useNotification();
 
 // Состояние
 const loading = ref(true);
@@ -31,7 +31,7 @@ async function loadData() {
   loading.value = true;
   try {
     const [requestsRes, overdueRes] = await Promise.all([
-      $authFetch<{
+      authFetch<{
         success: boolean;
         requests: AttendanceMarkingRequest[];
       }>('/api/attendance/marking/requests', {
@@ -39,7 +39,7 @@ async function loadData() {
           onlyPending: activeFilter.value === 'pending' ? 'true' : undefined,
         },
       }),
-      $authFetch<{
+      authFetch<{
         success: boolean;
         statistics: MarkingStatistics;
       }>('/api/attendance/marking/overdue'),
@@ -63,7 +63,7 @@ async function loadData() {
 async function approveRequest(request: AttendanceMarkingRequest) {
   processingId.value = request.id;
   try {
-    const response = await $authFetch<{ success: boolean; message: string }>(
+    const response = await authFetch<{ success: boolean; message: string }>(
       `/api/attendance/marking/requests/${request.id}`,
       {
         method: 'PUT',
@@ -89,7 +89,7 @@ async function rejectRequest(request: AttendanceMarkingRequest) {
 
   processingId.value = request.id;
   try {
-    const response = await $authFetch<{ success: boolean; message: string }>(
+    const response = await authFetch<{ success: boolean; message: string }>(
       `/api/attendance/marking/requests/${request.id}`,
       {
         method: 'PUT',

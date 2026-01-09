@@ -37,8 +37,8 @@ definePageMeta({
   layout: 'default',
 });
 
-const { $authFetch } = useNuxtApp();
-const { showSuccess, showError } = useNotification();
+const { authFetch } = useAuthFetch();
+const { success: showSuccess, error: showError } = useNotification();
 
 // Состояние
 const loading = ref(true);
@@ -50,7 +50,7 @@ const activeFilter = ref<'all' | 'pending' | 'overdue'>('pending');
 async function loadData() {
   loading.value = true;
   try {
-    const response = await $authFetch<{
+    const response = await authFetch<{
       success: boolean;
       statuses: AttendanceMarkingStatusRecord[];
     }>('/api/attendance/marking/status', {
@@ -65,7 +65,7 @@ async function loadData() {
     }
 
     // Загружаем статистику
-    const statsResponse = await $authFetch<{
+    const statsResponse = await authFetch<{
       success: boolean;
       pending: AttendanceMarkingStatusRecord[];
       statistics: MarkingStatistics;

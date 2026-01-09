@@ -12,7 +12,7 @@ import {
   type MarkingStatistics,
 } from '~/types/attendanceMarking';
 
-const { $authFetch } = useNuxtApp();
+const { authFetch } = useAuthFetch();
 
 // Состояние
 const loading = ref(true);
@@ -23,7 +23,7 @@ const statistics = ref<MarkingStatistics | null>(null);
 async function loadData() {
   loading.value = true;
   try {
-    const response = await $authFetch<{
+    const response = await authFetch<{
       success: boolean;
       pending: AttendanceMarkingStatusRecord[];
       statistics: MarkingStatistics;

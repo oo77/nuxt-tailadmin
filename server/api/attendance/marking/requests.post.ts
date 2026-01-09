@@ -31,23 +31,45 @@ export default defineEventHandler(async (event) => {
     }
 
     // Получаем ID инструктора
-    let instructorId: string;
+    let instructorId: string | undefined;
 
     if (role === 'TEACHER') {
+      // Для роли TEACHER — получаем инструктора по user_id
       const instructor = await getInstructorByUserId(userId!);
       if (!instructor) {
         throw createError({
           statusCode: 403,
-          message: 'Инструктор не найден',
+          message: 'Инструктор не найден для текущего пользователя',
         });
       }
       instructorId = instructor.id;
     } else if (body.instructorId) {
+      // Если явно передан instructorId — используем его
       instructorId = body.instructorId;
     } else {
+      // Пробуем получить instructorId из события расписания
+      const { executeQuery } = await import('../../../utils/db');
+      const [event] = await executeQuery<{ instructor_id: string | null }[]>(
+        'SELECT instructor_id FROM schedule_events WHERE id = ?',
+        [body.scheduleEventId]
+      );
+      
+      if (event?.instructor_id) {
+        instructorId = event.instructor_id;
+        console.log(`[Attendance Marking] Got instructorId from event: ${instructorId}`);
+      } else {
+        throw createError({
+          statusCode: 400,
+          message: 'Не удалось определить инструктора для данного занятия',
+        });
+      }
+    }
+
+    // instructorId гарантированно определён здесь (иначе выше выбросилась бы ошибка)
+    if (!instructorId) {
       throw createError({
         statusCode: 400,
-        message: 'Необходимо указать instructorId',
+        message: 'Не удалось определить инструктора',
       });
     }
 

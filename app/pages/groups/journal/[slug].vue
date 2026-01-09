@@ -882,7 +882,24 @@ const saveBulkAttendanceWithReason = async (lateReason?: string) => {
       toast.error(response.message || 'Ошибка сохранения');
     }
   } catch (error: any) {
-    toast.error(error.message || 'Ошибка сохранения');
+    // При ошибке 403 с требованием одобрения — предлагаем создать запрос
+    if (error?.statusCode === 403 || error?.status === 403) {
+      const message = error.data?.message || error.message || 'Доступ запрещён';
+      if (message.includes('одобрение') || message.includes('Требуется одобрение')) {
+        toast.warning(message);
+        showBulkAttendanceModal.value = false;
+        showLateMarkingModal.value = true;
+        // Обновляем статус доступа
+        if (markingAccess.value) {
+          markingAccess.value.status = 'requires_approval';
+          markingAccess.value.requiresApproval = true;
+        }
+        return;
+      }
+      toast.error(message);
+    } else {
+      toast.error(error.data?.message || error.message || 'Ошибка сохранения');
+    }
   } finally {
     bulkSaving.value = false;
   }

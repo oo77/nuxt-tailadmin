@@ -11,8 +11,8 @@ import type {
 } from '~/types/attendanceMarking';
 
 export function useAttendanceMarking() {
-  const { $authFetch } = useNuxtApp();
-  const { showSuccess, showError, showWarning } = useNotification();
+  const { authFetch } = useAuthFetch();
+  const { success: showSuccess, error: showError, warning: showWarning } = useNotification();
 
   // Состояние
   const loading = ref(false);
@@ -26,7 +26,7 @@ export function useAttendanceMarking() {
   async function checkAccess(eventId: string): Promise<MarkingAccessCheckResult | null> {
     loading.value = true;
     try {
-      const response = await $authFetch<{
+      const response = await authFetch<{
         success: boolean;
         access: MarkingAccessCheckResult;
         markingStatus: AttendanceMarkingStatusRecord;
@@ -78,7 +78,7 @@ export function useAttendanceMarking() {
 
     loading.value = true;
     try {
-      const response = await $authFetch<{
+      const response = await authFetch<{
         success: boolean;
         count?: number;
         markingStatus: string;
@@ -128,7 +128,7 @@ export function useAttendanceMarking() {
   }): Promise<AttendanceMarkingRequest | null> {
     loading.value = true;
     try {
-      const response = await $authFetch<{
+      const response = await authFetch<{
         success: boolean;
         request: AttendanceMarkingRequest;
         message: string;
@@ -156,7 +156,7 @@ export function useAttendanceMarking() {
    */
   async function loadSettings(): Promise<AttendanceSettings | null> {
     try {
-      const response = await $authFetch<{
+      const response = await authFetch<{
         success: boolean;
         settings: AttendanceSettings;
       }>('/api/attendance/marking/settings');
@@ -177,7 +177,7 @@ export function useAttendanceMarking() {
    */
   async function getStatistics(): Promise<MarkingStatistics | null> {
     try {
-      const response = await $authFetch<{
+      const response = await authFetch<{
         success: boolean;
         statistics: MarkingStatistics;
       }>('/api/attendance/marking/pending');
