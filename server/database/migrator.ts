@@ -29,6 +29,7 @@ import * as studentPortalTables from './migrations/20260108_035_student_portal_t
 import * as studentNotifications from './migrations/20260108_036_student_notifications';
 import * as activityLogActionTypes from './migrations/20260109_037_activity_log_action_types';
 import * as attendanceMarkingSystem from './migrations/20260109_038_attendance_marking_system';
+import * as fixAttendanceTrigger from './migrations/20260109_039_fix_attendance_trigger';
 
 /**
  * ============================================================================
@@ -244,6 +245,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: attendanceMarkingSystem.up,
     down: attendanceMarkingSystem.down,
     description: attendanceMarkingSystem.description,
+  },
+  // ============================================================
+  // Миграция 039: Исправление триггера посещаемости
+  // ============================================================
+  {
+    name: '20260109_039_fix_attendance_trigger',
+    up: fixAttendanceTrigger.up,
+    down: fixAttendanceTrigger.down,
+    description: fixAttendanceTrigger.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

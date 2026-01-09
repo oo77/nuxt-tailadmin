@@ -128,7 +128,7 @@
                     <span v-if="lesson.student_count"> • {{ lesson.student_count }} студентов</span>
                   </p>
                 </div>
-                <NuxtLink :to="`/groups/journal/${lesson.group_id}`">
+                <NuxtLink :to="`/groups/journal/${lesson.group_id}_${lesson.discipline_id}`">
                   <UiButton size="sm" variant="outline" class="flex items-center gap-1">
                     <IconsCheckIcon class="w-4 h-4" />
                     Посещаемость
@@ -225,7 +225,7 @@
               <span class="text-gray-500 mx-2">•</span>
               <span class="text-sm text-gray-500">{{ item.group_code }}</span>
             </div>
-            <NuxtLink :to="`/groups/journal/${item.group_id}`">
+            <NuxtLink :to="`/groups/journal/${item.group_id}_${item.discipline_id}`">
               <UiButton size="sm" variant="warning">Заполнить</UiButton>
             </NuxtLink>
           </div>

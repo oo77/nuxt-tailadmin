@@ -27,8 +27,8 @@ const ROLE_PROTECTED_ROUTES: Record<string, UserRole[]> = {
   '/api/students/notifications': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
   '/api/students/dashboard': [UserRole.STUDENT, UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
   '/api/students': [UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
-  '/api/schedule/settings': [UserRole.ADMIN],
-  '/api/schedule/periods': [UserRole.ADMIN],
+  '/api/schedule/settings': [UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
+  '/api/schedule/periods': [UserRole.ADMIN, UserRole.MANAGER, UserRole.TEACHER],
 }
 
 

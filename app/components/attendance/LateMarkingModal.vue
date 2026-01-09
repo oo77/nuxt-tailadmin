@@ -4,6 +4,8 @@
  * Показывается, когда срок отметки истёк, но ещё можно отметить с пометкой "Опоздание"
  */
 
+import { AlertTriangle, Lock, Loader2 } from 'lucide-vue-next';
+
 interface Props {
   modelValue: boolean;
   eventTitle: string;
@@ -97,8 +99,8 @@ const isReasonValid = computed(() => {
                 : 'bg-red-100 dark:bg-red-900/30'"
               class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
             >
-              <Icon 
-                :name="isLateMode ? 'heroicons:exclamation-triangle' : 'heroicons:lock-closed'" 
+              <component 
+                :is="isLateMode ? AlertTriangle : Lock" 
                 :class="isLateMode ? 'text-yellow-600' : 'text-red-600'"
                 class="w-6 h-6" 
               />
@@ -181,7 +183,7 @@ const isReasonValid = computed(() => {
                      disabled:cursor-not-allowed"
             >
               <span v-if="loading" class="flex items-center gap-2">
-                <Icon name="heroicons:arrow-path" class="w-4 h-4 animate-spin" />
+                <Loader2 class="w-4 h-4 animate-spin" />
                 Отправка...
               </span>
               <span v-else>

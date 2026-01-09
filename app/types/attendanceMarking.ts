@@ -46,6 +46,7 @@ export interface AttendanceMarkingStatusRecord {
     eventType: string;
     groupId: string | null;
     groupCode: string | null;
+    disciplineId: string | null;
     instructorId: string | null;
     instructorName: string | null;
   };

@@ -140,7 +140,7 @@ export async function up(connection: PoolConnection): Promise<void> {
         -- Подсчитываем студентов в группе
         IF NEW.group_id IS NOT NULL THEN
           SELECT COUNT(*) INTO students_cnt 
-          FROM group_students WHERE group_id = NEW.group_id AND status = 'active';
+          FROM study_group_students WHERE group_id = NEW.group_id;
         END IF;
         
         -- Создаём запись статуса

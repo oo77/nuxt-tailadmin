@@ -13,6 +13,15 @@ interface UpdateSettingsData {
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const body = await readBody<UpdateSettingsData>(event);
+    const role = event.context.auth?.role || event.context.user?.role;
+
+    // Только администратор может менять настройки
+    if (role !== 'ADMIN') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Доступ запрещен. Только администратор может менять настройки.',
+      });
+    }
 
     // Валидация
     if (!body.settings || !Array.isArray(body.settings) || body.settings.length === 0) {

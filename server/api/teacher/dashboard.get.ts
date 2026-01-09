@@ -85,6 +85,7 @@ export default defineEventHandler(async (event) => {
         se.event_type,
         se.group_id,
         sg.code as group_code,
+        se.discipline_id,
         cr.name as classroom_name,
         COUNT(DISTINCT sgs.student_id) as student_count
       FROM schedule_events se
@@ -95,7 +96,7 @@ export default defineEventHandler(async (event) => {
         AND se.start_time >= ?
         AND se.start_time < ?
       GROUP BY se.id, se.title, se.start_time, se.end_time, se.event_type, 
-               se.group_id, sg.code, cr.name
+               se.group_id, se.discipline_id, sg.code, cr.name
       ORDER BY se.start_time ASC
     `;
 
@@ -174,6 +175,7 @@ export default defineEventHandler(async (event) => {
         se.title,
         se.start_time as date,
         se.group_id,
+        se.discipline_id,
         sg.code as group_code
       FROM schedule_events se
       JOIN study_groups sg ON se.group_id = sg.id

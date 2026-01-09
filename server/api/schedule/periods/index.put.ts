@@ -16,6 +16,15 @@ interface UpdatePeriodData {
 export default defineEventHandler(async (event: H3Event) => {
   try {
     const body = await readBody<{ periods: UpdatePeriodData[] }>(event);
+    const role = event.context.auth?.role || event.context.user?.role;
+
+    // Только администратор может менять настройки
+    if (role !== 'ADMIN') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Доступ запрещен. Только администратор может изменять пары.',
+      });
+    }
 
     // Валидация
     if (!body.periods || !Array.isArray(body.periods) || body.periods.length === 0) {

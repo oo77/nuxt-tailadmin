@@ -43,6 +43,7 @@ interface MarkingStatusRow extends RowDataPacket {
   event_start_time?: Date;
   event_end_time?: Date;
   event_type?: string;
+  discipline_id?: string;
   group_id?: string;
   group_code?: string;
   instructor_id?: string;
@@ -108,6 +109,7 @@ function mapRowToMarkingStatus(row: MarkingStatusRow): AttendanceMarkingStatusRe
       startTime: row.event_start_time!,
       endTime: row.event_end_time!,
       eventType: row.event_type || 'other',
+      disciplineId: row.discipline_id || null,
       groupId: row.group_id || null,
       groupCode: row.group_code || null,
       instructorId: row.instructor_id || null,
@@ -225,11 +227,12 @@ export async function getMarkingStatusByEventId(
       se.start_time as event_start_time,
       se.end_time as event_end_time,
       se.event_type,
+      se.discipline_id,
       se.group_id,
       sg.code as group_code,
       se.instructor_id,
       i.full_name as instructor_name,
-      u.full_name as marked_by_name
+      u.name as marked_by_name
     FROM attendance_marking_status ams
     JOIN schedule_events se ON ams.schedule_event_id = se.id
     LEFT JOIN study_groups sg ON se.group_id = sg.id
@@ -309,11 +312,12 @@ export async function getMarkingStatuses(
       se.start_time as event_start_time,
       se.end_time as event_end_time,
       se.event_type,
+      se.discipline_id,
       se.group_id,
       sg.code as group_code,
       se.instructor_id,
       i.full_name as instructor_name,
-      u.full_name as marked_by_name
+      u.name as marked_by_name
     FROM attendance_marking_status ams
     JOIN schedule_events se ON ams.schedule_event_id = se.id
     LEFT JOIN study_groups sg ON se.group_id = sg.id
@@ -371,7 +375,7 @@ export async function ensureMarkingStatus(
   // Получаем данные занятия
   const [event] = await executeQuery<RowDataPacket[]>(
     `SELECT se.*, 
-       (SELECT COUNT(*) FROM group_students gs WHERE gs.group_id = se.group_id AND gs.status = 'active') as students_count
+       (SELECT COUNT(*) FROM study_group_students sgs WHERE sgs.group_id = se.group_id) as students_count
      FROM schedule_events se 
      WHERE se.id = ?`,
     [scheduleEventId]
@@ -620,7 +624,7 @@ export async function getMarkingRequestById(
       se.end_time as event_end_time,
       sg.code as group_code,
       i.full_name as instructor_name,
-      u.full_name as reviewer_name
+      u.name as reviewer_name
     FROM attendance_marking_requests amr
     JOIN schedule_events se ON amr.schedule_event_id = se.id
     LEFT JOIN study_groups sg ON se.group_id = sg.id
@@ -668,7 +672,7 @@ export async function getMarkingRequests(filters: {
       se.end_time as event_end_time,
       sg.code as group_code,
       i.full_name as instructor_name,
-      u.full_name as reviewer_name
+      u.name as reviewer_name
     FROM attendance_marking_requests amr
     JOIN schedule_events se ON amr.schedule_event_id = se.id
     LEFT JOIN study_groups sg ON se.group_id = sg.id
