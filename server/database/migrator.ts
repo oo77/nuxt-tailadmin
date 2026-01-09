@@ -28,6 +28,7 @@ import * as certificateStandalone from './migrations/20260106_034_certificate_st
 import * as studentPortalTables from './migrations/20260108_035_student_portal_tables';
 import * as studentNotifications from './migrations/20260108_036_student_notifications';
 import * as activityLogActionTypes from './migrations/20260109_037_activity_log_action_types';
+import * as attendanceMarkingSystem from './migrations/20260109_038_attendance_marking_system';
 
 /**
  * ============================================================================
@@ -234,6 +235,15 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: activityLogActionTypes.up,
     down: activityLogActionTypes.down,
     description: activityLogActionTypes.description,
+  },
+  // ============================================================
+  // Миграция 038: Система допуска отметок посещаемости инструкторами
+  // ============================================================
+  {
+    name: '20260109_038_attendance_marking_system',
+    up: attendanceMarkingSystem.up,
+    down: attendanceMarkingSystem.down,
+    description: attendanceMarkingSystem.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

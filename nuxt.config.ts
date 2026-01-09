@@ -17,6 +17,8 @@ export default defineNuxtConfig({
     }
   },
 
+  modules: ['nuxt-icon'],
+
   app: {
     head: {
       title: 'АТЦ - Учебный центр',

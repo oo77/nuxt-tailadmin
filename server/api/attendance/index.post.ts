@@ -1,17 +1,72 @@
 /**
  * POST /api/attendance
  * Отметить посещаемость (одиночная или массовая)
+ * С проверкой системы допуска инструкторов
  */
 
 import { upsertAttendance, bulkUpsertAttendance } from '../../repositories/attendanceRepository';
+import { 
+  checkMarkingAccess, 
+  ensureMarkingStatus, 
+  updateMarkingStatus,
+  updateMarkedCount,
+} from '../../repositories/attendanceMarkingRepository';
+import { getInstructorByUserId } from '../../repositories/instructorRepository';
 import { logActivity } from '../../utils/activityLogger';
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event);
     const userId = event.context.auth?.userId;
+    const role = event.context.auth?.role;
     
-    // Массовая отметка
+    const scheduleEventId = body.scheduleEventId;
+    
+    if (!scheduleEventId) {
+      throw createError({
+        statusCode: 400,
+        message: 'Необходимо указать scheduleEventId',
+      });
+    }
+
+    console.log(`[Attendance] POST /api/attendance - User: ${userId}, Role: ${role}, Event: ${scheduleEventId}`);
+    
+    // ========================================
+    // ПРОВЕРКА ДОСТУПА (система допуска)
+    // ========================================
+    
+    // Получаем ID инструктора для проверки
+    let instructorId: string | undefined;
+    if (role === 'TEACHER') {
+      const instructor = await getInstructorByUserId(userId!);
+      instructorId = instructor?.id;
+    }
+    
+    // Убеждаемся, что статус создан
+    await ensureMarkingStatus(scheduleEventId);
+    
+    // Проверяем доступ
+    const accessCheck = await checkMarkingAccess(scheduleEventId, userId!, role!, instructorId);
+    
+    if (!accessCheck.allowed) {
+      throw createError({
+        statusCode: 403,
+        message: accessCheck.message || 'Доступ к отметке посещаемости запрещён',
+      });
+    }
+    
+    // Определяем статус отметки
+    let markingStatus: 'on_time' | 'late' | 'approved' = 'on_time';
+    if (accessCheck.status === 'late') {
+      markingStatus = 'late';
+    } else if (accessCheck.existingRequestId) {
+      markingStatus = 'approved';
+    }
+    
+    // ========================================
+    // МАССОВАЯ ОТМЕТКА
+    // ========================================
+    
     if (body.bulk && Array.isArray(body.attendances)) {
       const count = await bulkUpsertAttendance({
         scheduleEventId: body.scheduleEventId,
@@ -20,27 +75,52 @@ export default defineEventHandler(async (event) => {
         attendances: body.attendances,
       });
       
+      // Обновляем статус отметки
+      await updateMarkingStatus(scheduleEventId, {
+        status: markingStatus,
+        markedBy: userId,
+        markedCount: count,
+        lateReason: markingStatus === 'late' ? body.lateReason : undefined,
+      });
+      
+      // Обновляем счётчик отмеченных
+      await updateMarkedCount(scheduleEventId);
+      
+      const logMessage = markingStatus === 'late' 
+        ? `Массовая отметка посещаемости (с опозданием)`
+        : `Массовая отметка посещаемости`;
+      
       await logActivity(
         event,
         'UPDATE',
         'ATTENDANCE',
         body.scheduleEventId,
-        `Массовая отметка посещаемости`,
-        { count, scheduleEventId: body.scheduleEventId }
+        logMessage,
+        { 
+          count, 
+          scheduleEventId: body.scheduleEventId,
+          markingStatus,
+          lateReason: body.lateReason,
+        }
       );
       
       return {
         success: true,
         message: `Отмечено ${count} записей`,
         count,
+        markingStatus,
+        isLate: markingStatus === 'late',
       };
     }
     
-    // Одиночная отметка
-    if (!body.studentId || !body.scheduleEventId) {
+    // ========================================
+    // ОДИНОЧНАЯ ОТМЕТКА
+    // ========================================
+    
+    if (!body.studentId) {
       throw createError({
         statusCode: 400,
-        message: 'Необходимо указать studentId и scheduleEventId',
+        message: 'Необходимо указать studentId',
       });
     }
     
@@ -67,6 +147,15 @@ export default defineEventHandler(async (event) => {
       markedBy: userId,
     });
     
+    // Обновляем статус отметки (in_progress, пока не все отмечены)
+    await updateMarkingStatus(scheduleEventId, {
+      status: 'in_progress',
+      markedBy: userId,
+    });
+    
+    // Обновляем счётчик отмеченных
+    await updateMarkedCount(scheduleEventId);
+    
     await logActivity(
       event,
       'UPDATE',
@@ -78,12 +167,15 @@ export default defineEventHandler(async (event) => {
         scheduleEventId: body.scheduleEventId,
         hoursAttended: body.hoursAttended,
         maxHours: body.maxHours,
+        markingStatus,
       }
     );
     
     return {
       success: true,
       attendance,
+      markingStatus,
+      isLate: markingStatus === 'late',
     };
   } catch (error: any) {
     console.error('Error saving attendance:', error);

@@ -326,6 +326,13 @@ const allMenuGroups: MenuGroup[] = [
         anyPermissions: [Permission.GROUPS_VIEW_ALL, Permission.GROUPS_VIEW_OWN],
       },
       {
+        icon: CalenderIcon,
+        name: "Отметка посещаемости",
+        path: "/attendance/pending",
+        permission: Permission.ATTENDANCE_MARK,
+        showOnlyForRoles: ['TEACHER'],
+      },
+      {
         icon: ClipboardCheckIcon,
         name: "Банк тестирования",
         permission: Permission.TEST_BANKS_VIEW,
@@ -422,6 +429,12 @@ const allMenuGroups: MenuGroup[] = [
         name: "Шаблоны сертификатов",
         path: "/certificates/templates",
         permission: Permission.TEMPLATES_VIEW,
+      },
+      {
+        icon: CalenderIcon,
+        name: "Запросы на отметку",
+        path: "/admin/attendance-requests",
+        permission: Permission.ATTENDANCE_MANAGE,
       },
       {
         icon: ClipboardCheckIcon,

@@ -118,12 +118,58 @@
             </option>
           </select>
           
+          <!-- Статус доступа -->
+          <div v-if="selectedEventId && markingAccess" class="flex items-center gap-2">
+            <span v-if="accessLoading" class="text-gray-400">
+              <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </span>
+            <span 
+              v-else-if="markingAccess.status === 'allowed'"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Доступно
+            </span>
+            <span 
+              v-else-if="markingAccess.status === 'late'"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Опоздание
+            </span>
+            <span 
+              v-else-if="markingAccess.status === 'requires_approval'"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Требует одобрения
+            </span>
+            <span 
+              v-else-if="markingAccess.status === 'denied'"
+              class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              Недоступно
+            </span>
+          </div>
+          
           <!-- Кнопки действий -->
           <div class="flex gap-2">
             <UiButton 
               variant="primary" 
               size="sm"
-              :disabled="!selectedEventId"
+              :disabled="!selectedEventId || (markingAccess && markingAccess.status === 'denied')"
               @click="openBulkAttendanceModal"
             >
               <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,6 +190,41 @@
               </svg>
               Оценка всем
             </UiButton>
+          </div>
+        </div>
+        
+        <!-- Предупреждение об опоздании -->
+        <div 
+          v-if="markingAccess && markingAccess.status === 'late'" 
+          class="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
+        >
+          <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-yellow-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="text-sm text-yellow-700 dark:text-yellow-300">
+              Срок отметки для этого занятия истёк. Отметка будет сохранена с пометкой «Опоздание».
+            </p>
+          </div>
+        </div>
+        
+        <!-- Блокировка при требовании одобрения -->
+        <div 
+          v-if="markingAccess && markingAccess.status === 'requires_approval'" 
+          class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+        >
+          <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div>
+              <p class="text-sm font-medium text-red-700 dark:text-red-300">
+                Требуется одобрение администратора
+              </p>
+              <p class="text-xs text-red-600 dark:text-red-400 mt-1">
+                Срок отметки для этого занятия давно истёк. Нажмите «Отметить всех» чтобы отправить запрос на одобрение.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -421,12 +502,30 @@
         </div>
       </div>
     </UiModal>
+
+    <!-- Модальное окно предупреждения об опоздании -->
+    <LateMarkingModal
+      v-model="showLateMarkingModal"
+      :event-title="selectedEvent?.scheduleEvent.title || ''"
+      :event-date="selectedEvent?.scheduleEvent.startTime || ''"
+      :deadline="markingAccess?.deadline || ''"
+      :status="markingAccess?.status === 'requires_approval' ? 'requires_approval' : 'late'"
+      @confirm="handleLateMarkingConfirm"
+      @request-approval="handleRequestApproval"
+      @cancel="showLateMarkingModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import AttendanceCell from '~/components/attendance/AttendanceCell.vue';
 import FinalGradeCell from '~/components/attendance/FinalGradeCell.vue';
+import LateMarkingModal from '~/components/attendance/LateMarkingModal.vue';
+import { 
+  MARKING_STATUS_LABELS, 
+  MARKING_STATUS_COLORS,
+  type MarkingAccessCheckResult,
+} from '~/types/attendanceMarking';
 
 definePageMeta({
   layout: 'default',
@@ -522,6 +621,12 @@ const showBulkGradeModal = ref(false);
 const bulkSaving = ref(false);
 const bulkAttendanceHours = ref(0);
 const bulkGradeValue = ref(0);
+
+// Marking access state
+const markingAccess = ref<MarkingAccessCheckResult | null>(null);
+const showLateMarkingModal = ref(false);
+const lateMarkingReason = ref('');
+const accessLoading = ref(false);
 
 // Computed - выбранное занятие
 const selectedEvent = computed(() => {
@@ -679,7 +784,69 @@ const openBulkGradeModal = () => {
   showBulkGradeModal.value = true;
 };
 
-const saveBulkAttendance = async () => {
+// Check marking access for selected event
+const checkMarkingAccess = async () => {
+  if (!selectedEventId.value) {
+    markingAccess.value = null;
+    return;
+  }
+  
+  accessLoading.value = true;
+  try {
+    const response = await authFetch<{
+      success: boolean;
+      access: MarkingAccessCheckResult;
+    }>(`/api/attendance/marking/check/${selectedEventId.value}`);
+    
+    if (response.success) {
+      markingAccess.value = response.access;
+    }
+  } catch (error) {
+    console.error('Error checking access:', error);
+    // Если ошибка - предполагаем что доступ есть (для обратной совместимости)
+    markingAccess.value = { allowed: true, status: 'allowed', deadline: '', lateDeadline: '' };
+  } finally {
+    accessLoading.value = false;
+  }
+};
+
+// Watch selected event changes
+watch(selectedEventId, () => {
+  checkMarkingAccess();
+});
+
+// Handle late marking confirmation
+const handleLateMarkingConfirm = async (reason: string) => {
+  lateMarkingReason.value = reason;
+  showLateMarkingModal.value = false;
+  await saveBulkAttendanceWithReason(reason);
+};
+
+// Handle request approval
+const handleRequestApproval = async (reason: string) => {
+  try {
+    const response = await authFetch<{ success: boolean; message: string }>(
+      '/api/attendance/marking/requests',
+      {
+        method: 'POST',
+        body: {
+          scheduleEventId: selectedEventId.value,
+          reason,
+        },
+      }
+    );
+    
+    if (response.success) {
+      toast.success(response.message);
+      showLateMarkingModal.value = false;
+    }
+  } catch (error: any) {
+    toast.error(error.data?.message || 'Ошибка отправки запроса');
+  }
+};
+
+// Save bulk attendance with late reason
+const saveBulkAttendanceWithReason = async (lateReason?: string) => {
   if (!selectedEvent.value || bulkSaving.value) return;
   
   const maxHours = selectedEvent.value.scheduleEvent.academicHours;
@@ -702,6 +869,7 @@ const saveBulkAttendance = async () => {
         scheduleEventId: selectedEventId.value,
         maxHours: maxHours,
         attendances,
+        lateReason,
       },
     });
     
@@ -709,6 +877,7 @@ const saveBulkAttendance = async () => {
       toast.success(`Отмечено ${response.count || attendances.length} записей`);
       showBulkAttendanceModal.value = false;
       await loadJournal();
+      await checkMarkingAccess();
     } else {
       toast.error(response.message || 'Ошибка сохранения');
     }
@@ -717,6 +886,27 @@ const saveBulkAttendance = async () => {
   } finally {
     bulkSaving.value = false;
   }
+};
+
+const saveBulkAttendance = async () => {
+  // Check access first
+  if (markingAccess.value) {
+    if (markingAccess.value.status === 'late') {
+      // Show late marking modal
+      showBulkAttendanceModal.value = false;
+      showLateMarkingModal.value = true;
+      return;
+    }
+    
+    if (markingAccess.value.status === 'requires_approval') {
+      // Show request approval modal
+      showBulkAttendanceModal.value = false;
+      showLateMarkingModal.value = true;
+      return;
+    }
+  }
+  
+  await saveBulkAttendanceWithReason();
 };
 
 const saveBulkGrade = async () => {
