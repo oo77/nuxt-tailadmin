@@ -5,33 +5,12 @@
  */
 
 import { 
-  RefreshCw,
-  Clock,
-  XCircle,
-  AlertTriangle,
-  CheckCircle,
-  PencilLine,
-  ShieldCheck,
-} from 'lucide-vue-next';
-
-import { 
   MARKING_STATUS_LABELS, 
   MARKING_STATUS_COLORS, 
   MARKING_STATUS_ICONS,
   type AttendanceMarkingStatusRecord,
   type MarkingStatistics,
-  type AttendanceMarkingStatus,
 } from '~/types/attendanceMarking';
-
-// Маппинг статусов на компоненты иконок
-const statusIconComponents: Record<AttendanceMarkingStatus, any> = {
-  pending: Clock,
-  in_progress: PencilLine,
-  on_time: CheckCircle,
-  late: AlertTriangle,
-  overdue: XCircle,
-  approved: ShieldCheck,
-};
 
 definePageMeta({
   layout: 'default',
