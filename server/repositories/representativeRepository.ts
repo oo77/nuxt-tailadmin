@@ -289,6 +289,25 @@ export async function getRepresentativeByTelegramChatId(chatId: string): Promise
 }
 
 /**
+ * Получить представителя по user_id (связь с таблицей users для веб-авторизации)
+ */
+export async function getRepresentativeByUserId(userId: string): Promise<Representative | null> {
+  const rows = await executeQuery<RepresentativeRow[]>(
+    `SELECT 
+      r.*,
+      o.name as organization_name,
+      u.name as approved_by_name
+    FROM organization_representatives r
+    LEFT JOIN organizations o ON r.organization_id = o.id
+    LEFT JOIN users u ON r.approved_by = u.id
+    WHERE r.user_id = ? LIMIT 1`,
+    [userId]
+  );
+
+  return rows.length > 0 ? mapRowToRepresentative(rows[0]) : null;
+}
+
+/**
  * Получить представителей по организации
  */
 export async function getRepresentativesByOrganization(organizationId: string): Promise<Representative[]> {

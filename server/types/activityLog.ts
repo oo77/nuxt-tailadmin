@@ -3,17 +3,20 @@
  */
 
 // Типы действий
-export type ActionType = 
-  | 'CREATE' 
-  | 'UPDATE' 
-  | 'DELETE' 
-  | 'VIEW' 
-  | 'LOGIN' 
-  | 'LOGOUT' 
-  | 'IMPORT' 
+export type ActionType =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'VIEW'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'IMPORT'
   | 'EXPORT'
+  | 'UPLOAD'         // Загрузка файла
   | 'APPROVE'        // Одобрение (представителей, заявок)
   | 'REJECT'         // Отклонение
+  | 'RESERVE'        // Бронирование (заявок)
+  | 'WITHDRAW'       // Отзыв (заявок представителем)
   | 'BLOCK'          // Блокировка
   | 'UNBLOCK'        // Разблокировка
   | 'REVOKE'         // Отзыв (сертификатов)
@@ -23,22 +26,23 @@ export type ActionType =
   | 'UNASSIGN';      // Снятие назначения
 
 // Типы сущностей
-export type EntityType = 
-  | 'USER' 
-  | 'STUDENT' 
-  | 'CERTIFICATE' 
+export type EntityType =
+  | 'USER'
+  | 'STUDENT'
+  | 'CERTIFICATE'
   | 'CERTIFICATE_TEMPLATE'
   | 'ISSUED_CERTIFICATE'
-  | 'COURSE' 
-  | 'DISCIPLINE' 
-  | 'INSTRUCTOR' 
-  | 'FILE' 
-  | 'FOLDER' 
+  | 'COURSE'
+  | 'DISCIPLINE'
+  | 'INSTRUCTOR'
+  | 'FILE'
+  | 'FOLDER'
   | 'SCHEDULE'
   | 'GROUP'
   | 'CLASSROOM'
   | 'ORGANIZATION'
   | 'REPRESENTATIVE'
+  | 'TRAINING_REQUEST' // Заявка на обучение
   | 'ATTENDANCE'
   | 'GRADE'
   | 'SYSTEM';

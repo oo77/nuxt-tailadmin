@@ -7,6 +7,8 @@ import type { Student } from './student';
 
 // ============ Учебные группы ============
 
+
+
 export interface StudyGroup {
   id: string;
   code: string;
@@ -22,6 +24,8 @@ export interface StudyGroup {
   createdAt: string;
   updatedAt: string;
 }
+
+
 
 export interface GroupStudent {
   id: string;

@@ -129,6 +129,40 @@ export enum Permission {
   TESTS_ASSIGN = 'tests:assign',
   TESTS_TAKE = 'tests:take',
   TESTS_VIEW_RESULTS = 'tests:view_results',
+
+  // ========== TRAINING REQUESTS ==========
+  REQUESTS_VIEW = 'requests:view',             // Просмотр всех заявок (admin/manager)
+  REQUESTS_VIEW_OWN = 'requests:view_own',     // Просмотр своих заявок (representative)
+  REQUESTS_CREATE = 'requests:create',         // Создание заявок
+  REQUESTS_APPROVE = 'requests:approve',       // Одобрение/бронирование заявок
+  REQUESTS_REJECT = 'requests:reject',         // Отклонение заявок
+  REQUESTS_WITHDRAW = 'requests:withdraw',     // Отзыв своих заявок
+  REQUESTS_MANAGE = 'requests:manage',         // Полное управление заявками
+
+  // ========== REPRESENTATIVE SPECIFIC ==========
+  STUDENTS_VIEW_ORG = 'students:view_org',     // Просмотр студентов своей организации
+  SCHEDULE_VIEW_ORG = 'schedule:view_org',     // Расписание студентов организации
+  CERTIFICATES_VIEW_ORG = 'certificates:view_org', // Сертификаты студентов организации
+  GROUPS_VIEW_ANNOUNCED = 'groups:view_announced', // Просмотр анонсированных групп
+  GROUPS_MANAGE_ANNOUNCEMENTS = 'groups:manage_announcements', // Управление анонсами (DEPRECATED - будет удалено)
+
+  // ========== ANNOUNCEMENTS (Новая система объявлений) ==========
+  ANNOUNCEMENTS_VIEW = 'announcements:view',           // Просмотр объявлений (admin/manager)
+  ANNOUNCEMENTS_CREATE = 'announcements:create',       // Создание объявлений
+  ANNOUNCEMENTS_EDIT = 'announcements:edit',           // Редактирование объявлений
+  ANNOUNCEMENTS_DELETE = 'announcements:delete',       // Удаление объявлений
+  ANNOUNCEMENTS_PUBLISH = 'announcements:publish',     // Публикация объявлений
+
+  // ========== ANNOUNCEMENT REQUESTS (Заявки на объявления) ==========
+  ANNOUNCEMENT_REQUESTS_VIEW_ALL = 'announcement_requests:view_all',     // Просмотр всех заявок
+  ANNOUNCEMENT_REQUESTS_REVIEW = 'announcement_requests:review',         // Рассмотрение заявок
+  ANNOUNCEMENT_REQUESTS_APPROVE = 'announcement_requests:approve',       // Одобрение заявок
+
+  // ========== REPRESENTATIVE ANNOUNCEMENTS (Для представителей) ==========
+  REPRESENTATIVE_VIEW_ANNOUNCEMENTS = 'representative:view_announcements',   // Просмотр опубликованных объявлений
+  REPRESENTATIVE_SUBMIT_REQUESTS = 'representative:submit_requests',         // Подача заявок
+  REPRESENTATIVE_VIEW_OWN_REQUESTS = 'representative:view_own_requests',     // Просмотр своих заявок
+  REPRESENTATIVE_REQUESTS_MANAGE = 'representative:requests_manage',         // Управление своими заявками (обновление сотрудников)
 }
 
 // ========================================
@@ -242,6 +276,26 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Tests (назначение и просмотр результатов)
     Permission.TESTS_ASSIGN,
     Permission.TESTS_VIEW_RESULTS,
+
+    // Training Requests (полный доступ)
+    Permission.REQUESTS_VIEW,
+    Permission.REQUESTS_APPROVE,
+    Permission.REQUESTS_REJECT,
+
+    // Announcements (полный доступ)
+    Permission.ANNOUNCEMENTS_VIEW,
+    Permission.ANNOUNCEMENTS_CREATE,
+    Permission.ANNOUNCEMENTS_EDIT,
+    Permission.ANNOUNCEMENTS_PUBLISH,
+    // НЕ может удалять объявления
+
+    // Announcement Requests (полный доступ)
+    Permission.ANNOUNCEMENT_REQUESTS_VIEW_ALL,
+    Permission.ANNOUNCEMENT_REQUESTS_REVIEW,
+    Permission.ANNOUNCEMENT_REQUESTS_APPROVE,
+
+    // Groups announcements (DEPRECATED - оставлено для совместимости)
+    Permission.GROUPS_MANAGE_ANNOUNCEMENTS,
   ],
 
   // =========================================================
@@ -316,6 +370,44 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
     // Tests (прохождение тестов)
     Permission.TESTS_TAKE,
+  ],
+
+  // =========================================================
+  // REPRESENTATIVE — Представитель организации
+  // =========================================================
+  [UserRole.REPRESENTATIVE]: [
+    // Dashboard (минимальный)
+    Permission.DASHBOARD_VIEW,
+
+    // Анонсы групп (DEPRECATED - оставлено для совместимости)
+    Permission.GROUPS_VIEW,
+    Permission.GROUPS_VIEW_ANNOUNCED,
+
+    // Announcements (новая система)
+    Permission.REPRESENTATIVE_VIEW_ANNOUNCEMENTS,   // Просмотр опубликованных объявлений
+    Permission.REPRESENTATIVE_SUBMIT_REQUESTS,      // Подача заявок
+    Permission.REPRESENTATIVE_VIEW_OWN_REQUESTS,    // Просмотр своих заявок
+    Permission.REPRESENTATIVE_REQUESTS_MANAGE,      // Управление своими заявками
+
+    // Заявки (старая система - оставлено для совместимости)
+    Permission.REQUESTS_VIEW_OWN,     // Просмотр своих заявок
+    Permission.REQUESTS_CREATE,       // Создание заявок
+    Permission.REQUESTS_WITHDRAW,     // Отзыв своих заявок
+
+    // Студенты своей организации
+    Permission.STUDENTS_VIEW_ORG,
+
+    // Расписание студентов организации
+    Permission.SCHEDULE_VIEW,
+    Permission.SCHEDULE_VIEW_ORG,
+
+    // Сертификаты студентов организации
+    Permission.CERTIFICATES_VIEW,
+    Permission.CERTIFICATES_VIEW_ORG,
+    Permission.CERTIFICATES_DOWNLOAD,
+
+    // Файлы (только просмотр)
+    Permission.FILES_VIEW,
   ],
 }
 

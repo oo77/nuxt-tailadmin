@@ -3,12 +3,12 @@
  * GET /api/groups/[id]
  */
 
-import { getGroupById } from '../../repositories/groupRepository';
+import { getGroupWithAnnouncement } from '../../repositories/groupRepository';
 
 export default defineEventHandler(async (event) => {
   try {
     const id = getRouterParam(event, 'id');
-    
+
     if (!id) {
       return {
         success: false,
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    const group = await getGroupById(id);
+    const group = await getGroupWithAnnouncement(id);
 
     if (!group) {
       return {
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     };
   } catch (error) {
     console.error('Ошибка получения группы:', error);
-    
+
     return {
       success: false,
       message: 'Ошибка при получении информации о группе',

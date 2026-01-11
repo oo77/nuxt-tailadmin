@@ -230,7 +230,18 @@
                 </div>
               </td>
               <td class="px-6 py-4">
-                <span class="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:text-gray-200">
+                <!-- Если есть maxCapacity - показываем compact индикатор -->
+                <GroupsGroupCapacityIndicator
+                  v-if="group.maxCapacity"
+                  :max-capacity="group.maxCapacity"
+                  :enrolled="group.currentEnrolled || group.studentCount || 0"
+                  :reserved="group.reservedSlots || 0"
+                  variant="compact"
+                  size="sm"
+                  :show-background="false"
+                />
+                <!-- Иначе просто число -->
+                <span v-else class="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-sm font-medium text-gray-800 dark:text-gray-200">
                   {{ group.studentCount || 0 }}
                 </span>
               </td>

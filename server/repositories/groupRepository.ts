@@ -36,6 +36,8 @@ export interface StudyGroup {
   studentCount?: number;
 }
 
+
+
 export interface Course {
   id: string;
   name: string;
@@ -139,6 +141,14 @@ interface StudyGroupRow extends RowDataPacket {
   course_certificate_template_id?: string | null;
   course_certificate_validity_months?: number | null;
   student_count?: number;
+  // Announcement fields
+  announcement_status?: 'draft' | 'announced' | 'closed';
+  max_capacity?: number | null;
+  current_reserved?: number;
+  is_visible_to_representatives?: boolean;
+  accepts_requests?: boolean;
+  request_deadline?: Date | null;
+  announcement_text?: string | null;
 }
 
 interface GroupStudentRow extends RowDataPacket {
@@ -759,3 +769,5 @@ export async function getGroupsStats(groupIds?: string[]): Promise<{
     totalStudents: studentsResult[0]?.total || 0,
   };
 }
+
+

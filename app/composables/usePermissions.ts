@@ -157,6 +157,7 @@ export function usePermissions() {
   const canEditGroups = computed(() => hasPermission(Permission.GROUPS_UPDATE))
   const canDeleteGroups = computed(() => hasPermission(Permission.GROUPS_DELETE))
   const canManageGroupStudents = computed(() => hasPermission(Permission.GROUPS_MANAGE_STUDENTS))
+  const canManageGroupAnnouncements = computed(() => hasPermission(Permission.GROUPS_MANAGE_ANNOUNCEMENTS))
 
   // === SCHEDULE ===
   const canViewSchedule = computed(() => hasAnyPermission([Permission.SCHEDULE_VIEW_ALL, Permission.SCHEDULE_VIEW_OWN]))
@@ -211,6 +212,30 @@ export function usePermissions() {
   const canAssignTests = computed(() => hasPermission(Permission.TESTS_ASSIGN))
   const canTakeTests = computed(() => hasPermission(Permission.TESTS_TAKE))
   const canViewTestResults = computed(() => hasPermission(Permission.TESTS_VIEW_RESULTS))
+
+  // === ANNOUNCEMENTS ===
+  const canViewAnnouncements = computed(() => hasPermission(Permission.ANNOUNCEMENTS_VIEW))
+  const canCreateAnnouncements = computed(() => hasPermission(Permission.ANNOUNCEMENTS_CREATE))
+  const canEditAnnouncements = computed(() => hasPermission(Permission.ANNOUNCEMENTS_EDIT))
+  const canDeleteAnnouncements = computed(() => hasPermission(Permission.ANNOUNCEMENTS_DELETE))
+  const canPublishAnnouncements = computed(() => hasPermission(Permission.ANNOUNCEMENTS_PUBLISH))
+  const canManageAnnouncements = computed(() => hasAnyPermission([
+    Permission.ANNOUNCEMENTS_CREATE,
+    Permission.ANNOUNCEMENTS_EDIT,
+    Permission.ANNOUNCEMENTS_DELETE,
+    Permission.ANNOUNCEMENTS_PUBLISH,
+  ]))
+
+  // === ANNOUNCEMENT REQUESTS ===
+  const canViewAllAnnouncementRequests = computed(() => hasPermission(Permission.ANNOUNCEMENT_REQUESTS_VIEW_ALL))
+  const canReviewAnnouncementRequests = computed(() => hasPermission(Permission.ANNOUNCEMENT_REQUESTS_REVIEW))
+  const canApproveAnnouncementRequests = computed(() => hasPermission(Permission.ANNOUNCEMENT_REQUESTS_APPROVE))
+
+  // === REPRESENTATIVE ANNOUNCEMENTS ===
+  const canViewRepresentativeAnnouncements = computed(() => hasPermission(Permission.REPRESENTATIVE_VIEW_ANNOUNCEMENTS))
+  const canSubmitRepresentativeRequests = computed(() => hasPermission(Permission.REPRESENTATIVE_SUBMIT_REQUESTS))
+  const canViewOwnRequests = computed(() => hasPermission(Permission.REPRESENTATIVE_VIEW_OWN_REQUESTS))
+  const canManageOwnRequests = computed(() => hasPermission(Permission.REPRESENTATIVE_REQUESTS_MANAGE))
 
   return {
     // Основные данные
@@ -282,6 +307,7 @@ export function usePermissions() {
     canEditGroups,
     canDeleteGroups,
     canManageGroupStudents,
+    canManageGroupAnnouncements,
 
     // Шорткаты для Schedule
     canViewSchedule,
@@ -336,6 +362,25 @@ export function usePermissions() {
     canAssignTests,
     canTakeTests,
     canViewTestResults,
+
+    // Шорткаты для Announcements
+    canViewAnnouncements,
+    canCreateAnnouncements,
+    canEditAnnouncements,
+    canDeleteAnnouncements,
+    canPublishAnnouncements,
+    canManageAnnouncements,
+
+    // Шорткаты для Announcement Requests
+    canViewAllAnnouncementRequests,
+    canReviewAnnouncementRequests,
+    canApproveAnnouncementRequests,
+
+    // Шорткаты для Representative Announcements
+    canViewRepresentativeAnnouncements,
+    canSubmitRepresentativeRequests,
+    canViewOwnRequests,
+    canManageOwnRequests,
 
     // Экспорт enum для удобства
     Permission,

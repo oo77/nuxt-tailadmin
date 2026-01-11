@@ -30,6 +30,19 @@ import * as studentNotifications from './migrations/20260108_036_student_notific
 import * as activityLogActionTypes from './migrations/20260109_037_activity_log_action_types';
 import * as attendanceMarkingSystem from './migrations/20260109_038_attendance_marking_system';
 import * as fixAttendanceTrigger from './migrations/20260109_039_fix_attendance_trigger';
+import * as backfillMarkingStatus from './migrations/20260109_040_backfill_marking_status';
+import * as groupAnnouncements from './migrations/20260111_041_group_announcements';
+import * as trainingRequests from './migrations/20260111_042_training_requests';
+import * as requestEmployees from './migrations/20260111_043_request_employees';
+import * as requestHistory from './migrations/20260111_044_request_history';
+import * as addRepresentativeRole from './migrations/20260111_045_add_representative_role';
+import * as announcements from './migrations/20260111_050_announcements';
+import * as announcementGroups from './migrations/20260111_051_announcement_groups';
+import * as announcementRequests from './migrations/20260111_052_announcement_requests';
+import * as announcementRequestGroups from './migrations/20260111_053_announcement_request_groups';
+import * as announcementRequestEmployees from './migrations/20260111_054_announcement_request_employees';
+import * as announcementHistory from './migrations/20260111_055_announcement_history';
+import * as removeGroupAnnouncementFields from './migrations/20260111_056_remove_group_announcement_fields';
 
 /**
  * ============================================================================
@@ -254,6 +267,124 @@ const MIGRATIONS_REGISTRY: Migration[] = [
     up: fixAttendanceTrigger.up,
     down: fixAttendanceTrigger.down,
     description: fixAttendanceTrigger.description,
+  },
+  // ============================================================
+  // Миграция 040: Заполнение пропущенных статусов отметки посещаемости
+  // ============================================================
+  {
+    name: '20260109_040_backfill_marking_status',
+    up: backfillMarkingStatus.up,
+    down: backfillMarkingStatus.down,
+    description: backfillMarkingStatus.description,
+  },
+  // ============================================================
+  // Миграция 041: Расширение study_groups для анонсов
+  // ============================================================
+  {
+    name: '20260111_041_group_announcements',
+    up: groupAnnouncements.up,
+    down: groupAnnouncements.down,
+    description: groupAnnouncements.description,
+  },
+  // ============================================================
+  // Миграция 042: Таблица заявок на обучение
+  // ============================================================
+  {
+    name: '20260111_042_training_requests',
+    up: trainingRequests.up,
+    down: trainingRequests.down,
+    description: trainingRequests.description,
+  },
+  // ============================================================
+  // Миграция 043: Таблица сотрудников в заявках
+  // ============================================================
+  {
+    name: '20260111_043_request_employees',
+    up: requestEmployees.up,
+    down: requestEmployees.down,
+    description: requestEmployees.description,
+  },
+  // ============================================================
+  // Миграция 044: История изменений заявок
+  // ============================================================
+  {
+    name: '20260111_044_request_history',
+    up: requestHistory.up,
+    down: requestHistory.down,
+    description: requestHistory.description,
+  },
+  // ============================================================
+  // Миграция 045: Добавление роли REPRESENTATIVE
+  // ============================================================
+  {
+    name: '20260111_045_add_representative_role',
+    up: addRepresentativeRole.up,
+    down: addRepresentativeRole.down,
+    description: addRepresentativeRole.description,
+  },
+  // ============================================================
+  // Миграция 050: Таблица объявлений
+  // ============================================================
+  {
+    name: '20260111_050_announcements',
+    up: announcements.up,
+    down: announcements.down,
+    description: announcements.description,
+  },
+  // ============================================================
+  // Миграция 051: Связь объявлений и групп
+  // ============================================================
+  {
+    name: '20260111_051_announcement_groups',
+    up: announcementGroups.up,
+    down: announcementGroups.down,
+    description: announcementGroups.description,
+  },
+  // ============================================================
+  // Миграция 052: Заявки на объявления
+  // ============================================================
+  {
+    name: '20260111_052_announcement_requests',
+    up: announcementRequests.up,
+    down: announcementRequests.down,
+    description: announcementRequests.description,
+  },
+  // ============================================================
+  // Миграция 053: Группы в заявках
+  // ============================================================
+  {
+    name: '20260111_053_announcement_request_groups',
+    up: announcementRequestGroups.up,
+    down: announcementRequestGroups.down,
+    description: announcementRequestGroups.description,
+  },
+  // ============================================================
+  // Миграция 054: Сотрудники в заявках
+  // ============================================================
+  {
+    name: '20260111_054_announcement_request_employees',
+    up: announcementRequestEmployees.up,
+    down: announcementRequestEmployees.down,
+    description: announcementRequestEmployees.description,
+  },
+  // ============================================================
+  // Миграция 055: История изменений объявлений
+  // ============================================================
+  {
+    name: '20260111_055_announcement_history',
+    up: announcementHistory.up,
+    down: announcementHistory.down,
+    description: announcementHistory.description,
+  },
+  // ============================================================
+  // Миграция 056: Удаление старых полей анонсов из study_groups
+  // ⚠️ ПРИМЕНЯТЬ ПОСЛЕДНЕЙ, после полного внедрения новой системы!
+  // ============================================================
+  {
+    name: '20260111_056_remove_group_announcement_fields',
+    up: removeGroupAnnouncementFields.up,
+    down: removeGroupAnnouncementFields.down,
+    description: removeGroupAnnouncementFields.description,
   },
   // ============================================================
   // Новые миграции добавлять ниже

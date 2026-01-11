@@ -413,6 +413,12 @@ const allMenuGroups: MenuGroup[] = [
     title: "Администрирование",
     items: [
       {
+        icon: DocsIcon,
+        name: "Объявления",
+        path: "/announcements",
+        anyPermissions: [Permission.ANNOUNCEMENTS_VIEW, Permission.ANNOUNCEMENTS_CREATE],
+      },
+      {
         icon: UserGroupIcon,
         name: "Пользователи",
         permission: Permission.USERS_VIEW,

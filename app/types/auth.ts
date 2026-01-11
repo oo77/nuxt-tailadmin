@@ -9,6 +9,7 @@ export enum UserRole {
   MANAGER = 'MANAGER',
   TEACHER = 'TEACHER',
   STUDENT = 'STUDENT',
+  REPRESENTATIVE = 'REPRESENTATIVE',
 }
 
 // Публичные данные пользователя (без пароля)

@@ -112,6 +112,35 @@ export enum Permission {
 
   // ========== ACTIVITY LOGS ==========
   LOGS_VIEW = 'logs:view',
+
+  // ========== TEST BANKS ==========
+  TEST_BANKS_VIEW = 'test_banks:view',
+  TEST_BANKS_MANAGE = 'test_banks:manage',
+
+  // ========== TEST TEMPLATES ==========
+  TEST_TEMPLATES_VIEW = 'test_templates:view',
+  TEST_TEMPLATES_MANAGE = 'test_templates:manage',
+
+  // ========== TESTS ==========
+  TESTS_ASSIGN = 'tests:assign',
+  TESTS_TAKE = 'tests:take',
+  TESTS_VIEW_RESULTS = 'tests:view_results',
+
+  // ========== TRAINING REQUESTS ==========
+  REQUESTS_VIEW = 'requests:view',             // Просмотр всех заявок (admin/manager)
+  REQUESTS_VIEW_OWN = 'requests:view_own',     // Просмотр своих заявок (representative)
+  REQUESTS_CREATE = 'requests:create',         // Создание заявок
+  REQUESTS_APPROVE = 'requests:approve',       // Одобрение/бронирование заявок
+  REQUESTS_REJECT = 'requests:reject',         // Отклонение заявок
+  REQUESTS_WITHDRAW = 'requests:withdraw',     // Отзыв своих заявок
+  REQUESTS_MANAGE = 'requests:manage',         // Полное управление заявками
+
+  // ========== REPRESENTATIVE SPECIFIC ==========
+  STUDENTS_VIEW_ORG = 'students:view_org',     // Просмотр студентов своей организации
+  SCHEDULE_VIEW_ORG = 'schedule:view_org',     // Расписание студентов организации
+  CERTIFICATES_VIEW_ORG = 'certificates:view_org', // Сертификаты студентов организации
+  GROUPS_VIEW_ANNOUNCED = 'groups:view_announced', // Просмотр анонсированных групп
+  GROUPS_MANAGE_ANNOUNCEMENTS = 'groups:manage_announcements', // Управление анонсами
 }
 
 // ========================================
@@ -165,6 +194,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.FILES_UPLOAD,
     Permission.SETTINGS_VIEW,
     Permission.LOGS_VIEW,
+    // Training Requests (полный доступ)
+    Permission.REQUESTS_VIEW,
+    Permission.REQUESTS_APPROVE,
+    Permission.REQUESTS_REJECT,
+    // Groups announcements
+    Permission.GROUPS_MANAGE_ANNOUNCEMENTS,
   ],
 
   [UserRole.TEACHER]: [
@@ -194,6 +229,36 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CERTIFICATES_VIEW,
     Permission.CERTIFICATES_VIEW_OWN,
     Permission.CERTIFICATES_DOWNLOAD,
+  ],
+
+  [UserRole.REPRESENTATIVE]: [
+    // Dashboard (минимальный)
+    Permission.DASHBOARD_VIEW,
+
+    // Анонсы групп
+    Permission.GROUPS_VIEW,
+    Permission.GROUPS_VIEW_ANNOUNCED,
+
+    // Заявки
+    Permission.REQUESTS_VIEW_OWN,     // Просмотр своих заявок
+    Permission.REQUESTS_CREATE,       // Создание заявок
+    Permission.REQUESTS_WITHDRAW,     // Отзыв своих заявок
+
+    // Студенты своей организации
+    Permission.STUDENTS_VIEW_ORG,
+
+    // Расписание студентов организации
+    Permission.SCHEDULE_VIEW,
+    Permission.SCHEDULE_VIEW_ORG,
+
+    // Сертификаты студентов организации
+    Permission.CERTIFICATES_VIEW,
+    Permission.CERTIFICATES_VIEW_ORG,
+    Permission.CERTIFICATES_DOWNLOAD,
+
+    // Файлы (только просмотр и загрузка)
+    Permission.FILES_VIEW,
+    Permission.FILES_UPLOAD,
   ],
 }
 

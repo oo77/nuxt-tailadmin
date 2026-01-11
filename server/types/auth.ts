@@ -8,6 +8,7 @@ export enum UserRole {
   MANAGER = 'MANAGER',
   TEACHER = 'TEACHER',
   STUDENT = 'STUDENT',
+  REPRESENTATIVE = 'REPRESENTATIVE',
 }
 
 // Интерфейс пользователя в БД
